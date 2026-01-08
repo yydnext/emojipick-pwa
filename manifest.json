@@ -4,7 +4,7 @@
   "description": "Pick emojis, get lucky numbers, and challenge a friend — for entertainment only.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0b0f19",
+  "background_color": "#121d33",
   "theme_color": "#7c3aed",
   "icons": [
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
