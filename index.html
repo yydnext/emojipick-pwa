@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EmojiPick — Lucky Numbers</title>
+  <meta name="description" content="Pick emojis, get lucky numbers, and challenge a friend — for entertainment only." />
+
+  <!-- Open Graph (share preview) -->
+  <meta property="og:title" content="EmojiPick — Lucky Numbers" />
+  <meta property="og:description" content="Pick emojis, get lucky numbers, and challenge a friend — for entertainment only." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="og.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="EmojiPick — Lucky Numbers" />
+  <meta name="twitter:description" content="Pick emojis, get lucky numbers, and challenge a friend — for entertainment only." />
+  <meta name="twitter:image" content="og.png" />
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <meta name="theme-color" content="#0b1020" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">✨</div>
+        <div>
+          <div class="brandName">EmojiPick</div>
+          <div class="brandTag">Pick emojis → Get lucky numbers → Share & challenge</div>
+        </div>
+      </div>
+      <button id="btnInfo" class="ghost" type="button">Info</button>
+    </header>
+
+    <main class="content">
+      <section class="card">
+        <div class="tabs" role="tablist" aria-label="Game selection">
+          <button class="tab" role="tab" id="tab-pb" data-game="pb" aria-selected="true">Powerball</button>
+          <button class="tab" role="tab" id="tab-mm" data-game="mm" aria-selected="false">Mega Millions</button>
+          <button class="tab" role="tab" id="tab-tx" data-game="tx" aria-selected="false">TX Instant (Demo)</button>
+        </div>
+
+        <div class="row between" style="margin-top: 10px;">
+          <div>
+            <div id="gameTitle" class="h2">Powerball</div>
+            <div id="gameRule" class="muted">Pick 5 numbers + 1 Powerball</div>
+          </div>
+          <div class="pill" id="todayPill"></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="modeBanner" class="banner" hidden>
+          <div class="bannerTitle">Friend challenge</div>
+          <div id="modeText" class="bannerText"></div>
+        </div>
+
+        <section id="panelPick" class="panel">
+          <div class="row between">
+            <div>
+              <div class="h3">Pick your emojis</div>
+              <div id="pickHint" class="muted">Choose 6 emojis for this game.</div>
+            </div>
+            <div class="counter"><span id="pickedCount">0</span>/<span id="needCount">6</span></div>
+          </div>
+
+          <div class="filters">
+            <button class="chip" data-filter="all" aria-pressed="true">All</button>
+            <button class="chip" data-filter="lucky" aria-pressed="false">Lucky</button>
+            <button class="chip" data-filter="money" aria-pressed="false">Money</button>
+            <button class="chip" data-filter="animals" aria-pressed="false">Animals</button>
+            <button class="chip" data-filter="nature" aria-pressed="false">Nature</button>
+            <button class="chip" data-filter="fun" aria-pressed="false">Fun</button>
+          </div>
+
+          <div id="emojiGrid" class="emojiGrid" aria-label="Emoji grid"></div>
+
+          <div class="row gap" style="margin-top: 14px;">
+            <button id="btnReset" class="secondary" type="button">Reset</button>
+            <button id="btnGenerate" class="primary" type="button" disabled>Generate my numbers</button>
+          </div>
+
+          <div class="micro" style="margin-top: 10px;">
+            For entertainment only. This page does not sell lottery tickets.
+          </div>
+        </section>
+
+        <section id="panelResult" class="panel" hidden>
+          <div class="row between">
+            <div>
+              <div class="h3">Your result</div>
+              <div id="resultSubtitle" class="muted">Based on your emojis + today’s seed.</div>
+            </div>
+            <button id="btnBack" class="ghost" type="button">Back</button>
+          </div>
+
+          <div class="resultCard" id="resultCard">
+            <div class="row between" style="align-items:flex-start;">
+              <div>
+                <div class="h2" id="resultGame">Powerball</div>
+                <div class="muted" id="resultDate">—</div>
+              </div>
+              <div class="badge" id="resultBadge">Today</div>
+            </div>
+
+            <div class="emojiLine" id="resultEmojis"></div>
+            <div class="numbers" id="resultNumbers"></div>
+            <div class="fortune" id="resultFortune"></div>
+          </div>
+
+          <div id="comparePanel" class="compare" hidden>
+            <div class="compareTitle">Challenge result</div>
+            <div id="compareText" class="compareText"></div>
+          </div>
+
+          <div class="row gap" style="margin-top: 14px;">
+            <button id="btnShare" class="primary" type="button">Share</button>
+            <button id="btnCopy" class="secondary" type="button">Copy link</button>
+          </div>
+
+          <div class="row gap" style="margin-top: 10px;">
+            <button id="btnChallenge" class="secondary" type="button">Challenge a friend</button>
+            <a id="btnPartner" class="partner" href="#" rel="noopener" target="_blank">Play on partner app</a>
+          </div>
+
+          <div class="micro" style="margin-top: 10px;">
+            Tip: The “partner app” button can be wired to YD deep links later.
+          </div>
+        </section>
+      </section>
+
+      <section class="footerCard">
+        <div class="footerTitle">How it works</div>
+        <ol class="steps">
+          <li>Choose a draw (Powerball / Mega Millions / TX Instant Demo)</li>
+          <li>Pick a set of emojis (today’s seed makes it feel fresh)</li>
+          <li>Share your card or challenge a friend</li>
+        </ol>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="muted">© <span id="year"></span> EmojiPick. Entertainment only.</div>
+      <div class="footerLinks">
+        <button id="btnPrivacy" class="linkBtn" type="button">Privacy</button>
+        <button id="btnTerms" class="linkBtn" type="button">Terms</button>
+      </div>
+    </footer>
+  </div>
+
+  <div id="modal" class="modal" hidden>
+    <div class="overlay" data-close="1"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="sheetHeader">
+        <div>
+          <div id="modalTitle" class="h2">About EmojiPick</div>
+          <div class="muted">A tiny shareable game — not a lottery seller.</div>
+        </div>
+        <button class="ghost" type="button" data-close="1">Close</button>
+      </div>
+
+      <div class="sheetBody" id="modalBody"></div>
+
+      <div class="sheetFooter">
+        <button class="primary" type="button" data-close="1">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js" defer></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
