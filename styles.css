@@ -1,17 +1,14 @@
 :root{
-  /* Brighter (still "night") palette for better readability on phones */
-  --bg:#121d33;
-  --card:#14213d;
-  --card2:#111c34;
-  --text:#f2f5ff;
-  --muted:#b6bfd0;
-  --line:rgba(255,255,255,.12);
-  --primary:#7c3aed;
-  --primary2:#a78bfa;
-  --good:#22c55e;
-  --bad:#ef4444;
-  --chip:#1a2a4b;
-  --shadow: 0 12px 40px rgba(0,0,0,.35);
+  --bg:#f6f8ff;
+  --card:#ffffff;
+  --card2:#f1f5ff;
+  --text:#0f172a;
+  --muted:#475569;
+  --line:rgba(15,23,42,.12);
+  --accent:#3b82f6;
+  --accent2:#8b5cf6;
+  --chip:#e2e8f0;
+  --shadow:0 10px 30px rgba(15,23,42,.10);
 }
 
 *{box-sizing:border-box}
@@ -20,7 +17,7 @@ body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   background:
-    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0) 42%),
+    linear-gradient(180deg, rgba(15,23,42,.06), rgba(255,255,255,0) 42%),
     radial-gradient(1100px 600px at 20% 10%, rgba(124,58,237,.28), transparent 62%),
     radial-gradient(900px 500px at 90% 15%, rgba(34,197,94,.18), transparent 52%),
     var(--bg);
@@ -35,14 +32,14 @@ body{
   padding:10px 10px;
 }
 .brand{display:flex;align-items:flex-start;gap:10px}
-.logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.06);box-shadow:var(--shadow)}
+.logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(15,23,42,.06);box-shadow:var(--shadow)}
 .brandName{font-weight:800;letter-spacing:.2px;font-size:18px}
 .brandTag{color:var(--muted);font-size:12px;margin-top:2px}
 
 .content{display:flex;flex-direction:column;gap:16px}
 
 .card{
-  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+  background: linear-gradient(180deg, rgba(15,23,42,.05), rgba(15,23,42,.03));
   border:1px solid var(--line);
   border-radius:18px;
   padding:14px;
@@ -50,7 +47,7 @@ body{
 }
 
 .footerCard{
-  background:rgba(255,255,255,.03);
+  background:rgba(15,23,42,.03);
   border:1px solid var(--line);
   border-radius:18px;
   padding:14px;
@@ -71,7 +68,7 @@ body{
 .tabs{display:flex;gap:8px;flex-wrap:wrap}
 .tab{
   border:1px solid var(--line);
-  background:rgba(255,255,255,.03);
+  background:rgba(15,23,42,.03);
   color:var(--text);
   padding:10px 12px;
   border-radius:999px;
@@ -86,7 +83,7 @@ body{
 
 .pill{
   padding:7px 10px;
-  background:rgba(255,255,255,.04);
+  background:rgba(15,23,42,.04);
   border:1px solid var(--line);
   border-radius:999px;
   font-size:12px;
@@ -106,7 +103,7 @@ body{
 .panel{padding-top:4px}
 
 .counter{
-  background:rgba(255,255,255,.04);
+  background:rgba(15,23,42,.04);
   border:1px solid var(--line);
   border-radius:999px;
   padding:8px 10px;
@@ -143,7 +140,7 @@ body{
 
 .emojiBtn{
   border:1px solid var(--line);
-  background:rgba(255,255,255,.03);
+  background:rgba(15,23,42,.03);
   border-radius:14px;
   padding:10px 6px;
   cursor:pointer;
@@ -181,7 +178,7 @@ body{
 .primary:disabled{opacity:.5;cursor:not-allowed}
 
 .secondary{
-  background:rgba(255,255,255,.04);
+  background:rgba(15,23,42,.04);
   color:var(--text);
   border-color:var(--line);
 }
@@ -200,7 +197,7 @@ body{
 
 .resultCard{
   margin-top:12px;
-  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  background: linear-gradient(180deg, rgba(15,23,42,.04), rgba(15,23,42,.02));
   border:1px solid var(--line);
   border-radius:18px;
   padding:14px;
@@ -209,7 +206,7 @@ body{
 .badge{
   border-radius:999px;
   padding:6px 10px;
-  background:rgba(255,255,255,.05);
+  background:rgba(15,23,42,.05);
   border:1px solid var(--line);
   font-size:12px;
   color:var(--muted);
@@ -218,7 +215,7 @@ body{
 .emojiLine{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .emojiChip{
   border:1px solid var(--line);
-  background:rgba(255,255,255,.03);
+  background:rgba(15,23,42,.03);
   border-radius:999px;
   padding:8px 10px;
   font-size:18px;
@@ -230,7 +227,7 @@ body{
   display:grid;place-items:center;
   font-weight:900;
   border:1px solid var(--line);
-  background:rgba(255,255,255,.04);
+  background:rgba(15,23,42,.04);
 }
 .num.bonus{
   background:rgba(239,68,68,.15);
@@ -280,7 +277,7 @@ body{
 .sheet{
   position:relative;
   width:min(920px, 100%);
-  background:rgba(16,24,40,.98);
+  background:var(--card);
   border:1px solid var(--line);
   border-radius:20px 20px 0 0;
   box-shadow: var(--shadow);
@@ -292,3 +289,9 @@ body{
 
 /* small utility */
 .hidden{display:none !important}
+
+
+/* Light theme overrides */
+.modalCard,.modalContent,.sheet,.dialog{
+  color: var(--text);
+}
