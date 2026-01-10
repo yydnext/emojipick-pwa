@@ -2,185 +2,1139 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EmojiPick — Lucky Numbers</title>
-  <meta name="description" content="Pick emojis, get lucky numbers, and challenge a friend — for entertainment only." />
-
-  <!-- Open Graph (share preview) -->
-  <meta property="og:title" content="EmojiPick — Lucky Numbers" />
-  <meta property="og:description" content="Pick emojis, get lucky numbers, and challenge a friend — for entertainment only." />
-  <meta property="og:type" content="website" />
-  <meta property="og:image" content="og.png" />
-
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="EmojiPick — Lucky Numbers" />
-  <meta name="twitter:description" content="Pick emojis, get lucky numbers, and challenge a friend — for entertainment only." />
-  <meta name="twitter:image" content="og.png" />
-
-  <link rel="manifest" href="manifest.json" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1226" />
+  <title>YD Quick Entry Card</title>
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon-192.png" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
-  <!-- Slightly brighter background so address bar/OS chrome doesn't look "black" -->
-  <meta name="theme-color" content="#f6f8ff" />
+  <style>
+    :root{
+      --bg:#070b16;
+      --panel:#0b1226;
+      --panel2:#0c1732;
+      --stroke:rgba(255,255,255,.10);
+      --stroke2:rgba(255,255,255,.16);
+      --text:rgba(255,255,255,.92);
+      --muted:rgba(255,255,255,.62);
+      --muted2:rgba(255,255,255,.45);
+      --brand:#2f6bff;
+      --brand2:#1f4fe0;
+      --good:#37d67a;
+      --warn:#ffcc66;
+      --shadow: 0 18px 60px rgba(0,0,0,.55);
+      --radius: 18px;
+      --radius2: 26px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background:
+        radial-gradient(1200px 700px at 25% 15%, rgba(47,107,255,.20), transparent 60%),
+        radial-gradient(900px 600px at 70% 25%, rgba(55,214,122,.10), transparent 55%),
+        radial-gradient(1000px 700px at 60% 85%, rgba(255,204,102,.08), transparent 60%),
+        linear-gradient(180deg, #050815 0%, #070b16 60%, #050815 100%);
+      color:var(--text);
+    }
+    body.modalOpen{overflow:hidden;}
+    .wrap{max-width:1150px; margin:0 auto; padding:20px 16px 40px;}
+    .topbar{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:8px 6px 18px;}
+    .brand{display:flex; align-items:center; gap:12px;}
+    .logo{
+      width:40px;height:40px;border-radius:14px;
+      background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
+      border:1px solid var(--stroke);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      display:grid; place-items:center;
+    }
+    .logo span{
+      width:28px;height:28px;border-radius:11px;
+      background:linear-gradient(180deg,#0f1b3a,#0b1226);
+      border:1px solid rgba(255,255,255,.10);
+      display:grid; place-items:center;
+      font-weight:800; letter-spacing:.5px;
+    }
+    .title h1{margin:0; font-size:18px; letter-spacing:.2px;}
+    .title p{margin:2px 0 0; font-size:12px; color:var(--muted);}
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 12px; border-radius:999px;
+      border:1px solid var(--stroke);
+      background:rgba(255,255,255,.04);
+      color:var(--muted);
+      font-size:12px;
+    }
+    .pill strong{color:var(--text); font-weight:700;}
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1.1fr;
+      gap:16px;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns: 1fr;}
+    }
 
-  <link rel="stylesheet" href="styles.css" />
+    .panel{
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid var(--stroke);
+      border-radius:var(--radius2);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .panel .inner{padding:18px;}
+    .tabs{display:flex; gap:10px; margin-bottom:12px;}
+    .tab{
+      border:1px solid var(--stroke);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      padding:8px 12px;
+      border-radius:999px;
+      cursor:pointer;
+      font-size:12px;
+      user-select:none;
+    }
+    .tab.active{
+      background:rgba(47,107,255,.16);
+      border-color:rgba(47,107,255,.45);
+      color:var(--text);
+    }
+    .field{margin:10px 0 0;}
+    label{display:block; font-size:12px; color:var(--muted); margin:0 0 6px;}
+    input, select, textarea{
+      width:100%;
+      box-sizing:border-box;
+      border-radius:14px;
+      border:1px solid var(--stroke);
+      background:rgba(0,0,0,.20);
+      color:var(--text);
+      padding:12px 12px;
+      outline:none;
+      font-size:14px;
+    }
+    textarea{min-height:84px; resize:vertical;}
+    .row{display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
+    @media (max-width: 520px){
+      .row{grid-template-columns: 1fr;}
+    }
+    .btnrow{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+    .btn{
+      border:1px solid var(--stroke);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:14px;
+      cursor:pointer;
+      font-weight:650;
+      font-size:14px;
+    }
+    .btn.primary{
+      background:linear-gradient(180deg, var(--brand), var(--brand2));
+      border-color:rgba(47,107,255,.55);
+      box-shadow: 0 14px 40px rgba(47,107,255,.20);
+    }
+    .btn.ghost{background:rgba(255,255,255,.03);}
+    .mutetext{margin-top:10px; font-size:12px; color:var(--muted2); line-height:1.45;}
+    code.small{font-family:var(--mono); font-size:11px; color:rgba(255,255,255,.70);}
+    .linkbox{
+      margin-top:12px;
+      padding:12px;
+      border-radius:16px;
+      border:1px dashed rgba(255,255,255,.18);
+      background:rgba(0,0,0,.18);
+      font-family:var(--mono);
+      font-size:12px;
+      color:rgba(255,255,255,.78);
+      word-break:break-all;
+    }
+
+    /* Viewer card */
+    .cardwrap{padding:18px;}
+    .card{
+      position:relative;
+      border-radius:26px;
+      background:
+        radial-gradient(700px 360px at 25% 10%, rgba(47,107,255,.18), transparent 60%),
+        radial-gradient(600px 300px at 80% 15%, rgba(55,214,122,.10), transparent 55%),
+        radial-gradient(600px 360px at 70% 90%, rgba(255,204,102,.08), transparent 55%),
+        linear-gradient(180deg, #0a1430 0%, #09122a 60%, #071023 100%);
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow: 0 24px 80px rgba(0,0,0,.55);
+      overflow:hidden;
+    }
+    .cardhead{
+      padding:18px 18px 8px;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:10px;
+    }
+    .cardhead h2{margin:0; font-size:22px; letter-spacing:.2px;}
+    .cardhead p{margin:4px 0 0; color:var(--muted); font-size:13px;}
+    .chiprow{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+    .chip{
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.04);
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:12px;
+      color:rgba(255,255,255,.82);
+      cursor:pointer;
+      user-select:none;
+    }
+    .chip.active{
+      border-color:rgba(47,107,255,.55);
+      background:rgba(47,107,255,.16);
+      color:rgba(255,255,255,.92);
+    }
+    .tag{
+      padding:8px 12px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.18);
+      font-size:12px;
+      color:rgba(255,255,255,.78);
+      white-space:nowrap;
+    }
+    .banner{
+      margin:0 18px 14px;
+      border-radius:999px;
+      padding:10px 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.18);
+      font-size:12px;
+      color:rgba(255,255,255,.82);
+    }
+    .divider{height:1px; background:rgba(255,255,255,.10); margin:0 18px;}
+    .section{padding:14px 18px;}
+    .krow{display:flex; justify-content:space-between; gap:10px; align-items:center;}
+    .krow .k{font-size:12px; color:var(--muted);}
+    .krow .v{font-size:14px; color:var(--text); font-weight:700;}
+    .jackpot{font-size:26px; font-weight:850; margin:10px 0 4px;}
+    .sub{color:var(--muted); font-size:12px; margin:0;}
+    .cards3{display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:14px;}
+    @media (max-width: 520px){
+      .cards3{grid-template-columns: 1fr;}
+    }
+    .mini{
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.16);
+      padding:12px;
+    }
+    .mini h4{margin:0 0 6px; font-size:14px;}
+    .mini p{margin:0; font-size:12px; color:var(--muted); line-height:1.35;}
+    .ctaRow{
+      display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;
+      padding:0 18px 16px;
+    }
+    @media (max-width: 720px){
+      .ctaRow{grid-template-columns: 1fr;}
+    }
+    .cta{
+      border-radius:16px;
+      padding:12px 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      cursor:pointer;
+      font-size:14px;
+      font-weight:750;
+      text-align:center;
+    }
+    .cta.primary{
+      background:linear-gradient(180deg, var(--brand), var(--brand2));
+      border-color:rgba(47,107,255,.55);
+    }
+    .bottomRow{
+      display:flex; gap:10px; justify-content:flex-start; padding:0 18px 18px;
+    }
+    .bottomRow .btnSmall{
+      border-radius:14px;
+      padding:10px 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.18);
+      cursor:pointer;
+      color:rgba(255,255,255,.90);
+      font-weight:700;
+    }
+    .footnote{
+      padding:0 18px 18px;
+      font-size:11px;
+      color:rgba(255,255,255,.45);
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    /* Modal */
+    .modalBack{
+      position:fixed; inset:0;
+      /* Stronger dim + blur so the modal content is readable */
+      /*
+        Make the backdrop *clearly* separate from the underlying card.
+        (Avoid the visual "overlap" effect.)
+      */
+      background:
+        radial-gradient(900px 600px at 30% 20%, rgba(255, 204, 102, .18), rgba(0,0,0,0) 60%),
+        radial-gradient(900px 600px at 70% 75%, rgba(47, 107, 255, .14), rgba(0,0,0,0) 62%),
+        rgba(6, 10, 20, .90);
+      backdrop-filter: blur(10px) saturate(120%);
+      display:none;
+      align-items:center; justify-content:center;
+      padding:18px;
+      z-index:9999;
+    }
+    .modal{
+      width:min(520px, 100%);
+      border-radius:22px;
+      border:1px solid rgba(255,255,255,.14);
+      /* Solid panel so text does not visually merge with the dimmed card */
+      background:#0a1226;
+      box-shadow: 0 30px 90px rgba(0,0,0,.70);
+      overflow:hidden;
+    }
+    .modal .mhead{
+      padding:14px 16px;
+      display:flex; justify-content:space-between; align-items:center;
+      border-bottom:1px solid rgba(255,255,255,.10);
+    }
+    .modal .mhead strong{font-size:14px;}
+    .modal .mhead button{
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(0,0,0,.18);
+      color:rgba(255,255,255,.86);
+      border-radius:12px;
+      padding:8px 10px;
+      cursor:pointer;
+      font-weight:800;
+    }
+    .modal .mbody{padding:14px 16px;}
+    .modal .mbody p{margin:0 0 10px; color:var(--muted); font-size:13px; line-height:1.45;}
+    .modal .mbody .mBtns{display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:12px;}
+    @media (max-width: 420px){
+      .modal .mbody .mBtns{grid-template-columns: 1fr;}
+    }
+    .modal .mbody .mBtns button{
+      border-radius:16px;
+      padding:12px 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      cursor:pointer;
+      font-size:14px;
+      font-weight:800;
+    }
+    .modal .mbody .mBtns button.primary{
+      background:linear-gradient(180deg, var(--brand), var(--brand2));
+      border-color:rgba(47,107,255,.55);
+    }
+
+    /* Share-only mode */
+    .shareOnly{max-width:860px; margin:0 auto;}
+    .hide{display:none !important;}
+  </style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
+  <div class="wrap">
+    <div class="topbar">
       <div class="brand">
-        <div class="logo" aria-hidden="true">✨</div>
-        <div>
-          <div class="brandName">EmojiPick</div>
-          <div class="brandTag">Pick emojis → Get lucky numbers → Share & challenge</div>
+        <div class="logo"><span>YD</span></div>
+        <div class="title">
+          <h1>YD Quick Entry Card</h1>
+          <p>Shareable mini card to jump into ads / surveys / play.</p>
         </div>
       </div>
-      <button id="btnInfo" class="ghost" type="button">Info</button>
-    </header>
+      <div class="pill" id="modePill"><strong>Builder</strong> • generates a share link</div>
+    </div>
 
-    <main class="content">
-      <section class="card">
-        <div class="tabs" role="tablist" aria-label="Game selection">
-          <button class="tab" role="tab" id="tab-pb" data-game="pb" aria-selected="true">Powerball</button>
-          <button class="tab" role="tab" id="tab-mm" data-game="mm" aria-selected="false">Mega Millions</button>
-          <button class="tab" role="tab" id="tab-tx" data-game="tx" aria-selected="false">TX Instant (Demo)</button>
-        </div>
-
-        <div class="row between" style="margin-top: 10px;">
-          <div>
-            <div id="gameTitle" class="h2">Powerball</div>
-            <div id="gameRule" class="muted">Pick 5 numbers + 1 Powerball</div>
+    <div class="grid" id="builderGrid">
+      <!-- Builder -->
+      <div class="panel">
+        <div class="inner">
+          <div class="tabs" id="builderTabs">
+            <div class="tab active" data-btab="core">Core</div>
+            <div class="tab" data-btab="games">Games</div>
+            <div class="tab" data-btab="links">Links</div>
           </div>
-          <div class="pill" id="todayPill"></div>
-        </div>
 
-        <div class="divider"></div>
-
-        <div id="modeBanner" class="banner" hidden>
-          <div class="bannerTitle">Friend challenge</div>
-          <div id="modeText" class="bannerText"></div>
-        </div>
-
-        <section id="panelPick" class="panel">
-          <div class="row between">
-            <div>
-              <div class="h3">Pick your emojis</div>
-              <div id="pickHint" class="muted">Choose 6 emojis for this game.</div>
+          <!-- Core tab -->
+          <div id="btab-core">
+            <div class="field">
+              <label>Theme</label>
+              <select id="theme">
+                <option value="balanced">Balanced</option>
+                <option value="clean">Clean</option>
+                <option value="bold">Bold</option>
+              </select>
             </div>
-            <div class="counter"><span id="pickedCount">0</span>/<span id="needCount">6</span></div>
-          </div>
 
-          <div class="filters">
-            <button class="chip" data-filter="all" aria-pressed="true">All</button>
-            <button class="chip" data-filter="lucky" aria-pressed="false">Lucky</button>
-            <button class="chip" data-filter="money" aria-pressed="false">Money</button>
-            <button class="chip" data-filter="animals" aria-pressed="false">Animals</button>
-            <button class="chip" data-filter="nature" aria-pressed="false">Nature</button>
-            <button class="chip" data-filter="fun" aria-pressed="false">Fun</button>
-          </div>
-
-          <div id="emojiGrid" class="emojiGrid" aria-label="Emoji grid"></div>
-
-          <div class="row gap" style="margin-top: 14px;">
-            <button id="btnReset" class="secondary" type="button">Reset</button>
-            <button id="btnGenerate" class="primary" type="button" disabled>Generate my numbers</button>
-          </div>
-
-          <div class="micro" style="margin-top: 10px;">
-            For entertainment only. This page does not sell lottery tickets.
-          </div>
-        </section>
-
-        <section id="panelResult" class="panel" hidden>
-          <div class="row between">
-            <div>
-              <div class="h3">Your result</div>
-              <div id="resultSubtitle" class="muted">Based on your emojis + today’s seed.</div>
-            </div>
-            <button id="btnBack" class="ghost" type="button">Back</button>
-          </div>
-
-          <div class="resultCard" id="resultCard">
-            <div class="row between" style="align-items:flex-start;">
-              <div>
-                <div class="h2" id="resultGame">Powerball</div>
-                <div class="muted" id="resultDate">—</div>
+            <div class="row">
+              <div class="field">
+                <label>Proof line (optional)</label>
+                <input id="proof" placeholder="10K+ downloads • 4.1★ • iOS & Android • 200K+ active users..." />
               </div>
-              <div class="badge" id="resultBadge">Today</div>
+              <div class="field">
+                <label>Default game behavior</label>
+                <select id="defaultGameMode">
+                  <option value="biggest">Auto: biggest jackpot</option>
+                  <option value="powerball">Force: Powerball</option>
+                  <option value="mega">Force: Mega Millions</option>
+                  <option value="instant">Force: Instant Draw</option>
+                </select>
+              </div>
             </div>
 
-            <div class="emojiLine" id="resultEmojis"></div>
-            <div class="numbers" id="resultNumbers"></div>
-            <div class="fortune" id="resultFortune"></div>
+            <div class="field">
+              <label>Header note (optional)</label>
+              <input id="headerNote" placeholder="Start free: watch ads or take surveys → earn coins → play." />
+            </div>
+
+            <div class="field">
+              <label>Disclaimer (optional)</label>
+              <input id="disclaimer" placeholder="For fun • Not advice • Odds are the same." />
+            </div>
+
+            <div class="btnrow">
+              <button class="btn primary" id="btnGenerate">Copy Share Link</button>
+              <button class="btn ghost" id="btnOpenView">Open Share View</button>
+              <button class="btn" id="btnReset">Reset</button>
+            </div>
+
+            <div class="mutetext">
+              Tip: Share view is the page your users will see. Builder is only for you.<br>
+              Share view uses <code class="small">?view=1</code> and an encoded <code class="small">cfg=</code>.
+            </div>
+
+            <div class="linkbox" id="outLink">Generated share link will appear here.</div>
           </div>
 
-          <div id="comparePanel" class="compare" hidden>
-            <div class="compareTitle">Challenge result</div>
-            <div id="compareText" class="compareText"></div>
+          <!-- Games tab -->
+          <div id="btab-games" class="hide">
+            <div class="mutetext" style="margin:0 0 10px;">
+              Enter draw time + jackpot for each game. You can leave time empty if unknown.
+            </div>
+
+            <div class="field">
+              <label>Powerball — Next draw (ET)</label>
+              <input id="pb_draw" type="datetime-local" />
+            </div>
+            <div class="field">
+              <label>Powerball — Jackpot (USD)</label>
+              <input id="pb_jackpot" placeholder="e.g., 105000000" />
+            </div>
+
+            <div class="field" style="margin-top:16px;">
+              <label>Mega Millions — Next draw (ET)</label>
+              <input id="mm_draw" type="datetime-local" />
+            </div>
+            <div class="field">
+              <label>Mega Millions — Jackpot (USD)</label>
+              <input id="mm_jackpot" placeholder="e.g., 180000000" />
+            </div>
+
+            <div class="field" style="margin-top:16px;">
+              <label>Instant Draw — (optional) label</label>
+              <input id="in_label" placeholder="TX Instant Draw" />
+            </div>
+            <div class="row">
+              <div class="field">
+                <label>Instant Draw — Next draw (ET)</label>
+                <input id="in_draw" type="datetime-local" />
+              </div>
+              <div class="field">
+                <label>Instant Draw — Jackpot / prize (USD)</label>
+                <input id="in_jackpot" placeholder="e.g., 1000000" />
+              </div>
+            </div>
           </div>
 
-          <div class="row gap" style="margin-top: 14px;">
-            <button id="btnShare" class="primary" type="button">Share</button>
-            <button id="btnCopy" class="secondary" type="button">Copy link</button>
+          <!-- Links tab -->
+          <div id="btab-links" class="hide">
+            <div class="mutetext" style="margin:0 0 10px;">
+              Paste deep links (or the same app.link for now). If you don't have separate paths yet, reuse the same link in multiple boxes.
+            </div>
+
+            <div class="field">
+              <label>Start free — Video ads link</label>
+              <input id="link_ads" placeholder="https://8u2ct.app.link/ydnext" />
+            </div>
+            <div class="field">
+              <label>Start free — Surveys / offers link</label>
+              <input id="link_surveys" placeholder="https://8u2ct.app.link/ydnext" />
+            </div>
+            <div class="row">
+              <div class="field">
+                <label>Join pool (Auto-pick) link</label>
+                <input id="link_pool" placeholder="https://8u2ct.app.link/ydnext" />
+              </div>
+              <div class="field">
+                <label>Pick numbers (Full ticket) link</label>
+                <input id="link_pick" placeholder="https://8u2ct.app.link/ydnext" />
+              </div>
+            </div>
+
+            <div class="field" style="margin-top:14px;">
+              <label>Optional: UTM or campaign tag (appended as query)</label>
+              <input id="campaign" placeholder="campaign=ydnext_influencer" />
+            </div>
+
+            <div class="mutetext">
+              Example: if you enter <code class="small">campaign=ydnext_influencer</code>,
+              links will become <code class="small">...&campaign=ydnext_influencer</code> (or <code class="small">?campaign=...</code>).
+            </div>
           </div>
-
-          <div class="row gap" style="margin-top: 10px;">
-            <button id="btnChallenge" class="secondary" type="button">Challenge a friend</button>
-            <a id="btnPartner" class="partner" href="#" rel="noopener" target="_blank">Play on partner app</a>
-          </div>
-
-          <div class="micro" style="margin-top: 10px;">
-            Tip: The “partner app” button can be wired to YD deep links later.
-          </div>
-        </section>
-      </section>
-
-      <section class="footerCard">
-        <div class="footerTitle">How it works</div>
-        <ol class="steps">
-          <li>Choose a draw (Powerball / Mega Millions / TX Instant Demo)</li>
-          <li>Pick a set of emojis (today’s seed makes it feel fresh)</li>
-          <li>Share your card or challenge a friend</li>
-        </ol>
-      </section>
-    </main>
-
-    <footer class="footer">
-      <div class="muted">© <span id="year"></span> EmojiPick. Entertainment only.</div>
-      <div class="footerLinks">
-        <button id="btnPrivacy" class="linkBtn" type="button">Privacy</button>
-        <button id="btnTerms" class="linkBtn" type="button">Terms</button>
+        </div>
       </div>
-    </footer>
+
+      <!-- Preview -->
+      <div class="panel">
+        <div class="cardwrap">
+          <div class="card" id="previewCard">
+            <div class="cardhead">
+              <div>
+                <h2>Play your way</h2>
+                <p id="headerNoteText">Start free: watch ads or take surveys → earn coins → play.</p>
+                <div class="chiprow" id="chipRow"></div>
+              </div>
+              <div class="tag" id="themeTag">Theme: Balanced</div>
+            </div>
+
+            <div class="banner" id="proofBanner">10K+ downloads • 4.1★ • iOS & Android • 200K+ active users on YD network</div>
+
+            <div class="divider"></div>
+
+            <div class="section">
+              <div class="krow">
+                <div class="k" id="drawLabel">Next draw in (ET)</div>
+                <div class="v" id="drawTime">—</div>
+              </div>
+
+              <div class="jackpot" id="jackpotValue">$0</div>
+              <p class="sub" id="subText">Just a quick entry launcher. Odds are the same.</p>
+
+              <div class="cards3">
+                <div class="mini">
+                  <h4 id="mini1Title">Start free (Earn coins)</h4>
+                  <p id="mini1Text">Quick coins (ads) or big coins (surveys / offers).</p>
+                </div>
+                <div class="mini">
+                  <h4 id="mini2Title">Join pool (Auto-pick)</h4>
+                  <p id="mini2Text">$1+ share option. No need to choose numbers.</p>
+                </div>
+                <div class="mini">
+                  <h4 id="mini3Title">Pick numbers (Full ticket)</h4>
+                  <p id="mini3Text">$5 full ticket. You choose the numbers.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="ctaRow">
+              <button class="cta primary" id="ctaCoins">Start free (Earn coins)</button>
+              <button class="cta" id="ctaPool">Join pool</button>
+              <button class="cta" id="ctaPick">Pick numbers</button>
+            </div>
+
+            <div class="bottomRow">
+              <button class="btnSmall" id="btnShare">Share</button>
+              <button class="btnSmall" id="btnCopy">Copy Link</button>
+            </div>
+
+            <div class="footnote">
+              <span id="disclaimerText">For fun • Not advice</span>
+              <span id="srcText">src: quick-entry • theme=balanced</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Share-only view -->
+    <div class="panel shareOnly hide" id="shareOnlyPanel">
+      <div class="cardwrap">
+        <div class="card" id="shareCard">
+          <!-- The same structure will be cloned here -->
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <div id="modal" class="modal" hidden>
-    <div class="overlay" data-close="1"></div>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="sheetHeader">
-        <div>
-          <div id="modalTitle" class="h2">About EmojiPick</div>
-          <div class="muted">A tiny shareable game — not a lottery seller.</div>
-        </div>
-        <button class="ghost" type="button" data-close="1">Close</button>
+  <!-- Modal -->
+  <div class="modalBack" id="modalBack">
+    <div class="modal">
+      <div class="mhead">
+        <strong>Start free (Earn coins)</strong>
+        <button id="modalClose">×</button>
       </div>
-
-      <div class="sheetBody" id="modalBody"></div>
-
-      <div class="sheetFooter">
-        <button class="primary" type="button" data-close="1">OK</button>
+      <div class="mbody">
+        <p>Choose your quickest way to earn coins. (If you don't have separate deep links yet, both buttons can go to the same link.)</p>
+        <div class="mBtns">
+          <button class="primary" id="modalAds">Watch video ads</button>
+          <button id="modalSurveys">Take surveys / offers</button>
+        </div>
+        <p class="mutetext" style="margin-top:10px;">Tip: If the app is not installed, app.link should take users to the store and then open the app (deferred deep link).</p>
       </div>
     </div>
   </div>
 
-  <script src="app.js" defer></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
-      });
+<script>
+/* -----------------------------
+   Helpers
+------------------------------ */
+function $(id){ return document.getElementById(id); }
+
+function formatUSD(n){
+  const num = Number(n);
+  if (!isFinite(num) || num <= 0) return "$0";
+  try{
+    return new Intl.NumberFormat("en-US", {style:"currency", currency:"USD", maximumFractionDigits:0}).format(num);
+  }catch(e){
+    return "$" + Math.round(num).toLocaleString("en-US");
+  }
+}
+
+function parseMaybeNumber(s){
+  if (s == null) return 0;
+  if (typeof s === "number") return isFinite(s) ? s : 0;
+  const cleaned = String(s).replace(/[^\d.]/g,"");
+  const n = Number(cleaned);
+  return isFinite(n) ? n : 0;
+}
+
+function fmtDraw(dtLocal){
+  if (!dtLocal) return "—";
+  // dtLocal can be ISO string or datetime-local value
+  try{
+    const d = new Date(dtLocal);
+    if (isNaN(d.getTime())) return "—";
+    const opts = { weekday:"short", month:"short", day:"numeric", hour:"numeric", minute:"2-digit" };
+    return d.toLocaleString("en-US", opts) + " ET";
+  }catch(e){
+    return "—";
+  }
+}
+
+function base64urlEncode(str){
+  return btoa(unescape(encodeURIComponent(str))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function base64urlDecode(str){
+  const s = str.replace(/-/g,"+").replace(/_/g,"/");
+  const pad = s.length % 4 ? "=".repeat(4 - (s.length % 4)) : "";
+  return decodeURIComponent(escape(atob(s + pad)));
+}
+
+function appendCampaign(url, campaign){
+  if (!url) return url;
+  const c = (campaign || "").trim();
+  if (!c) return url;
+  try{
+    const u = new URL(url, location.origin);
+    // allow "key=value" (or "utm_source=...&utm_campaign=...")
+    const parts = c.split("&").map(p=>p.trim()).filter(Boolean);
+    parts.forEach(p=>{
+      const [k,v] = p.split("=");
+      if (k && v != null) u.searchParams.set(k.trim(), decodeURIComponent(v.trim()));
+    });
+    return u.toString();
+  }catch(e){
+    // fallback: string append
+    const join = url.includes("?") ? "&" : "?";
+    return url + join + c;
+  }
+}
+
+/* -----------------------------
+   Config model
+------------------------------ */
+function defaultConfig(){
+  const dl = "https://8u2ct.app.link/ydnext";
+  return {
+    theme: "balanced",
+    proof: "10K+ downloads (Google Play) • 4.1★ (283 reviews) • iOS & Android • 200K+ active users on YD network",
+    headerNote: "Start free: watch ads or take surveys → earn coins → play.",
+    disclaimer: "For fun • Not advice",
+    defaultGameMode: "biggest", // biggest | powerball | mega | instant
+    campaign: "",
+    links: {
+      ads: dl,
+      surveys: dl,
+      pool: dl,
+      pick: dl
+    },
+    games: {
+      powerball: { id:"powerball", name:"Powerball", draw:"", jackpot:105000000 },
+      mega:      { id:"mega", name:"Mega Millions", draw:"", jackpot:180000000 },
+      instant:   { id:"instant", name:"TX Instant Draw", draw:"", jackpot:1000000 }
     }
-  </script>
+  };
+}
+
+function getSelectedGameId(cfg){
+  const mode = (cfg.defaultGameMode || "biggest");
+  if (mode === "powerball" || mode === "mega" || mode === "instant") return mode;
+  // biggest:
+  const pb = parseMaybeNumber(cfg.games?.powerball?.jackpot);
+  const mm = parseMaybeNumber(cfg.games?.mega?.jackpot);
+  const ins = parseMaybeNumber(cfg.games?.instant?.jackpot);
+  // We only compare PB and Mega for "biggest". Instant stays as upsell option.
+  if (mm > pb) return "mega";
+  if (pb > 0) return "powerball";
+  // fallback:
+  if (mm > 0) return "mega";
+  if (ins > 0) return "instant";
+  return "powerball";
+}
+
+/* -----------------------------
+   State + rendering
+------------------------------ */
+let CFG = defaultConfig();
+let selectedGameId = getSelectedGameId(CFG);
+
+function setThemeTag(){
+  const t = CFG.theme || "balanced";
+  const label = t.charAt(0).toUpperCase() + t.slice(1);
+  $("themeTag").textContent = "Theme: " + label;
+  $("srcText").textContent = "src: quick-entry • theme=" + t;
+}
+
+function renderChips(containerId){
+  const cont = $(containerId);
+  cont.innerHTML = "";
+  const entries = [
+    {id:"powerball", label:"Powerball"},
+    {id:"mega", label:"Mega Millions"},
+    {id:"instant", label: (CFG.games?.instant?.name || "Instant Draw")}
+  ];
+  entries.forEach(e=>{
+    const div = document.createElement("div");
+    div.className = "chip" + (selectedGameId === e.id ? " active" : "");
+    div.textContent = e.label;
+    div.onclick = () => {
+      selectedGameId = e.id;
+      updateCard();
+      // also update chips highlight
+      renderChips("chipRow");
+      const shareChipRow = document.querySelector("#shareCard #chipRow");
+      if (shareChipRow) {
+        // In share-only view, chipRow exists inside cloned content; re-render via updateShareView()
+        updateShareView();
+      }
+    };
+    cont.appendChild(div);
+  });
+}
+
+function updateCard(){
+  setThemeTag();
+  $("proofBanner").textContent = CFG.proof || "";
+  $("proofBanner").style.display = (CFG.proof && CFG.proof.trim()) ? "block" : "none";
+  $("headerNoteText").textContent = CFG.headerNote || "";
+  $("headerNoteText").style.display = (CFG.headerNote && CFG.headerNote.trim()) ? "block" : "none";
+  $("disclaimerText").textContent = CFG.disclaimer || "For fun • Not advice";
+
+  const g = (CFG.games && CFG.games[selectedGameId]) ? CFG.games[selectedGameId] : null;
+  if (!g){
+    $("drawTime").textContent = "—";
+    $("jackpotValue").textContent = "$0";
+    return;
+  }
+  $("drawTime").textContent = fmtDraw(g.draw);
+  $("jackpotValue").textContent = formatUSD(g.jackpot);
+
+  // Update the header h2 a bit based on game
+  // Keep it stable for conversion; only subtle context line
+  const h2 = $("previewCard").querySelector(".cardhead h2");
+  h2.textContent = "Play your way";
+  const sub = $("subText");
+  sub.textContent = "Just a quick entry launcher. Odds are the same.";
+
+  renderChips("chipRow");
+}
+
+function buildShareUrl(){
+  // Apply campaign to links
+  const campaign = (CFG.campaign || "").trim();
+  const links = {
+    ads: appendCampaign(CFG.links.ads, campaign),
+    surveys: appendCampaign(CFG.links.surveys, campaign),
+    pool: appendCampaign(CFG.links.pool, campaign),
+    pick: appendCampaign(CFG.links.pick, campaign),
+  };
+
+  const cfg = JSON.parse(JSON.stringify(CFG));
+  cfg.links = links;
+
+  // Determine selected game based on current state
+  const shareState = { selectedGameId };
+
+  const payload = { cfg, shareState };
+  const encoded = base64urlEncode(JSON.stringify(payload));
+
+  const url = new URL(location.href);
+  url.searchParams.set("view","1");
+  url.searchParams.set("cfg", encoded);
+  url.searchParams.set("game", selectedGameId);
+  // Keep theme as a readable param too
+  url.searchParams.set("theme", CFG.theme || "balanced");
+  // Remove any builder-only params
+  return url.toString();
+}
+
+async function copyToClipboard(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    return true;
+  }catch(e){
+    // fallback
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position="fixed";
+    ta.style.left="-9999px";
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try{
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      return true;
+    }catch(err){
+      document.body.removeChild(ta);
+      return false;
+    }
+  }
+}
+
+function openModal(){
+  $("modalBack").style.display="flex";
+  document.body.classList.add("modalOpen");
+  // focus close button for accessibility & quick ESC use
+  setTimeout(()=>{ try{ $("modalClose").focus(); }catch(e){} }, 0);
+}
+function closeModal(){
+  $("modalBack").style.display="none";
+  document.body.classList.remove("modalOpen");
+}
+
+/* -----------------------------
+   Builder bindings
+------------------------------ */
+function loadBuilderFromCFG(){
+  $("theme").value = CFG.theme || "balanced";
+  $("proof").value = CFG.proof || "";
+  $("headerNote").value = CFG.headerNote || "";
+  $("disclaimer").value = CFG.disclaimer || "";
+  $("defaultGameMode").value = CFG.defaultGameMode || "biggest";
+
+  $("pb_draw").value = (CFG.games.powerball.draw || "");
+  $("pb_jackpot").value = (CFG.games.powerball.jackpot != null ? String(CFG.games.powerball.jackpot) : "");
+
+  $("mm_draw").value = (CFG.games.mega.draw || "");
+  $("mm_jackpot").value = (CFG.games.mega.jackpot != null ? String(CFG.games.mega.jackpot) : "");
+
+  $("in_label").value = (CFG.games.instant.name || "TX Instant Draw");
+  $("in_draw").value = (CFG.games.instant.draw || "");
+  $("in_jackpot").value = (CFG.games.instant.jackpot != null ? String(CFG.games.instant.jackpot) : "");
+
+  $("link_ads").value = CFG.links.ads || "";
+  $("link_surveys").value = CFG.links.surveys || "";
+  $("link_pool").value = CFG.links.pool || "";
+  $("link_pick").value = CFG.links.pick || "";
+  $("campaign").value = CFG.campaign || "";
+}
+
+function syncCFGFromBuilder(){
+  CFG.theme = $("theme").value;
+  CFG.proof = $("proof").value;
+  CFG.headerNote = $("headerNote").value;
+  CFG.disclaimer = $("disclaimer").value;
+  CFG.defaultGameMode = $("defaultGameMode").value;
+
+  CFG.games.powerball.draw = $("pb_draw").value;
+  CFG.games.powerball.jackpot = parseMaybeNumber($("pb_jackpot").value);
+
+  CFG.games.mega.draw = $("mm_draw").value;
+  CFG.games.mega.jackpot = parseMaybeNumber($("mm_jackpot").value);
+
+  CFG.games.instant.name = $("in_label").value || "Instant Draw";
+  CFG.games.instant.draw = $("in_draw").value;
+  CFG.games.instant.jackpot = parseMaybeNumber($("in_jackpot").value);
+
+  CFG.links.ads = $("link_ads").value.trim();
+  CFG.links.surveys = $("link_surveys").value.trim();
+  CFG.links.pool = $("link_pool").value.trim();
+  CFG.links.pick = $("link_pick").value.trim();
+  CFG.campaign = $("campaign").value.trim();
+
+  // Update default selected game if user wants "biggest" or forced
+  selectedGameId = getSelectedGameId(CFG);
+}
+
+function wireBuilder(){
+  // Tabs
+  $("builderTabs").addEventListener("click", (e)=>{
+    const t = e.target.closest(".tab");
+    if (!t) return;
+    const which = t.getAttribute("data-btab");
+    document.querySelectorAll("#builderTabs .tab").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    ["core","games","links"].forEach(k=>{
+      const el = $("btab-"+k);
+      if (!el) return;
+      el.classList.toggle("hide", k !== which);
+    });
+  });
+
+  const inputs = ["theme","proof","headerNote","disclaimer","defaultGameMode",
+    "pb_draw","pb_jackpot","mm_draw","mm_jackpot","in_label","in_draw","in_jackpot",
+    "link_ads","link_surveys","link_pool","link_pick","campaign"
+  ];
+  inputs.forEach(id=>{
+    $(id).addEventListener("input", ()=>{
+      syncCFGFromBuilder();
+      updateCard();
+      $("outLink").textContent = buildShareUrl();
+    });
+  });
+
+  $("btnGenerate").onclick = async ()=>{
+    syncCFGFromBuilder();
+    const link = buildShareUrl();
+    $("outLink").textContent = link;
+    const ok = await copyToClipboard(link);
+    $("btnGenerate").textContent = ok ? "Copied!" : "Copy Share Link";
+    setTimeout(()=> $("btnGenerate").textContent = "Copy Share Link", 900);
+  };
+
+  $("btnOpenView").onclick = ()=>{
+    syncCFGFromBuilder();
+    const link = buildShareUrl();
+    window.open(link, "_blank");
+  };
+
+  $("btnReset").onclick = ()=>{
+    CFG = defaultConfig();
+    selectedGameId = getSelectedGameId(CFG);
+    loadBuilderFromCFG();
+    updateCard();
+    $("outLink").textContent = buildShareUrl();
+  };
+
+  // Preview Share buttons (same as share view)
+  $("btnCopy").onclick = async ()=>{
+    syncCFGFromBuilder();
+    const link = buildShareUrl();
+    const ok = await copyToClipboard(link);
+    $("btnCopy").textContent = ok ? "Copied" : "Copy Link";
+    setTimeout(()=> $("btnCopy").textContent = "Copy Link", 900);
+  };
+  $("btnShare").onclick = async ()=>{
+    syncCFGFromBuilder();
+    const link = buildShareUrl();
+    if (navigator.share){
+      try{
+        await navigator.share({ title:"YD Quick Entry", text:"Quick entry to play your way.", url: link });
+      }catch(e){}
+    }else{
+      await copyToClipboard(link);
+      $("btnShare").textContent = "Copied";
+      setTimeout(()=> $("btnShare").textContent = "Share", 900);
+    }
+  };
+
+  // CTA behavior in preview
+  $("ctaCoins").onclick = ()=> openModal();
+  $("ctaPool").onclick = ()=> jump("pool");
+  $("ctaPick").onclick = ()=> jump("pick");
+
+  $("modalClose").onclick = closeModal;
+  $("modalBack").onclick = (e)=>{ if (e.target === $("modalBack")) closeModal(); };
+  $("modalAds").onclick = ()=> { closeModal(); jump("ads"); };
+  $("modalSurveys").onclick = ()=> { closeModal(); jump("surveys"); };
+
+  $("outLink").textContent = buildShareUrl();
+}
+
+/* -----------------------------
+   Jump (open deep link)
+------------------------------ */
+function resolveLink(kind){
+  const campaign = (CFG.campaign || "").trim();
+  let url = CFG.links[kind] || "";
+  url = appendCampaign(url, campaign);
+  return url;
+}
+
+function jump(kind){
+  // kind: ads | surveys | pool | pick
+  const url = resolveLink(kind);
+  if (!url){
+    alert("No link set for: " + kind);
+    return;
+  }
+  // You may optionally add game info as query params (app can ignore)
+  try{
+    const u = new URL(url, location.origin);
+    u.searchParams.set("game", selectedGameId);
+    u.searchParams.set("src", "quick_entry_card");
+    window.location.href = u.toString();
+  }catch(e){
+    window.location.href = url;
+  }
+}
+
+/* -----------------------------
+   Share-only view logic
+------------------------------ */
+function applyCfgFromUrl(){
+  const params = new URLSearchParams(location.search);
+  const encoded = params.get("cfg");
+  const game = params.get("game");
+
+  if (encoded){
+    try{
+      const payload = JSON.parse(base64urlDecode(encoded));
+      if (payload && payload.cfg) CFG = payload.cfg;
+      if (payload && payload.shareState && payload.shareState.selectedGameId) {
+        selectedGameId = payload.shareState.selectedGameId;
+      }
+    }catch(e){
+      // ignore
+    }
+  }
+
+  if (game && (game === "powerball" || game === "mega" || game === "instant")) {
+    selectedGameId = game;
+  } else {
+    selectedGameId = getSelectedGameId(CFG);
+  }
+}
+
+function updateShareView(){
+  // Clone previewCard into shareCard so we reuse the exact layout
+  const shareCard = $("shareCard");
+  shareCard.innerHTML = $("previewCard").innerHTML;
+
+  // Now re-bind elements inside shareCard
+  // Replace IDs inside the cloned tree by querying within shareCard.
+  function q(sel){ return shareCard.querySelector(sel); }
+
+  // Inject values
+  q("#themeTag").textContent = "Theme: " + (CFG.theme || "balanced").charAt(0).toUpperCase() + (CFG.theme || "balanced").slice(1);
+  q("#proofBanner").textContent = CFG.proof || "";
+  q("#proofBanner").style.display = (CFG.proof && CFG.proof.trim()) ? "block" : "none";
+  q("#headerNoteText").textContent = CFG.headerNote || "";
+  q("#headerNoteText").style.display = (CFG.headerNote && CFG.headerNote.trim()) ? "block" : "none";
+  q("#disclaimerText").textContent = CFG.disclaimer || "For fun • Not advice";
+  q("#srcText").textContent = "src: quick-entry • theme=" + (CFG.theme || "balanced");
+
+  const g = (CFG.games && CFG.games[selectedGameId]) ? CFG.games[selectedGameId] : null;
+  q("#drawTime").textContent = g ? fmtDraw(g.draw) : "—";
+  q("#jackpotValue").textContent = g ? formatUSD(g.jackpot) : "$0";
+  q("#subText").textContent = "Just a quick entry launcher. Odds are the same.";
+
+  // Render chips inside shareCard
+  const chipRow = q("#chipRow");
+  chipRow.innerHTML = "";
+  const entries = [
+    {id:"powerball", label:"Powerball"},
+    {id:"mega", label:"Mega Millions"},
+    {id:"instant", label:(CFG.games?.instant?.name || "Instant Draw")}
+  ];
+  entries.forEach(e=>{
+    const div = document.createElement("div");
+    div.className = "chip" + (selectedGameId === e.id ? " active" : "");
+    div.textContent = e.label;
+    div.onclick = () => {
+      selectedGameId = e.id;
+      updateShareView();
+    };
+    chipRow.appendChild(div);
+  });
+
+  // Buttons
+  const btnShare = q("#btnShare");
+  const btnCopy = q("#btnCopy");
+  const ctaCoins = q("#ctaCoins");
+  const ctaPool = q("#ctaPool");
+  const ctaPick = q("#ctaPick");
+
+  const shareUrl = location.href;
+
+  btnCopy.onclick = async ()=>{
+    const ok = await copyToClipboard(shareUrl);
+    btnCopy.textContent = ok ? "Copied" : "Copy Link";
+    setTimeout(()=> btnCopy.textContent = "Copy Link", 900);
+  };
+
+  btnShare.onclick = async ()=>{
+    if (navigator.share){
+      try{
+        await navigator.share({ title:"YD Quick Entry", text:"Play your way.", url: shareUrl });
+      }catch(e){}
+    }else{
+      await copyToClipboard(shareUrl);
+      btnShare.textContent = "Copied";
+      setTimeout(()=> btnShare.textContent = "Share", 900);
+    }
+  };
+
+  ctaCoins.onclick = ()=> openModal();
+  ctaPool.onclick = ()=> jump("pool");
+  ctaPick.onclick = ()=> jump("pick");
+
+  // modal actions already bound globally
+}
+
+function enableShareOnlyMode(){
+  $("builderGrid").classList.add("hide");
+  $("shareOnlyPanel").classList.remove("hide");
+  $("modePill").innerHTML = "<strong>Share view</strong> • tap a button to enter";
+}
+
+/* -----------------------------
+   Init
+------------------------------ */
+(function init(){
+  // register SW (ok if it fails on file://)
+  if ("serviceWorker" in navigator){
+    window.addEventListener("load", ()=>{
+      navigator.serviceWorker.register("./sw.js").catch(()=>{});
+    });
+  }
+
+  const params = new URLSearchParams(location.search);
+  const isView = params.get("view") === "1";
+
+  // Global ESC-to-close for the modal
+  document.addEventListener("keydown", (e)=>{
+    if (e.key === "Escape" && $("modalBack").style.display === "flex") closeModal();
+  });
+
+  if (isView){
+    applyCfgFromUrl();
+    enableShareOnlyMode();
+    // Need to also show modal close binding:
+    $("modalClose").onclick = closeModal;
+    $("modalBack").onclick = (e)=>{ if (e.target === $("modalBack")) closeModal(); };
+    $("modalAds").onclick = ()=> { closeModal(); jump("ads"); };
+    $("modalSurveys").onclick = ()=> { closeModal(); jump("surveys"); };
+
+    updateShareView();
+    // Set body title subtly
+    document.title = "YD Quick Entry";
+    return;
+  }
+
+  // Builder mode
+  CFG = defaultConfig();
+  selectedGameId = getSelectedGameId(CFG);
+  loadBuilderFromCFG();
+  wireBuilder();
+  updateCard();
+})();
+</script>
 </body>
 </html>
