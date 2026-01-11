@@ -1,3 +1,4 @@
+// APP_VERSION: emojipick-v2-white (2026-01-09)
 /*
   EmojiPick (PWA)
   - Solo mode: pick emojis → deterministic numbers (seeded by date + emojis)

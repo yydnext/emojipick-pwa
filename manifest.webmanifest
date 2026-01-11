@@ -1,10 +1,11 @@
 {
-  "name": "YD Quick Entry Card",
-  "short_name": "YD Quick Entry",
-  "start_url": "./index.html",
+  "name": "EmojiPick — Lucky Numbers",
+  "short_name": "EmojiPick",
+  "description": "Pick emojis, get lucky numbers, and challenge a friend — for entertainment only.",
+  "start_url": "./",
   "display": "standalone",
-  "background_color": "#0b1226",
-  "theme_color": "#0b1226",
+  "background_color": "#f6f8ff",
+  "theme_color": "#3b82f6",
   "icons": [
     {
       "src": "icon-192.png",
