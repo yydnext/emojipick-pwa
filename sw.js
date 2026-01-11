@@ -1,18 +1,32 @@
-/* Simple offline cache for GitHub Pages (EmojiPick) */
-const CACHE_NAME = 'emojipick-white-20260110';
-const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png', './og.png'];
+// EmojiPick service worker (simple offline cache)
+const CACHE_NAME = 'emojipick-white-v3';
+
+const ASSETS = [
+  './',
+  './index.html',
+  './styles.css',
+  './app.js',
+  './manifest.webmanifest',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  './og.png'
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter((k) => k.startsWith('emojipick-') && k !== CACHE_NAME)
+          .map((k) => caches.delete(k))
+      )
     ).then(() => self.clients.claim())
   );
 });
@@ -24,19 +38,21 @@ self.addEventListener('fetch', (event) => {
   // Only handle same-origin requests
   if (url.origin !== self.location.origin) return;
 
-  // Network-first for navigations (HTML) so updates show up quickly
-  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
+  // For navigations: network-first, fallback to cache
+  if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
-        return res;
-      }).catch(() => caches.match('./index.html'))
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match('./index.html'))
     );
     return;
   }
 
-  // Cache-first for static assets
+  // For other assets: cache-first
   event.respondWith(
     caches.match(req).then((cached) => cached || fetch(req))
   );
