@@ -145,12 +145,30 @@ body{
   display:grid;
   place-items:center;
   user-select:none;
+  position:relative;
 }
+/* Selected state
+   - older builds used data-selected="1"
+   - current JS uses .selected
+   - keep aria-pressed support for accessibility */
+.emojiBtn.selected,
+.emojiBtn[aria-pressed="true"],
 .emojiBtn[data-selected="1"]{
   background:rgba(167,139,250,.22);
   border-color:rgba(124,58,237,.55);
   box-shadow:0 0 0 3px rgba(124,58,237,.12);
   transform: translateY(-1px);
+}
+
+/* Slightly stronger checkmark feel on mobile */
+.emojiBtn.selected::after,
+.emojiBtn[aria-pressed="true"]::after{
+  content:"";
+  position:absolute;
+  inset:6px;
+  border-radius:12px;
+  outline:2px solid rgba(124,58,237,.35);
+  pointer-events:none;
 }
 .emojiBtn:active{transform: translateY(0)}
 
