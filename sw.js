@@ -1,3 +1,4 @@
+const CACHE = "emojipick-nomodal1";
 // EmojiPick service worker (simple offline cache)
 const CACHE_NAME = 'emojipick-white-v3';
 
