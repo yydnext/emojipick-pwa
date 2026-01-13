@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EmojiPick — Terms</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="logo"><span class="spark">✨</span><h1>EmojiPick</h1></div>
+      <div class="tagline">Terms (simple)</div>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin:0 0 8px">Terms</h2>
+      <ul style="margin:0 0 14px 18px; color:var(--muted)">
+        <li>EmojiPick is for entertainment only.</li>
+        <li>EmojiPick does not sell lottery tickets and does not improve lottery odds.</li>
+        <li>Use at your own discretion. We provide the page “as is” without warranties.</li>
+      </ul>
+
+      <a class="primary" href="index.html" style="text-decoration:none; display:inline-flex; width:auto; padding:10px 14px;">Back</a>
+    </div>
+
+    <div class="footer">
+      <div>© <span id="yr"></span> EmojiPick. Entertainment only.</div>
+      <div class="footerLinks">
+        <a class="linkBtn" href="privacy.html">Privacy</a>
+        <a class="linkBtn" href="terms.html">Terms</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('yr').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

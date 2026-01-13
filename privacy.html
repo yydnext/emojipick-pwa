@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EmojiPick — Privacy</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="logo"><span class="spark">✨</span><h1>EmojiPick</h1></div>
+      <div class="tagline">Privacy policy (simple)</div>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin:0 0 8px">Privacy</h2>
+      <p style="margin:0 0 10px; color:var(--muted)">
+        EmojiPick is a tiny, shareable entertainment page. It does not sell lottery tickets.
+      </p>
+      <ul style="margin:0 0 14px 18px; color:var(--muted)">
+        <li>No account required.</li>
+        <li>No personal data collection is intended.</li>
+        <li>Your selections may be stored locally in your browser (localStorage) so the page can remember your last choices.</li>
+        <li>If you share a link, the link may contain your selected emojis encoded in the URL.</li>
+      </ul>
+
+      <a class="primary" href="index.html" style="text-decoration:none; display:inline-flex; width:auto; padding:10px 14px;">Back</a>
+    </div>
+
+    <div class="footer">
+      <div>© <span id="yr"></span> EmojiPick. Entertainment only.</div>
+      <div class="footerLinks">
+        <a class="linkBtn" href="privacy.html">Privacy</a>
+        <a class="linkBtn" href="terms.html">Terms</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('yr').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
