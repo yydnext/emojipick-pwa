@@ -1,14 +1,16 @@
 :root{
-  --bg:#ffffff;
-  --card:#ffffff;
-  --card2:#f1f5ff;
-  --text:#0f172a;
-  --muted:#4b5563;
-  --line:rgba(15,23,42,.12);
-  --accent:#3b82f6;
-  --accent2:#8b5cf6;
-  --chip:#e2e8f0;
-  --shadow:0 10px 30px rgba(15,23,42,.10);
+  --bg:#0b0f19;
+  --card:#101828;
+  --card2:#0f172a;
+  --text:#e6e9f2;
+  --muted:#9aa4b2;
+  --line:rgba(255,255,255,.08);
+  --primary:#7c3aed;
+  --primary2:#a78bfa;
+  --good:#22c55e;
+  --bad:#ef4444;
+  --chip:#121c33;
+  --shadow: 0 12px 40px rgba(0,0,0,.35);
 }
 
 *{box-sizing:border-box}
@@ -16,7 +18,9 @@ html,body{height:100%}
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  background: var(--bg);
+  background: radial-gradient(1100px 600px at 20% 10%, rgba(124,58,237,.22), transparent 60%),
+              radial-gradient(900px 500px at 90% 15%, rgba(34,197,94,.14), transparent 50%),
+              var(--bg);
   color: var(--text);
 }
 
@@ -28,14 +32,14 @@ body{
   padding:10px 10px;
 }
 .brand{display:flex;align-items:flex-start;gap:10px}
-.logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(15,23,42,.06);box-shadow:var(--shadow)}
+.logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.06);box-shadow:var(--shadow)}
 .brandName{font-weight:800;letter-spacing:.2px;font-size:18px}
 .brandTag{color:var(--muted);font-size:12px;margin-top:2px}
 
 .content{display:flex;flex-direction:column;gap:16px}
 
 .card{
-  background: linear-gradient(180deg, rgba(15,23,42,.05), rgba(15,23,42,.03));
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
   border:1px solid var(--line);
   border-radius:18px;
   padding:14px;
@@ -43,7 +47,7 @@ body{
 }
 
 .footerCard{
-  background:rgba(15,23,42,.03);
+  background:rgba(255,255,255,.03);
   border:1px solid var(--line);
   border-radius:18px;
   padding:14px;
@@ -53,7 +57,7 @@ body{
 .h2{font-size:16px;font-weight:800}
 .h3{font-size:14px;font-weight:800}
 .muted{color:var(--muted)}
-.micro{color:var(--muted);font-size:12px;line-height:1.35}
+.micro{color:rgba(230,233,242,.72);font-size:12px;line-height:1.35}
 
 .row{display:flex;align-items:center;gap:10px}
 .between{justify-content:space-between}
@@ -64,7 +68,7 @@ body{
 .tabs{display:flex;gap:8px;flex-wrap:wrap}
 .tab{
   border:1px solid var(--line);
-  background:rgba(15,23,42,.03);
+  background:rgba(255,255,255,.03);
   color:var(--text);
   padding:10px 12px;
   border-radius:999px;
@@ -79,7 +83,7 @@ body{
 
 .pill{
   padding:7px 10px;
-  background:rgba(15,23,42,.04);
+  background:rgba(255,255,255,.04);
   border:1px solid var(--line);
   border-radius:999px;
   font-size:12px;
@@ -94,12 +98,12 @@ body{
   margin-bottom:12px;
 }
 .bannerTitle{font-weight:800;font-size:13px}
-.bannerText{color:var(--muted);font-size:12px;margin-top:4px;line-height:1.35}
+.bannerText{color:rgba(230,233,242,.82);font-size:12px;margin-top:4px;line-height:1.35}
 
 .panel{padding-top:4px}
 
 .counter{
-  background:rgba(15,23,42,.04);
+  background:rgba(255,255,255,.04);
   border:1px solid var(--line);
   border-radius:999px;
   padding:8px 10px;
@@ -136,7 +140,7 @@ body{
 
 .emojiBtn{
   border:1px solid var(--line);
-  background:rgba(15,23,42,.03);
+  background:rgba(255,255,255,.03);
   border-radius:14px;
   padding:10px 6px;
   cursor:pointer;
@@ -145,30 +149,11 @@ body{
   display:grid;
   place-items:center;
   user-select:none;
-  position:relative;
 }
-/* Selected state
-   - older builds used data-selected="1"
-   - current JS uses .selected
-   - keep aria-pressed support for accessibility */
-.emojiBtn.selected,
-.emojiBtn[aria-pressed="true"],
 .emojiBtn[data-selected="1"]{
-  background:rgba(167,139,250,.22);
-  border-color:rgba(124,58,237,.55);
-  box-shadow:0 0 0 3px rgba(124,58,237,.12);
+  background:rgba(167,139,250,.18);
+  border-color:rgba(167,139,250,.32);
   transform: translateY(-1px);
-}
-
-/* Slightly stronger checkmark feel on mobile */
-.emojiBtn.selected::after,
-.emojiBtn[aria-pressed="true"]::after{
-  content:"";
-  position:absolute;
-  inset:6px;
-  border-radius:12px;
-  outline:2px solid rgba(124,58,237,.35);
-  pointer-events:none;
 }
 .emojiBtn:active{transform: translateY(0)}
 
@@ -193,7 +178,7 @@ body{
 .primary:disabled{opacity:.5;cursor:not-allowed}
 
 .secondary{
-  background:rgba(15,23,42,.04);
+  background:rgba(255,255,255,.04);
   color:var(--text);
   border-color:var(--line);
 }
@@ -205,14 +190,14 @@ body{
 }
 
 .partner{
-  background:rgba(34,197,94,.12);
-  color:#166534;
-  border-color:rgba(34,197,94,.28);
+  background:rgba(34,197,94,.10);
+  color:rgba(230,233,242,.92);
+  border-color:rgba(34,197,94,.26);
 }
 
 .resultCard{
   margin-top:12px;
-  background: linear-gradient(180deg, rgba(15,23,42,.04), rgba(15,23,42,.02));
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
   border:1px solid var(--line);
   border-radius:18px;
   padding:14px;
@@ -221,7 +206,7 @@ body{
 .badge{
   border-radius:999px;
   padding:6px 10px;
-  background:rgba(15,23,42,.05);
+  background:rgba(255,255,255,.05);
   border:1px solid var(--line);
   font-size:12px;
   color:var(--muted);
@@ -230,7 +215,7 @@ body{
 .emojiLine{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .emojiChip{
   border:1px solid var(--line);
-  background:rgba(15,23,42,.03);
+  background:rgba(255,255,255,.03);
   border-radius:999px;
   padding:8px 10px;
   font-size:18px;
@@ -242,7 +227,7 @@ body{
   display:grid;place-items:center;
   font-weight:900;
   border:1px solid var(--line);
-  background:rgba(15,23,42,.04);
+  background:rgba(255,255,255,.04);
 }
 .num.bonus{
   background:rgba(239,68,68,.15);
@@ -251,7 +236,7 @@ body{
 
 .fortune{
   margin-top:14px;
-  color:var(--text);
+  color:rgba(230,233,242,.92);
   font-weight:700;
   line-height:1.4;
 }
@@ -264,7 +249,7 @@ body{
   padding:12px;
 }
 .compareTitle{font-weight:900;font-size:13px}
-.compareText{color:var(--muted);font-size:13px;line-height:1.4;margin-top:6px}
+.compareText{color:rgba(230,233,242,.90);font-size:13px;line-height:1.4;margin-top:6px}
 
 .footer{
   display:flex;align-items:center;justify-content:space-between;
@@ -282,39 +267,25 @@ body{
   cursor:pointer;
   font-weight:800;
   font-size:12px;
-  text-decoration:none;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  text-decoration:none;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
 }
 
 .footerTitle{font-weight:900;font-size:13px}
-.steps{margin:10px 0 0 18px;color:var(--muted);line-height:1.5}
+.steps{margin:10px 0 0 18px;color:rgba(230,233,242,.86);line-height:1.5}
 
 .modal{position:fixed;inset:0;display:grid;place-items:end center;z-index:50}
 .overlay{position:absolute;inset:0;background:rgba(0,0,0,.55)}
 .sheet{
   position:relative;
   width:min(920px, 100%);
-  background:var(--card);
+  background:rgba(16,24,40,.98);
   border:1px solid var(--line);
   border-radius:20px 20px 0 0;
   box-shadow: var(--shadow);
   padding:14px;
 }
 .sheetHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.sheetBody{margin-top:10px;color:var(--text);line-height:1.5}
+.sheetBody{margin-top:10px;color:rgba(230,233,242,.9);line-height:1.5}
 .sheetFooter{margin-top:12px}
 
 /* small utility */
 .hidden{display:none !important}
-
-
-/* Light theme overrides */
-.modalCard,.modalContent,.sheet,.dialog{
-  color: var(--text);
-}
