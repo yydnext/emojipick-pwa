@@ -1,3 +1,4 @@
+// APP_VERSION: emojipick-v2-white (2026-01-09)
 /*
   EmojiPick (PWA)
   - Solo mode: pick emojis → deterministic numbers (seeded by date + emojis)
@@ -365,6 +366,29 @@
     $('#modal').hidden = true;
   }
 
+function setupModalClose() {
+  const modalEl = $('#modal');
+  if (!modalEl) return;
+
+  // Close when clicking the X, "Close", "OK", or the dimmed backdrop.
+  modalEl.addEventListener('click', (e) => {
+    const t = e.target;
+    if (t && t.closest && t.closest('[data-close="1"]')) {
+      e.preventDefault();
+      closeModal();
+    }
+  });
+
+  // Close on ESC
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modalEl.hasAttribute('hidden')) {
+      e.preventDefault();
+      closeModal();
+    }
+  });
+}
+
+
   async function copyText(text) {
     try {
       await navigator.clipboard.writeText(text);
@@ -424,6 +448,8 @@
 
   // ---------- Wire UI
   function init() {
+  setupModalClose();
+
     $('#year').textContent = String(new Date().getFullYear());
     $('#todayPill').textContent = todayKey();
 
