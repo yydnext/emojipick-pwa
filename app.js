@@ -412,16 +412,31 @@ function setupModalClose() {
     }
   }
 
-  async function shareUrl(url, title) {
+  async function shareUrl(url, title, text) {
     if (navigator.share) {
       try {
-        await navigator.share({ title, url });
+        const payload = { title, url };
+        if (text) payload.text = text;
+        await navigator.share(payload);
         return true;
       } catch {
         return false;
       }
     }
     return false;
+  }
+
+  function buildShareText(kind) {
+    // Keep it short and friendly for SMS/Kakao/etc.
+    const game = (document.getElementById('resultGame')?.textContent || '').trim();
+    const emojis = (document.getElementById('resultEmojis')?.textContent || '').trim();
+    const nums = (document.getElementById('resultNumbers')?.textContent || '').trim().replace(/\s+/g, ' ');
+
+    if (kind === 'challenge') {
+      return `EmojiPick see if we match! ${game ? `(${game})` : ''} Entertainment only.`.trim();
+    }
+    const left = [emojis, game && nums ? `${game}: ${nums}` : nums].filter(Boolean).join('  ');
+    return `${left}  (Entertainment only)`;
   }
 
   function currentBaseUrl() {
@@ -520,7 +535,7 @@ function setupModalClose() {
       const need = g.mainCount + g.bonusCount;
       const idxs = uniq(selected).slice(0, need);
       const url = makeSoloLink(currentGame, idxs);
-      const ok = await shareUrl(url, 'EmojiPick — my lucky numbers');
+      const ok = await shareUrl(url, 'EmojiPick — my lucky numbers', buildShareText('solo'));
       if (!ok) {
         const copied = await copyText(url);
         $('#btnShare').textContent = copied ? 'Copied ✓' : 'Share';
@@ -533,7 +548,7 @@ function setupModalClose() {
       const need = g.mainCount + g.bonusCount;
       const idxs = uniq(selected).slice(0, need);
       const url = makeChallengeLink(currentGame, idxs);
-      const ok = await shareUrl(url, 'EmojiPick — challenge');
+      const ok = await shareUrl(url, 'EmojiPick — challenge', buildShareText('challenge'));
       if (!ok) {
         const copied = await copyText(url);
         $('#btnChallenge').textContent = copied ? 'Invite link copied ✓' : 'Challenge a friend';
@@ -550,21 +565,29 @@ function setupModalClose() {
       `);
     });
 
-    $('#btnPrivacy').addEventListener('click', () => {
-      openModal('Privacy (simple)', `
-        <p>EmojiPick runs entirely in your browser. It does not require login.</p>
-        <p>Links you share contain only emoji index choices (e.g., “1,5,20”).</p>
-        <p>No personal data is collected in this demo.</p>
-      `);
-    });
+    // Privacy/Terms are real pages now.
+    // If these are rendered as buttons in the future, show them in a modal instead.
+    const privEl = document.getElementById('btnPrivacy');
+    if (privEl && privEl.tagName === 'BUTTON') {
+      privEl.addEventListener('click', () => {
+        openModal('Privacy (simple)', `
+          <p>EmojiPick runs entirely in your browser. It does not require login.</p>
+          <p>Links you share contain only emoji index choices (e.g., “1,5,20”).</p>
+          <p>No personal data is collected in this demo.</p>
+        `);
+      });
+    }
 
-    $('#btnTerms').addEventListener('click', () => {
-      openModal('Terms (simple)', `
-        <p>EmojiPick is provided “as is” for entertainment purposes only.</p>
-        <p>Do not use this app as a basis for financial decisions.</p>
-        <p>EmojiPick is not affiliated with any official lottery operator.</p>
-      `);
-    });
+    const termsEl = document.getElementById('btnTerms');
+    if (termsEl && termsEl.tagName === 'BUTTON') {
+      termsEl.addEventListener('click', () => {
+        openModal('Terms (simple)', `
+          <p>EmojiPick is provided “as is” for entertainment purposes only.</p>
+          <p>Do not use this app as a basis for financial decisions.</p>
+          <p>EmojiPick is not affiliated with any official lottery operator.</p>
+        `);
+      });
+    }
 
     $('#modal').addEventListener('click', (e) => {
       const t = e.target;
