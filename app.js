@@ -1,4 +1,4 @@
-// APP_VERSION: emojipick-v2-white (2026-01-09)
+// APP_VERSION: emojipick-white-v8 (2026-01-16)
 /*
   EmojiPick (PWA)
   - Solo mode: pick emojis → deterministic numbers (seeded by date + emojis)
@@ -10,6 +10,12 @@
 
 (() => {
   'use strict';
+
+  const BUILD = 'v8 • 2026-01-16';
+
+  // Local storage
+  const LS_KEY = 'emojipick_picks_v1';
+  const FREE_HISTORY_LIMIT = 50; // generous free cap; Plus can be unlimited later
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -109,6 +115,7 @@
   let currentGame = 'pb';
   let selected = []; // emoji indices
   let currentFilter = 'all';
+  let lastResult = null; // { gameId, idxs, dateSeed, nums, mode }
 
   // URL params
   const params = new URLSearchParams(location.search);
@@ -173,10 +180,10 @@
     return Array.from(set);
   }
 
-  function computeNumbers(gameId, emojiIdxList, dateSeed) {
+  function computeNumbers(gameId, emojiIdxList, dateSeed, salt = '') {
     const g = GAMES[gameId];
     const idxs = uniq(emojiIdxList).slice(0, g.mainCount + g.bonusCount);
-    const seedStr = `${gameId}|${dateSeed}|${idxs.join('-')}`;
+    const seedStr = `${gameId}|${dateSeed}|${idxs.join('-')}|${salt}`;
     const s = cyrb128(seedStr)[0];
     const rng = mulberry32(s);
 
@@ -203,6 +210,58 @@
     return arr[sum % arr.length];
   }
 
+  function loadHistory() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return [];
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list)) return [];
+      return list;
+    } catch {
+      return [];
+    }
+  }
+
+  function saveHistory(list) {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(list));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function makePickRecord(src) {
+    // Keep it compact + stable.
+    return {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      savedAt: new Date().toISOString(),
+      gameId: src.gameId,
+      dateSeed: src.dateSeed,
+      idxs: [...src.idxs],
+      nums: {
+        main: [...src.nums.main],
+        bonus: [...src.nums.bonus]
+      }
+    };
+  }
+
+  function formatPickLine(p) {
+    const g = GAMES[p.gameId] || GAMES.pb;
+    const main = (p.nums?.main || []).join(' ');
+    const bonus = (p.nums?.bonus || []).map(n => `${g.bonusLabel} ${n}`).join(' ');
+    return `${g.name} • ${p.dateSeed}: ${main}${bonus ? `  +  ${bonus}` : ''}`;
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
   function setActiveTab(gameId) {
     currentGame = clampGameId(gameId);
     $$('#tab-pb, #tab-mm, #tab-tx').forEach(btn => {
@@ -224,9 +283,9 @@
     updatePickedUI();
     renderEmojiGrid();
 
-    // partner link
+    // Partner link is intentionally "coming soon" for now.
     const partner = $('#btnPartner');
-    partner.href = g.partnerDeepLink;
+    if (partner) partner.href = '#';
   }
 
   function updatePickedUI() {
@@ -330,6 +389,11 @@
     numbersWrap.appendChild(numbersNode);
 
     $('#resultFortune').textContent = fortuneFor(idxs);
+
+    // keep for “what next?” actions
+    lastResult = { gameId, idxs: [...idxs], dateSeed, nums, mode };
+    const more = $('#morePicks');
+    if (more) { more.hidden = true; more.innerHTML = ''; }
   }
 
   function compareNumbers(a, b) {
@@ -364,6 +428,133 @@
 
   function closeModal() {
     $('#modal').hidden = true;
+  }
+
+  function openUpgradeModal(reasonText = '') {
+    const reason = reasonText ? `<p class="micro" style="margin-top:6px;">${escapeHtml(reasonText)}</p>` : '';
+    openModal('Upgrade (coming soon)', `
+      <p><b>Plus is coming soon.</b> For now, EmojiPick is free to play.</p>
+      ${reason}
+      <div class="divider"></div>
+      <p style="margin:0 0 6px 0;"><b>Planned Plus features:</b></p>
+      <ul style="margin:0 0 0 18px; padding:0;">
+        <li>Unlimited pick history & export</li>
+        <li>Room seasons & leaderboards</li>
+        <li>Historical match insights (Top 50 + filters)</li>
+        <li>More reminder templates</li>
+      </ul>
+      <p class="micro" style="margin-top:10px;">Entertainment only. We don't sell tickets or improve odds.</p>
+    `);
+  }
+
+  function openPartnerModal() {
+    openModal('Partner app (coming soon)', `
+      <p>This button will open a partner app later (deep link).</p>
+      <p class="micro">For now, use <b>Copy as ticket</b> and buy/check in your preferred way.</p>
+    `);
+  }
+
+  function openHistoryModal() {
+    const hist = loadHistory();
+    const items = hist
+      .slice()
+      .reverse()
+      .map((p) => {
+        const line = escapeHtml(formatPickLine(p));
+        return `
+          <div class="pickRow" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div class="pickLabel">Saved</div>
+              <div class="pickLine">${line}</div>
+            </div>
+            <button class="ghost" type="button" data-action="copy" data-id="${p.id}">Copy</button>
+            <button class="ghost" type="button" data-action="compare" data-id="${p.id}">Compare</button>
+            <button class="ghost" type="button" data-action="delete" data-id="${p.id}">Delete</button>
+          </div>
+        `;
+      })
+      .join('');
+
+    openModal('My Picks', `
+      <p class="micro" style="margin-top:0;">Stored only on this device (localStorage). Not synced.</p>
+      <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="secondary" type="button" data-action="clearAll">Clear all</button>
+        <button class="secondary" type="button" data-action="exportText">Export (text)</button>
+      </div>
+      <div class="morePicks" style="margin-top:10px;">
+        ${items || '<div class="micro">No saved picks yet. Generate a result and tap <b>Save</b>.</div>'}
+      </div>
+    `);
+  }
+
+  function openCompareModal(prefPickId = '') {
+    const hist = loadHistory();
+    const current = lastResult ? makePickRecord(lastResult) : null;
+
+    const options = [
+      current ? `<option value="__current__">Current result (${escapeHtml(formatTicketLine(lastResult.gameId, lastResult.dateSeed, lastResult.nums))})</option>` : '',
+      ...hist
+        .slice()
+        .reverse()
+        .map(p => `<option value="${p.id}">${escapeHtml(formatPickLine(p))}</option>`)
+    ].filter(Boolean).join('');
+
+    openModal('Compare with winning numbers', `
+      <p class="micro" style="margin-top:0;">Enter official winning numbers and see how many match. Entertainment only.</p>
+      <div style="margin-top:10px; display:grid; gap:10px;">
+        <label class="micro"><b>Pick to compare</b><br>
+          <select id="cmpPick" style="width:100%; padding:10px; border-radius:12px; border:1px solid var(--line);" >
+            ${options || '<option value="">(No picks yet)</option>'}
+          </select>
+        </label>
+        <label class="micro"><b>Winning main numbers</b> (space/comma separated)<br>
+          <input id="winMain" inputmode="numeric" placeholder="e.g., 5 12 23 44 61" style="width:100%; padding:10px; border-radius:12px; border:1px solid var(--line);" />
+        </label>
+        <label class="micro"><b>Winning bonus</b> (one number)<br>
+          <input id="winBonus" inputmode="numeric" placeholder="e.g., 18" style="width:100%; padding:10px; border-radius:12px; border:1px solid var(--line);" />
+        </label>
+        <div class="row" style="flex-wrap:wrap; gap:10px;">
+          <button id="btnDoCompare" class="primary" type="button">Compare</button>
+          <button id="btnFillFromCurrent" class="secondary" type="button">Use my numbers as winning (test)</button>
+        </div>
+        <div id="cmpOut" class="compare" style="display:none;"></div>
+      </div>
+    `);
+
+    // Preselect
+    const sel = document.getElementById('cmpPick');
+    if (sel && prefPickId) sel.value = prefPickId;
+  }
+
+  function openReminderModal() {
+    if (!lastResult) {
+      openModal('Check reminder', `<p>Generate your numbers first, then set a reminder.</p>`);
+      return;
+    }
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    const defaultDate = `${yyyy}-${mm}-${dd}`;
+    const defaultTime = '09:00';
+
+    openModal('Check reminder', `
+      <p class="micro" style="margin-top:0;">This creates a calendar file (.ics). You choose the time.</p>
+      <div style="margin-top:10px; display:grid; gap:10px;">
+        <label class="micro"><b>Date</b><br>
+          <input id="remDate" type="date" value="${defaultDate}" style="width:100%; padding:10px; border-radius:12px; border:1px solid var(--line);" />
+        </label>
+        <label class="micro"><b>Time</b><br>
+          <input id="remTime" type="time" value="${defaultTime}" style="width:100%; padding:10px; border-radius:12px; border:1px solid var(--line);" />
+        </label>
+        <label class="micro"><b>Title</b><br>
+          <input id="remTitle" value="Check my EmojiPick numbers" style="width:100%; padding:10px; border-radius:12px; border:1px solid var(--line);" />
+        </label>
+        <button id="btnDownloadIcs" class="primary" type="button">Download .ics</button>
+        <p class="micro">Entertainment only. We don't sell tickets or improve odds.</p>
+      </div>
+    `);
   }
 
 function setupModalClose() {
@@ -439,6 +630,51 @@ function setupModalClose() {
     return `${left}  (Entertainment only)`;
   }
 
+  function formatTicketLine(gameId, dateSeed, nums) {
+    const g = GAMES[gameId];
+    const main = nums.main.join(' ');
+    const bonus = nums.bonus.map(n => `${g.bonusLabel} ${n}`).join(' ');
+    return `${g.name} • ${dateSeed}: ${main}${bonus ? `  +  ${bonus}` : ''}  (Entertainment only)`;
+  }
+
+  function renderMorePicksList() {
+    const wrap = $('#morePicks');
+    if (!wrap || !lastResult) return;
+
+    const { gameId, idxs, dateSeed } = lastResult;
+    wrap.innerHTML = '';
+    wrap.hidden = false;
+
+    for (let k = 1; k <= 3; k++) {
+      const nums = computeNumbers(gameId, idxs, dateSeed, `alt${k}`);
+      const row = document.createElement('div');
+      row.className = 'pickRow';
+
+      const label = document.createElement('div');
+      label.className = 'pickLabel';
+      label.textContent = `Pick #${k}`;
+
+      const line = document.createElement('div');
+      line.className = 'pickLine';
+      line.textContent = formatTicketLine(gameId, dateSeed, nums);
+
+      const btn = document.createElement('button');
+      btn.className = 'ghost';
+      btn.type = 'button';
+      btn.textContent = 'Copy';
+      btn.addEventListener('click', async () => {
+        const ok = await copyText(formatTicketLine(gameId, dateSeed, nums));
+        btn.textContent = ok ? 'Copied ✓' : 'Copy';
+        setTimeout(() => (btn.textContent = 'Copy'), 1200);
+      });
+
+      row.appendChild(label);
+      row.appendChild(line);
+      row.appendChild(btn);
+      wrap.appendChild(row);
+    }
+  }
+
   function currentBaseUrl() {
     const u = new URL(location.href);
     u.search = '';
@@ -461,12 +697,66 @@ function setupModalClose() {
     return u.toString();
   }
 
+  function findPickById(id) {
+    const hist = loadHistory();
+    return hist.find(p => p.id === id) || null;
+  }
+
+  function parseNums(str) {
+    if (!str) return [];
+    return String(str)
+      .replaceAll(/[^0-9]+/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(s => parseInt(s, 10))
+      .filter(n => Number.isFinite(n));
+  }
+
+  function downloadTextFile(filename, text, mime = 'text/plain') {
+    const blob = new Blob([text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function buildIcs({ title, yyyy, mm, dd, hh, min }) {
+    const dt = `${yyyy}${mm}${dd}T${hh}${min}00`;
+    const uid = `emojipick-${Date.now()}@local`;
+    return [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//EmojiPick//EN',
+      'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTAMP:${dt}`,
+      `DTSTART:${dt}`,
+      `SUMMARY:${title.replaceAll(/\r?\n/g, ' ')}`,
+      'DESCRIPTION:Entertainment only. EmojiPick does not sell tickets.',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n');
+  }
+
   // ---------- Wire UI
   function init() {
-  setupModalClose();
+    setupModalClose();
+
+    // Ensure we control caching behavior and can bust old SWs.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
 
     $('#year').textContent = String(new Date().getFullYear());
     $('#todayPill').textContent = todayKey();
+    const buildEl = document.getElementById('build');
+    if (buildEl) buildEl.textContent = `(${BUILD})`;
 
     // tabs
     $('#tab-pb').addEventListener('click', () => setActiveTab('pb'));
@@ -519,6 +809,203 @@ function setupModalClose() {
     $('#btnBack').addEventListener('click', () => {
       showPick();
     });
+
+    // Top actions
+    const myBtn = document.getElementById('btnMyPicks');
+    if (myBtn) myBtn.addEventListener('click', () => openHistoryModal());
+
+    const cmpBtn = document.getElementById('btnCompare');
+    if (cmpBtn) cmpBtn.addEventListener('click', () => openCompareModal());
+
+    const upBtn = document.getElementById('btnUpgrade');
+    if (upBtn) upBtn.addEventListener('click', () => openUpgradeModal());
+
+    const partnerBtn = document.getElementById('btnPartner');
+    if (partnerBtn) {
+      partnerBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openPartnerModal();
+      });
+    }
+
+    // Save pick
+    const saveBtn = document.getElementById('btnSavePick');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        if (!lastResult) {
+          openModal('Save', `<p>Generate your numbers first, then tap <b>Save</b>.</p>`);
+          return;
+        }
+        const hist = loadHistory();
+        if (hist.length >= FREE_HISTORY_LIMIT) {
+          openUpgradeModal(`Free history limit reached (${FREE_HISTORY_LIMIT}).`);
+          return;
+        }
+        hist.push(makePickRecord(lastResult));
+        saveHistory(hist);
+        saveBtn.textContent = 'Saved ✓';
+        setTimeout(() => (saveBtn.textContent = 'Save'), 1200);
+      });
+    }
+
+    // Check reminder
+    const calBtn = document.getElementById('btnCalendar');
+    if (calBtn) calBtn.addEventListener('click', () => openReminderModal());
+
+    // Modal action delegation (works for history/compare/reminder)
+    const modalBody = document.getElementById('modalBody');
+    if (modalBody) {
+      modalBody.addEventListener('click', async (e) => {
+        const t = e.target;
+        if (!t) return;
+
+        // History actions
+        const act = t.getAttribute && t.getAttribute('data-action');
+        if (act) {
+          e.preventDefault();
+          const id = t.getAttribute('data-id') || '';
+          if (act === 'clearAll') {
+            saveHistory([]);
+            openHistoryModal();
+            return;
+          }
+          if (act === 'exportText') {
+            const hist = loadHistory();
+            const text = hist.map(formatPickLine).join('\n');
+            downloadTextFile('emojipick_picks.txt', text || '');
+            return;
+          }
+          if (act === 'delete') {
+            const hist = loadHistory().filter(p => p.id !== id);
+            saveHistory(hist);
+            openHistoryModal();
+            return;
+          }
+          if (act === 'copy') {
+            const p = findPickById(id);
+            if (p) await copyText(`${formatPickLine(p)}  (Entertainment only)`);
+            return;
+          }
+          if (act === 'compare') {
+            openCompareModal(id);
+            return;
+          }
+        }
+
+        // Compare actions
+        if (t.id === 'btnFillFromCurrent') {
+          e.preventDefault();
+          if (!lastResult) return;
+          const wm = document.getElementById('winMain');
+          const wb = document.getElementById('winBonus');
+          if (wm) wm.value = lastResult.nums.main.join(' ');
+          if (wb) wb.value = String(lastResult.nums.bonus[0] ?? '');
+          return;
+        }
+        if (t.id === 'btnDoCompare') {
+          e.preventDefault();
+          const pickSel = document.getElementById('cmpPick');
+          const out = document.getElementById('cmpOut');
+          if (!pickSel || !out) return;
+
+          const pickId = pickSel.value;
+          let pick = null;
+          if (pickId === '__current__') {
+            if (!lastResult) return;
+            pick = makePickRecord(lastResult);
+          } else {
+            pick = findPickById(pickId);
+          }
+          if (!pick) {
+            out.style.display = 'block';
+            out.innerHTML = `<div class="compareTitle">Missing pick</div><div class="compareText">Save a pick first, or generate a result.</div>`;
+            return;
+          }
+
+          const g = GAMES[pick.gameId] || GAMES.pb;
+          const wm = parseNums(document.getElementById('winMain')?.value || '');
+          const wb = parseNums(document.getElementById('winBonus')?.value || '');
+          const main = wm.slice(0, g.mainCount);
+          const bonus = wb.slice(0, g.bonusCount);
+
+          // Validation
+          const badMainCount = main.length !== g.mainCount;
+          const badBonusCount = bonus.length !== g.bonusCount;
+          const badRange = main.some(n => n < 1 || n > g.mainMax) || bonus.some(n => n < 1 || n > g.bonusMax);
+
+          if (badMainCount || badBonusCount || badRange) {
+            out.style.display = 'block';
+            out.innerHTML = `<div class="compareTitle">Check inputs</div><div class="compareText">${g.name} expects <b>${g.mainCount}</b> main number(s) (1–${g.mainMax}) and <b>${g.bonusCount}</b> bonus (1–${g.bonusMax}).</div>`;
+            return;
+          }
+
+          const winning = { main, bonus };
+          const c = compareNumbers(winning, pick.nums);
+          const matchMain = main.filter(n => (new Set(pick.nums.main)).has(n)).sort((a,b)=>a-b);
+          const matchBonus = bonus.filter(n => (new Set(pick.nums.bonus)).has(n));
+
+          out.style.display = 'block';
+          out.innerHTML = `
+            <div class="compareTitle">Result</div>
+            <div class="compareText">
+              <div><b>${escapeHtml(formatPickLine(pick))}</b></div>
+              <div style="margin-top:6px;">Matches: <b>${c.mainOverlap}</b> main, <b>${c.bonusOverlap}</b> bonus (${g.bonusLabel}).</div>
+              <div class="micro" style="margin-top:6px;">Main matched: ${matchMain.length ? matchMain.join(' ') : '—'} / Bonus: ${matchBonus.length ? matchBonus.join(' ') : '—'}</div>
+            </div>
+          `;
+          return;
+        }
+
+        // Reminder actions
+        if (t.id === 'btnDownloadIcs') {
+          e.preventDefault();
+          const date = document.getElementById('remDate')?.value || '';
+          const time = document.getElementById('remTime')?.value || '';
+          const title = document.getElementById('remTitle')?.value || 'Check my EmojiPick numbers';
+          if (!date || !time) return;
+          const [yyyy, mm, dd] = date.split('-');
+          const [hh, min] = time.split(':');
+          const ics = buildIcs({ title, yyyy, mm, dd, hh, min });
+          downloadTextFile('emojipick-reminder.ics', ics, 'text/calendar');
+          return;
+        }
+      });
+    }
+
+    // “What next?” actions
+    const btnTicket = document.getElementById('btnCopyTicket');
+    if (btnTicket) {
+      btnTicket.addEventListener('click', async () => {
+        if (!lastResult) return;
+        const text = formatTicketLine(lastResult.gameId, lastResult.dateSeed, lastResult.nums);
+        const ok = await copyText(text);
+        btnTicket.textContent = ok ? 'Copied ✓' : 'Copy as ticket';
+        setTimeout(() => (btnTicket.textContent = 'Copy as ticket'), 1200);
+      });
+    }
+
+    const btnMore = document.getElementById('btnMorePicks');
+    if (btnMore) {
+      btnMore.addEventListener('click', () => {
+        renderMorePicksList();
+      });
+    }
+
+    const btnExplain = document.getElementById('btnExplain');
+    if (btnExplain) {
+      btnExplain.addEventListener('click', () => {
+        if (!lastResult) return;
+        const { gameId, idxs, dateSeed, nums } = lastResult;
+        const emojiText = idxs.map(i => `${EMOJIS[i]?.e || '❓'}(#${i})`).join(' ');
+        openModal('Why these numbers?', `
+          <p><b>Deterministic:</b> the same emojis on the same date always create the same numbers.</p>
+          <p><b>Date seed:</b> ${dateSeed}</p>
+          <p><b>Your emojis:</b> ${emojiText}</p>
+          <p><b>Internal seed string:</b><br><span class="mono">${nums.seedStr}</span></p>
+          <p class="micro">Entertainment only. No prediction claims.</p>
+        `);
+      });
+    }
 
     $('#btnCopy').addEventListener('click', async () => {
       const g = GAMES[currentGame];

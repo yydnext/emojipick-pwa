@@ -218,6 +218,34 @@ body{
   padding:14px;
 }
 
+.nextCard{
+  margin-top:12px;
+  background:rgba(15,23,42,.02);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:12px 14px;
+}
+.nextTitle{font-weight:900;font-size:13px}
+.nextText{font-size:12px;margin-top:4px}
+
+.morePicks{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.pickRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  border:1px solid var(--line);
+  background:rgba(15,23,42,.03);
+  border-radius:14px;
+  padding:8px 10px;
+}
+.pickLabel{font-weight:900;font-size:12px;min-width:62px;color:var(--muted)}
+.pickLine{flex:1;font-size:12px;line-height:1.3}
+
+.mono{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size:12px;
+}
+
 .badge{
   border-radius:999px;
   padding:6px 10px;

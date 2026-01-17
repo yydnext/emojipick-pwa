@@ -1,11 +1,11 @@
 // EmojiPick service worker (simple offline cache)
-const CACHE_NAME = 'emojipick-white-v6';
+const CACHE_NAME = 'emojipick-white-v8';
 
 const ASSETS = [
   './',
   './index.html',
-  './styles.css',
-  './app.js',
+  './styles.css?v=20260116v8',
+  './app.js?v=20260116v8',
   './manifest.webmanifest',
   './manifest.json',
   './icon-192.png',
