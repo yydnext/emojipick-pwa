@@ -11,7 +11,7 @@
 (() => {
   'use strict';
 
-  const BUILD = 'v8 • 2026-01-16';
+  const BUILD = 'v9 • 2026-01-16';
 
   // Local storage
   const LS_KEY = 'emojipick_picks_v1';
@@ -748,9 +748,14 @@ function setupModalClose() {
   function init() {
     setupModalClose();
 
-    // Ensure we control caching behavior and can bust old SWs.
+    // Service worker reset (v9): clears old caches then unregisters itself.
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event && event.data && event.data.type === 'SW_CLEANED') {
+          setTimeout(() => location.reload(), 150);
+        }
+      });
     }
 
     $('#year').textContent = String(new Date().getFullYear());

@@ -1,62 +1,32 @@
-// EmojiPick service worker (simple offline cache)
-const CACHE_NAME = 'emojipick-white-v8';
+// EmojiPick SW reset (v9)
+// Clears old caches and unregisters itself to avoid stale UI issues.
 
-const ASSETS = [
-  './',
-  './index.html',
-  './styles.css?v=20260116v8',
-  './app.js?v=20260116v8',
-  './manifest.webmanifest',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png',
-  './apple-touch-icon.png',
-  './og.png',
-  './privacy.html',
-  './terms.html'
-];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
-  );
+self.addEventListener('install', () => {
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((k) => k.startsWith('emojipick-') && k !== CACHE_NAME)
-          .map((k) => caches.delete(k))
-      )
-    ).then(() => self.clients.claim())
-  );
-});
+  event.waitUntil((async () => {
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch (e) {}
 
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
-  const url = new URL(req.url);
+    try {
+      await self.clients.claim();
+    } catch (e) {}
 
-  // Only handle same-origin requests
-  if (url.origin !== self.location.origin) return;
+    // Tell open pages we cleaned caches
+    try {
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const c of clients) {
+        c.postMessage({ type: 'SW_CLEANED' });
+      }
+    } catch (e) {}
 
-  // For navigations: network-first, fallback to cache
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-
-  // For other assets: cache-first
-  event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req))
-  );
+    // Unregister self so future loads are plain-network (no SW)
+    try {
+      await self.registration.unregister();
+    } catch (e) {}
+  })());
 });
