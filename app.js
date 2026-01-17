@@ -11,7 +11,7 @@
 (() => {
   'use strict';
 
-  const BUILD = 'v9 • 2026-01-16';
+  const BUILD = 'v10 • 2026-01-16';
 
   // Local storage
   const LS_KEY = 'emojipick_picks_v1';
@@ -747,15 +747,23 @@ function setupModalClose() {
   // ---------- Wire UI
   function init() {
     setupModalClose();
-
-    // Service worker reset (v9): clears old caches then unregisters itself.
+    closeModal();
+    // Service worker: disabled in v10 to avoid stale-cache issues on GitHub Pages.
+    // If an old SW is present, we unregister it once per tab-load and then reload.
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event && event.data && event.data.type === 'SW_CLEANED') {
-          setTimeout(() => location.reload(), 150);
-        }
-      });
+      const killedKey = 'emojipick_sw_killed';
+      if (!sessionStorage.getItem(killedKey)) {
+        sessionStorage.setItem(killedKey, '1');
+        navigator.serviceWorker.getRegistrations()
+          .then(regs => Promise.all(regs.map(r => r.unregister())))
+          .then(() => {
+            // Clear Cache Storage (best-effort)
+            if (window.caches && caches.keys) {
+              return caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))));
+            }
+          })
+          .finally(() => setTimeout(() => location.reload(), 120));
+      }
     }
 
     $('#year').textContent = String(new Date().getFullYear());
