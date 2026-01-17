@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EmojiPick • Compare</title>
-  <link rel="stylesheet" href="styles.v11.css?v=20260116v12" />
+  <link rel="stylesheet" href="styles.v11.css?v=20260117v15" />
 </head>
 <body>
   <div class="app">
@@ -13,7 +13,7 @@
         <div class="logo" aria-hidden="true">✨</div>
         <div>
           <div class="brandName">EmojiPick</div>
-          <div class="brandTag">Compare your pick with winning numbers</div>
+          <div class="brandTag">Check matches vs winning numbers</div>
         </div>
       </div>
       <div class="topActions">
@@ -22,6 +22,7 @@
     </header>
 
     <section class="card" style="margin-top:14px">
+      <div class="micro" style="opacity:.9; margin-bottom:8px">Steps: choose a saved pick → enter winning numbers → compare.</div>
       <h2 style="margin:0 0 10px 0">1) Choose a saved pick</h2>
       <select id="selPick" class="input" style="width:100%; max-width:620px"></select>
       <p id="noPicks" style="margin:10px 0 0 0; opacity:.8; display:none">
@@ -45,6 +46,8 @@
       </div>
 
       <div id="result" style="margin-top:12px"></div>
+
+      <div class="micro" style="margin-top:10px; opacity:.85">For fun only—no prediction or improved odds.</div>
     </section>
 
     <footer class="footer">
@@ -52,7 +55,7 @@
         <a href="./privacy.html">Privacy policy</a>
         <a href="./terms.html">Terms and Conditions</a>
       </div>
-      <div class="footerNote">Build v12</div>
+      <div class="footerNote">Build v15</div>
     </footer>
   </div>
 

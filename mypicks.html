@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EmojiPick • My Picks</title>
-  <link rel="stylesheet" href="styles.v11.css?v=20260116v12" />
+  <link rel="stylesheet" href="styles.v11.css?v=20260117v15" />
 </head>
 <body>
   <div class="app">
@@ -13,7 +13,7 @@
         <div class="logo" aria-hidden="true">✨</div>
         <div>
           <div class="brandName">EmojiPick</div>
-          <div class="brandTag">My Picks (saved on this device)</div>
+          <div class="brandTag">Your saved picks (this device)</div>
         </div>
       </div>
       <div class="topActions">
@@ -23,11 +23,14 @@
 
     <section class="card" style="margin-top:14px">
       <div style="display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap">
-        <h2 style="margin:0">Saved Picks</h2>
+        <div>
+          <h2 style="margin:0">Saved Picks</h2>
+          <div class="micro" style="margin-top:6px; opacity:.85">Stored locally in your browser.</div>
+        </div>
         <button id="btnClear" class="chip" type="button">Clear all</button>
       </div>
       <div id="list" style="margin-top:12px"></div>
-      <p id="empty" style="margin:12px 0 0 0; opacity:.8; display:none">No picks saved yet. Go back and generate one.</p>
+      <p id="empty" style="margin:12px 0 0 0; opacity:.8; display:none">No saved picks yet. Go back, generate a pick, then tap <b>Save</b>.</p>
     </section>
 
     <footer class="footer">
@@ -35,7 +38,7 @@
         <a href="./privacy.html">Privacy policy</a>
         <a href="./terms.html">Terms and Conditions</a>
       </div>
-      <div class="footerNote">Build v12</div>
+      <div class="footerNote">Build v15</div>
     </footer>
   </div>
 
