@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EmojiPick • Compare</title>
+  <link rel="stylesheet" href="styles.v11.css?v=20260116v11" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">✨</div>
+        <div>
+          <div class="brandName">EmojiPick</div>
+          <div class="brandTag">Compare your pick with winning numbers</div>
+        </div>
+      </div>
+      <div class="topActions">
+        <a class="chip" href="./index.html">Back</a>
+      </div>
+    </header>
+
+    <section class="card" style="margin-top:14px">
+      <h2 style="margin:0 0 10px 0">1) Choose a saved pick</h2>
+      <select id="selPick" class="input" style="width:100%; max-width:620px"></select>
+      <p id="noPicks" style="margin:10px 0 0 0; opacity:.8; display:none">
+        No saved picks. Go back, generate numbers, and click <b>Save</b>.
+      </p>
+    </section>
+
+    <section class="card" style="margin-top:14px">
+      <h2 style="margin:0 0 10px 0">2) Enter winning numbers</h2>
+      <p style="margin:0 0 10px 0; opacity:.85">Format examples: <b>1 2 3 4 5</b> (and Powerball <b>6</b>), or <b>1,2,3,4,5 + 6</b></p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end">
+        <div style="flex:1; min-width:240px">
+          <label class="label" for="winMain">Main numbers</label>
+          <input id="winMain" class="input" placeholder="e.g., 1 2 3 4 5" />
+        </div>
+        <div style="width:180px">
+          <label class="label" for="winPb">Powerball (optional)</label>
+          <input id="winPb" class="input" placeholder="e.g., 6" />
+        </div>
+        <button id="btnCompareNow" class="btn" type="button">Compare</button>
+      </div>
+
+      <div id="result" style="margin-top:12px"></div>
+    </section>
+
+    <footer class="footer">
+      <div class="footerLinks">
+        <a href="./privacy.html">Privacy policy</a>
+        <a href="./terms.html">Terms and Conditions</a>
+      </div>
+      <div class="footerNote">Build v11</div>
+    </footer>
+  </div>
+
+  <script>
+    const LS_KEY = 'emojipick_picks_v1';
+    const selPick = document.getElementById('selPick');
+    const noPicks = document.getElementById('noPicks');
+    const winMain = document.getElementById('winMain');
+    const winPb = document.getElementById('winPb');
+    const btnCompareNow = document.getElementById('btnCompareNow');
+    const result = document.getElementById('result');
+
+    function parseNums(s) {
+      const parts = String(s || '').replace(/[^0-9]+/g,' ').trim().split(/\s+/).filter(Boolean);
+      return parts.map(n=>parseInt(n,10)).filter(n=>Number.isFinite(n));
+    }
+
+    function loadPicks(){
+      try {
+        const arr = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+        return Array.isArray(arr) ? arr : [];
+      } catch(e) { return []; }
+    }
+
+    function renderPickOptions(arr){
+      selPick.innerHTML = '';
+      if(arr.length === 0){
+        noPicks.style.display = 'block';
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'No saved picks';
+        selPick.appendChild(opt);
+        selPick.disabled = true;
+        btnCompareNow.disabled = true;
+        return;
+      }
+      noPicks.style.display = 'none';
+      selPick.disabled = false;
+      btnCompareNow.disabled = false;
+      arr.forEach((p, i) => {
+        const nums = (p.numbers || []).join(', ');
+        const pb = (p.pb ?? p.powerball) != null ? ` + PB ${(p.pb ?? p.powerball)}` : '';
+        const txt = `${p.game || 'Pick'} • ${p.date || ''} • ${nums}${pb}`.trim();
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = txt;
+        selPick.appendChild(opt);
+      });
+    }
+
+    function compare(){
+      const arr = loadPicks();
+      const idx = parseInt(selPick.value,10);
+      if(!Number.isFinite(idx) || idx<0 || idx>=arr.length){
+        result.innerHTML = '<div class="pill">Select a valid pick first.</div>';
+        return;
+      }
+      const pick = arr[idx];
+      const wMain = parseNums(winMain.value);
+      const wPb = parseNums(winPb.value);
+      const pickMain = (pick.numbers || []).map(n=>parseInt(n,10)).filter(n=>Number.isFinite(n));
+      const pickPb = (pick.pb ?? pick.powerball);
+
+      const setW = new Set(wMain);
+      const matched = pickMain.filter(n=>setW.has(n));
+      const pbMatch = (wPb.length>0 && pickPb != null) ? (parseInt(wPb[0],10) === parseInt(pickPb,10)) : null;
+
+      const mCount = matched.length;
+      const pbText = pbMatch === null ? '(PB not checked)' : (pbMatch ? 'PB matched' : 'PB not matched');
+
+      result.innerHTML = `
+        <div class="card" style="margin-top:12px; padding:12px">
+          <div style="font-weight:800; font-size:18px">Matches: ${mCount} / ${pickMain.length}</div>
+          <div style="margin-top:6px; opacity:.9">Matched numbers: ${matched.length ? matched.join(', ') : 'None'}</div>
+          <div style="margin-top:6px; opacity:.9">${pbText}</div>
+        </div>
+      `;
+    }
+
+    renderPickOptions(loadPicks());
+    btnCompareNow.addEventListener('click', compare);
+  </script>
+</body>
+</html>

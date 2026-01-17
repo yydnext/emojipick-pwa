@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EmojiPick • My Picks</title>
+  <link rel="stylesheet" href="styles.v11.css?v=20260116v11" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">✨</div>
+        <div>
+          <div class="brandName">EmojiPick</div>
+          <div class="brandTag">My Picks (saved on this device)</div>
+        </div>
+      </div>
+      <div class="topActions">
+        <a class="chip" href="./index.html">Back</a>
+      </div>
+    </header>
+
+    <section class="card" style="margin-top:14px">
+      <div style="display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap">
+        <h2 style="margin:0">Saved Picks</h2>
+        <button id="btnClear" class="chip" type="button">Clear all</button>
+      </div>
+      <div id="list" style="margin-top:12px"></div>
+      <p id="empty" style="margin:12px 0 0 0; opacity:.8; display:none">No picks saved yet. Go back and generate one.</p>
+    </section>
+
+    <footer class="footer">
+      <div class="footerLinks">
+        <a href="./privacy.html">Privacy policy</a>
+        <a href="./terms.html">Terms and Conditions</a>
+      </div>
+      <div class="footerNote">Build v11</div>
+    </footer>
+  </div>
+
+  <script>
+    const LS_KEY = 'emojipick_picks_v1';
+    const listEl = document.getElementById('list');
+    const emptyEl = document.getElementById('empty');
+    const btnClear = document.getElementById('btnClear');
+
+    function fmtPick(p) {
+      const nums = (p && p.numbers ? p.numbers.join(', ') : '');
+      const pb = (p && (p.pb ?? p.powerball) != null) ? (p.pb ?? p.powerball) : '';
+      const em = (p && p.emojis ? p.emojis.join(' ') : '');
+      const game = (p && p.game ? p.game : '');
+      const when = (p && p.date ? p.date : '');
+      return { nums, pb, em, game, when };
+    }
+
+    function render() {
+      let arr = [];
+      try { arr = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch (e) { arr = []; }
+      if (!Array.isArray(arr) || arr.length === 0) {
+        listEl.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+      emptyEl.style.display = 'none';
+      const rows = arr.map((p, idx) => {
+        const x = fmtPick(p);
+        const pbText = x.pb !== '' ? `PB ${x.pb}` : '';
+        return `
+          <div class="card" style="margin:10px 0; padding:12px">
+            <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap">
+              <div>
+                <div style="font-weight:700">${x.game} <span style="opacity:.7; font-weight:500">${x.when}</span></div>
+                <div style="margin-top:6px; font-size:18px; letter-spacing:.3px">${x.nums} <span style="color:#d43">${pbText}</span></div>
+                <div style="margin-top:6px; opacity:.85">${x.em}</div>
+              </div>
+              <div>
+                <button class="chip" data-del="${idx}" type="button">Delete</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      listEl.innerHTML = rows;
+
+      listEl.querySelectorAll('[data-del]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const i = Number(btn.getAttribute('data-del'));
+          const ok = confirm('Delete this pick?');
+          if (!ok) return;
+          let cur = [];
+          try { cur = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch (e) { cur = []; }
+          if (Array.isArray(cur)) {
+            cur.splice(i, 1);
+            localStorage.setItem(LS_KEY, JSON.stringify(cur));
+          }
+          render();
+        });
+      });
+    }
+
+    btnClear.addEventListener('click', () => {
+      const ok = confirm('Clear all saved picks on this device?');
+      if (!ok) return;
+      localStorage.removeItem(LS_KEY);
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
