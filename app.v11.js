@@ -11,7 +11,12 @@
 (() => {
   'use strict';
 
-  const BUILD = 'v11 • 2026-01-16';
+  const BUILD = 'v12 • 2026-01-16';
+
+  // Navigation helpers (we removed the bottom-sheet modal). Keep these names stable because
+  // cached builds on GitHub Pages can temporarily mix old HTML and new JS.
+  function openHistoryModal() { window.location.href = './mypicks.html'; }
+  function openCompareModal() { window.location.href = './compare.html'; }
 
   // Local storage
   const LS_KEY = 'emojipick_picks_v1';
@@ -1000,10 +1005,13 @@ function setupModalClose() {
       });
     }
 
-    $('#modal').addEventListener('click', (e) => {
-      const t = e.target;
-      if (t && t.dataset && t.dataset.close === '1') closeModal();
-    });
+    const modalEl = $('#modal');
+    if (modalEl) {
+      modalEl.addEventListener('click', (e) => {
+        const t = e.target;
+        if (t && t.dataset && t.dataset.close === '1') closeModal();
+      });
+    }
 
     // initial state from URL
     setActiveTab(clampGameId(gameParam));

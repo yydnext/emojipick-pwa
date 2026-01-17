@@ -47,8 +47,9 @@
       </div>
 
       <div class="row" style="gap:8px; flex-wrap: wrap; justify-content: flex-end;">
-        <button id="btnMyPicks" class="linkBtn" type="button">My Picks</button>
-        <button id="btnCompare" class="linkBtn" type="button">Compare</button>
+        <!-- Real links so navigation works even if a cached JS build is still running -->
+        <a id="btnMyPicks" class="linkBtn" href="./mypicks.html">My Picks</a>
+        <a id="btnCompare" class="linkBtn" href="./compare.html">Compare</a>
         <button id="btnUpgrade" class="linkBtn" type="button">Upgrade</button>
         <button id="btnInfo" class="linkBtn" type="button">About</button>
       </div>
