@@ -221,6 +221,17 @@
       if (!raw) return [];
       const list = JSON.parse(raw);
       if (!Array.isArray(list)) return [];
+      // Migrate older saves: add `emojis` for robust rendering on other pages.
+      let changed = false;
+      for (const r of list) {
+        if (r && Array.isArray(r.idxs) && !Array.isArray(r.emojis)) {
+          r.emojis = r.idxs.map(i => EMOJIS[i]?.e).filter(Boolean);
+          changed = true;
+        }
+      }
+      if (changed) {
+        try { localStorage.setItem(LS_KEY, JSON.stringify(list)); } catch {}
+      }
       return list;
     } catch {
       return [];
@@ -238,12 +249,16 @@
 
   function makePickRecord(src) {
     // Keep it compact + stable.
+    // Store actual emoji glyphs as well as indices.
+    // This keeps My Picks / Compare stable even if their emoji lists change.
+    const emojis = (src.idxs || []).map(i => EMOJIS[i]?.e).filter(Boolean);
     return {
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       savedAt: new Date().toISOString(),
       gameId: src.gameId,
       dateSeed: src.dateSeed,
       idxs: [...src.idxs],
+      emojis,
       nums: {
         main: [...src.nums.main],
         bonus: [...src.nums.bonus]
