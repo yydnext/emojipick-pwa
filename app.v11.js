@@ -11,7 +11,7 @@
 (() => {
   'use strict';
 
-  const BUILD = 'v12 • 2026-01-16';
+  const BUILD = 'v16 • 2026-01-17';
 
   // Navigation helpers (we removed the bottom-sheet modal). Keep these names stable because
   // cached builds on GitHub Pages can temporarily mix old HTML and new JS.
@@ -740,13 +740,11 @@ function setupModalClose() {
     });
 
     // Top actions
-    // If My Picks / Compare are rendered as <a> links (recommended for GH Pages),
-    // do NOT hijack navigation. Only attach modal handlers if these are buttons.
     const myBtn = document.getElementById('btnMyPicks');
-    if (myBtn && myBtn.tagName === 'BUTTON') myBtn.addEventListener('click', () => openHistoryModal());
+    if (myBtn) myBtn.addEventListener('click', () => openHistoryModal());
 
     const cmpBtn = document.getElementById('btnCompare');
-    if (cmpBtn && cmpBtn.tagName === 'BUTTON') cmpBtn.addEventListener('click', () => openCompareModal());
+    if (cmpBtn) cmpBtn.addEventListener('click', () => openCompareModal());
 
     const upBtn = document.getElementById('btnUpgrade');
     if (upBtn) upBtn.addEventListener('click', () => openUpgradeModal());
@@ -929,9 +927,11 @@ function setupModalClose() {
         const { gameId, idxs, dateSeed, nums } = lastResult;
         const emojiText = idxs.map(i => `${EMOJIS[i]?.e || '❓'}(#${i})`).join(' ');
         openModal('Why these numbers?', `
-          <p><b>Your emojis set the vibe.</b> (Lucky, Money, Animals, Nature, Fun)</p>
-          <p><b>Fresh daily:</b> we mix your emojis with a <b>daily seed</b> (and a tiny bit of randomness), so the <b>same emojis can produce different picks each day</b>.</p>
-          <p class="micro" style="margin-top:8px">For fun only—this doesn’t increase odds or predict results.</p>
+          <p><b>Deterministic:</b> the same emojis on the same date always create the same numbers.</p>
+          <p><b>Date seed:</b> ${dateSeed}</p>
+          <p><b>Your emojis:</b> ${emojiText}</p>
+          <p><b>Internal seed string:</b><br><span class="mono">${nums.seedStr}</span></p>
+          <p class="micro">Entertainment only. No prediction claims.</p>
         `);
       });
     }

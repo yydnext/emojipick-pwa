@@ -3,140 +3,292 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EmojiPick • Compare</title>
-  <link rel="stylesheet" href="styles.v11.css?v=20260117v15" />
+  <title>EmojiPick — Compare</title>
+  <link rel="stylesheet" href="styles.v11.css" />
+  <style>
+    .pageWrap{max-width:980px;margin:22px auto;padding:0 16px;}
+    .headerRow{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;}
+    .brand{display:flex;align-items:center;gap:10px;}
+    .logo{width:28px;height:28px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:#F3F4F6;}
+    .brandTitle{font-weight:800;}
+    .brandSub{font-size:12px;opacity:.7;margin-top:2px;}
+    .btn{appearance:none;border:1px solid #CBD5E1;background:white;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer;}
+    .btnPrimary{background:#111827;color:white;border-color:#111827;}
+    .card{border:1px solid #E5E7EB;border-radius:16px;padding:16px;background:white;box-shadow:0 8px 22px rgba(0,0,0,.05);}
+    .card + .card{margin-top:14px;}
+    h1{font-size:22px;margin:0 0 8px 0;}
+    .hint{font-size:13px;opacity:.75;margin-top:4px;}
+    label{display:block;font-weight:700;margin:10px 0 6px;}
+    input,select{width:100%;padding:10px 12px;border:1px solid #D1D5DB;border-radius:12px;}
+    .row{display:grid;grid-template-columns:1fr 240px;gap:14px;align-items:end;}
+    @media (max-width:720px){.row{grid-template-columns:1fr;}}
+    .results{margin-top:12px;padding:12px;border-radius:12px;background:#F8FAFC;border:1px solid #E2E8F0;}
+    .pillRow{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+    .pill{display:inline-flex;align-items:center;justify-content:center;min-width:38px;padding:6px 10px;border:1px solid #E5E7EB;border-radius:999px;background:white;font-weight:800;}
+    .pill.hit{border-color:#22C55E;}
+    .pill.miss{opacity:.6;}
+    .footerLinks{display:flex;gap:12px;justify-content:space-between;margin-top:18px;font-size:13px;}
+    .footerLinks a{color:#2563EB;}
+  </style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
+  <div class="pageWrap">
+    <div class="headerRow">
       <div class="brand">
-        <div class="logo" aria-hidden="true">✨</div>
+        <div class="logo">✨</div>
         <div>
-          <div class="brandName">EmojiPick</div>
-          <div class="brandTag">Check matches vs winning numbers</div>
+          <div class="brandTitle">EmojiPick</div>
+          <div class="brandSub">Check matches vs winning numbers</div>
         </div>
       </div>
-      <div class="topActions">
-        <a class="chip" href="./index.html">Back</a>
-      </div>
-    </header>
+      <button class="btn" onclick="location.href='index.html'">Back</button>
+    </div>
 
-    <section class="card" style="margin-top:14px">
-      <div class="micro" style="opacity:.9; margin-bottom:8px">Steps: choose a saved pick → enter winning numbers → compare.</div>
-      <h2 style="margin:0 0 10px 0">1) Choose a saved pick</h2>
-      <select id="selPick" class="input" style="width:100%; max-width:620px"></select>
-      <p id="noPicks" style="margin:10px 0 0 0; opacity:.8; display:none">
-        No saved picks. Go back, generate numbers, and click <b>Save</b>.
-      </p>
-    </section>
+    <div class="card">
+      <div class="hint">Steps: choose a saved pick → enter winning numbers → compare.</div>
+      <h1>1) Choose a saved pick</h1>
+      <select id="pickSelect"></select>
+      <div class="hint" id="noPicksHint" style="display:none;margin-top:10px;">No saved picks yet. Go back, generate numbers, and click <b>Save</b>.</div>
+    </div>
 
-    <section class="card" style="margin-top:14px">
-      <h2 style="margin:0 0 10px 0">2) Enter winning numbers</h2>
-      <p style="margin:0 0 10px 0; opacity:.85">Format examples: <b>1 2 3 4 5</b> (and Powerball <b>6</b>), or <b>1,2,3,4,5 + 6</b></p>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end">
-        <div style="flex:1; min-width:240px">
-          <label class="label" for="winMain">Main numbers</label>
-          <input id="winMain" class="input" placeholder="e.g., 1 2 3 4 5" />
+    <div class="card">
+      <h1>2) Enter winning numbers</h1>
+      <div class="hint" id="formatHint">Format examples: <b>1 2 3 4 5</b> (and Powerball <b>6</b>), or <b>1,2,3,4,5</b> + <b>6</b></div>
+
+      <div class="row">
+        <div>
+          <label for="mainInput">Main numbers</label>
+          <input id="mainInput" placeholder="e.g., 1 2 3 4 5" />
+          <div class="hint">For fun only—no prediction or improved odds.</div>
         </div>
-        <div style="width:180px">
-          <label class="label" for="winPb">Powerball (optional)</label>
-          <input id="winPb" class="input" placeholder="e.g., 6" />
+        <div>
+          <label for="bonusInput" id="bonusLabel">Powerball (optional)</label>
+          <input id="bonusInput" placeholder="e.g., 6" />
         </div>
-        <button id="btnCompareNow" class="btn" type="button">Compare</button>
       </div>
 
-      <div id="result" style="margin-top:12px"></div>
-
-      <div class="micro" style="margin-top:10px; opacity:.85">For fun only—no prediction or improved odds.</div>
-    </section>
-
-    <footer class="footer">
-      <div class="footerLinks">
-        <a href="./privacy.html">Privacy policy</a>
-        <a href="./terms.html">Terms and Conditions</a>
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btnPrimary" id="compareBtn">Compare</button>
+        <button class="btn" id="clearBtn" type="button">Clear</button>
       </div>
-      <div class="footerNote">Build v15</div>
-    </footer>
+
+      <div class="results" id="results" style="display:none;"></div>
+    </div>
+
+    <div class="footerLinks">
+      <div>
+        <a href="privacy.html">Privacy policy</a>
+        &nbsp;&nbsp;
+        <a href="terms.html">Terms and Conditions</a>
+      </div>
+      <div>Build v16</div>
+    </div>
   </div>
 
-  <script>
-    const LS_KEY = 'emojipick_picks_v1';
-    const selPick = document.getElementById('selPick');
-    const noPicks = document.getElementById('noPicks');
-    const winMain = document.getElementById('winMain');
-    const winPb = document.getElementById('winPb');
-    const btnCompareNow = document.getElementById('btnCompareNow');
-    const result = document.getElementById('result');
+<script>
+(()=>{
+  const LS_KEY = 'emojipick_picks_v1';
 
-    function parseNums(s) {
-      const parts = String(s || '').replace(/[^0-9]+/g,' ').trim().split(/\s+/).filter(Boolean);
-      return parts.map(n=>parseInt(n,10)).filter(n=>Number.isFinite(n));
+  const GAME = {
+    pb: { name: 'Powerball', mainCount: 5, bonusLabel: 'Powerball (optional)' },
+    mm: { name: 'Mega Millions', mainCount: 5, bonusLabel: 'Mega Ball (optional)' },
+    tx: { name: 'TX Instant (demo)', mainCount: 6, bonusLabel: 'Bonus (optional)' },
+  };
+
+  // Keep in sync with index page (app.v11.js)
+  const EMOJIS = [
+    {c:'lucky',e:'🍀'},{c:'lucky',e:'✨'},{c:'lucky',e:'🌟'},{c:'lucky',e:'🌈'},{c:'lucky',e:'🔥'},
+    {c:'money',e:'💎'},{c:'money',e:'🧲'},{c:'money',e:'💰'},{c:'money',e:'🏛️'},{c:'money',e:'🪙'},{c:'money',e:'🤑'},{c:'money',e:'🎁'},
+    {c:'animals',e:'🐶'},{c:'animals',e:'🐱'},{c:'animals',e:'🐼'},{c:'animals',e:'🦊'},{c:'animals',e:'🐯'},{c:'animals',e:'🦁'},{c:'animals',e:'🐸'},{c:'animals',e:'🦋'},{c:'animals',e:'🦄'},
+    {c:'nature',e:'🌿'},{c:'nature',e:'🌸'},{c:'nature',e:'🌻'},{c:'nature',e:'🌊'},{c:'nature',e:'🌙'},{c:'nature',e:'⭐'},{c:'nature',e:'🍁'},
+    {c:'fun',e:'🎯'},{c:'fun',e:'🎉'},{c:'fun',e:'🎮'},{c:'fun',e:'🎲'},{c:'fun',e:'🧩'},{c:'fun',e:'🎭'},{c:'fun',e:'🤹'},{c:'fun',e:'🍿'},{c:'fun',e:'🕺'}
+  ];
+
+  const $pickSelect = document.getElementById('pickSelect');
+  const $noPicksHint = document.getElementById('noPicksHint');
+  const $main = document.getElementById('mainInput');
+  const $bonus = document.getElementById('bonusInput');
+  const $bonusLabel = document.getElementById('bonusLabel');
+  const $compare = document.getElementById('compareBtn');
+  const $clear = document.getElementById('clearBtn');
+  const $results = document.getElementById('results');
+
+  const load = () => {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
+    catch { return []; }
+  };
+
+  function gameMeta(p){
+    const id = p.gameId || p.game || p.draw || 'pb';
+    return GAME[id] || GAME.pb;
+  }
+
+  function pickMain(p){
+    if (p?.nums?.main) return p.nums.main;
+    if (Array.isArray(p?.numbers)) return p.numbers;
+    if (Array.isArray(p?.main)) return p.main;
+    return [];
+  }
+
+  function pickBonus(p){
+    if (typeof p?.nums?.bonus === 'number') return p.nums.bonus;
+    if (typeof p?.powerball === 'number') return p.powerball;
+    if (typeof p?.bonus === 'number') return p.bonus;
+    return null;
+  }
+
+  function pickEmojis(p){
+    if (Array.isArray(p?.emojis) && p.emojis.length) return p.emojis;
+    const idxs = p.emojiIdxs || p.idxs || [];
+    if (!Array.isArray(idxs)) return [];
+    return idxs.map(i => EMOJIS[i]?.e).filter(Boolean);
+  }
+
+  function labelFor(p, idx){
+    const meta = gameMeta(p);
+    const date = p.dateSeed || p.date || '';
+    const e = pickEmojis(p).join(' ');
+    const main = pickMain(p).join('-');
+    const b = pickBonus(p);
+    const suffix = (b===null||b===undefined) ? '' : ` + ${b}`;
+    return `${meta.name} • ${date} • ${e} • ${main}${suffix}`.trim();
+  }
+
+  function refreshSelect(){
+    const picks = load();
+    $pickSelect.innerHTML = '';
+
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = 'Pick…';
+    $pickSelect.appendChild(opt0);
+
+    picks.forEach((p, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = labelFor(p, idx);
+      $pickSelect.appendChild(opt);
+    });
+
+    $noPicksHint.style.display = picks.length ? 'none' : 'block';
+    if (picks.length) $pickSelect.value = '0';
+    syncGameLabels();
+  }
+
+  function currentPick(){
+    const picks = load();
+    const idx = Number($pickSelect.value);
+    if (!Number.isFinite(idx) || idx < 0 || idx >= picks.length) return null;
+    return picks[idx];
+  }
+
+  function syncGameLabels(){
+    const p = currentPick();
+    const meta = p ? gameMeta(p) : GAME.pb;
+    $bonusLabel.textContent = meta.bonusLabel;
+  }
+
+  function parseNums(s){
+    const parts = String(s || '').trim().split(/[^0-9]+/).filter(Boolean);
+    return parts.map(x => Number(x)).filter(n => Number.isFinite(n));
+  }
+
+  function setPills(title, nums, hitSet){
+    const row = document.createElement('div');
+    row.innerHTML = `<div style="font-weight:800;margin-top:10px;">${escapeHtml(title)}</div>`;
+    const pills = document.createElement('div');
+    pills.className = 'pillRow';
+    nums.forEach(n => {
+      const p = document.createElement('div');
+      p.className = 'pill ' + (hitSet.has(n) ? 'hit' : 'miss');
+      p.textContent = String(n);
+      pills.appendChild(p);
+    });
+    row.appendChild(pills);
+    return row;
+  }
+
+  function compare(){
+    const pick = currentPick();
+    if (!pick){
+      $results.style.display = 'block';
+      $results.textContent = 'Please choose a saved pick first.';
+      return;
     }
 
-    function loadPicks(){
-      try {
-        const arr = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
-        return Array.isArray(arr) ? arr : [];
-      } catch(e) { return []; }
+    const meta = gameMeta(pick);
+    const myMain = pickMain(pick).map(Number).filter(n=>Number.isFinite(n));
+    const myBonus = pickBonus(pick);
+
+    const winMain = parseNums($main.value);
+    const winBonusNums = parseNums($bonus.value);
+    const winBonus = winBonusNums.length ? winBonusNums[0] : null;
+
+    if (winMain.length !== meta.mainCount){
+      $results.style.display = 'block';
+      $results.textContent = `Enter exactly ${meta.mainCount} main numbers.`;
+      return;
     }
 
-    function renderPickOptions(arr){
-      selPick.innerHTML = '';
-      if(arr.length === 0){
-        noPicks.style.display = 'block';
-        const opt = document.createElement('option');
-        opt.value = '';
-        opt.textContent = 'No saved picks';
-        selPick.appendChild(opt);
-        selPick.disabled = true;
-        btnCompareNow.disabled = true;
-        return;
-      }
-      noPicks.style.display = 'none';
-      selPick.disabled = false;
-      btnCompareNow.disabled = false;
-      arr.forEach((p, i) => {
-        const nums = (p.numbers || []).join(', ');
-        const pb = (p.pb ?? p.powerball) != null ? ` + PB ${(p.pb ?? p.powerball)}` : '';
-        const txt = `${p.game || 'Pick'} • ${p.date || ''} • ${nums}${pb}`.trim();
-        const opt = document.createElement('option');
-        opt.value = String(i);
-        opt.textContent = txt;
-        selPick.appendChild(opt);
-      });
+    const mySet = new Set(myMain);
+    const winSet = new Set(winMain);
+    let mainHits = 0;
+    const hitNums = new Set();
+    winMain.forEach(n => { if (mySet.has(n)) { mainHits++; hitNums.add(n); } });
+
+    const bonusHit = (winBonus!==null && winBonus!==undefined && myBonus!==null && myBonus!==undefined)
+      ? (Number(winBonus) === Number(myBonus))
+      : false;
+
+    $results.innerHTML = '';
+
+    const summary = document.createElement('div');
+    summary.innerHTML = `<div style="font-weight:900;font-size:16px;">Result</div>
+      <div style="margin-top:6px;">Main matches: <b>${mainHits}/${meta.mainCount}</b>${(winBonus!==null && winBonus!==undefined && myBonus!==null && myBonus!==undefined) ? ` · Bonus match: <b>${bonusHit ? 'Yes' : 'No'}</b>` : ''}</div>`;
+    $results.appendChild(summary);
+
+    $results.appendChild(setPills('Your pick', myMain, hitNums));
+    $results.appendChild(setPills('Winning numbers', winMain, hitNums));
+
+    if (winBonus!==null && winBonus!==undefined){
+      const bRow = document.createElement('div');
+      bRow.innerHTML = `<div style="font-weight:800;margin-top:10px;">Bonus</div>`;
+      const pills = document.createElement('div');
+      pills.className = 'pillRow';
+      const p1 = document.createElement('div');
+      p1.className = 'pill ' + (bonusHit ? 'hit' : 'miss');
+      p1.textContent = `Your: ${myBonus ?? '—'}`;
+      const p2 = document.createElement('div');
+      p2.className = 'pill';
+      p2.textContent = `Win: ${winBonus}`;
+      pills.appendChild(p1); pills.appendChild(p2);
+      bRow.appendChild(pills);
+      $results.appendChild(bRow);
     }
 
-    function compare(){
-      const arr = loadPicks();
-      const idx = parseInt(selPick.value,10);
-      if(!Number.isFinite(idx) || idx<0 || idx>=arr.length){
-        result.innerHTML = '<div class="pill">Select a valid pick first.</div>';
-        return;
-      }
-      const pick = arr[idx];
-      const wMain = parseNums(winMain.value);
-      const wPb = parseNums(winPb.value);
-      const pickMain = (pick.numbers || []).map(n=>parseInt(n,10)).filter(n=>Number.isFinite(n));
-      const pickPb = (pick.pb ?? pick.powerball);
+    $results.style.display = 'block';
+  }
 
-      const setW = new Set(wMain);
-      const matched = pickMain.filter(n=>setW.has(n));
-      const pbMatch = (wPb.length>0 && pickPb != null) ? (parseInt(wPb[0],10) === parseInt(pickPb,10)) : null;
+  $pickSelect.addEventListener('change', syncGameLabels);
+  $compare.addEventListener('click', compare);
+  $clear.addEventListener('click', () => {
+    $main.value = '';
+    $bonus.value = '';
+    $results.style.display = 'none';
+    $results.innerHTML = '';
+  });
 
-      const mCount = matched.length;
-      const pbText = pbMatch === null ? '(PB not checked)' : (pbMatch ? 'PB matched' : 'PB not matched');
+  function escapeHtml(s){
+    return String(s)
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
 
-      result.innerHTML = `
-        <div class="card" style="margin-top:12px; padding:12px">
-          <div style="font-weight:800; font-size:18px">Matches: ${mCount} / ${pickMain.length}</div>
-          <div style="margin-top:6px; opacity:.9">Matched numbers: ${matched.length ? matched.join(', ') : 'None'}</div>
-          <div style="margin-top:6px; opacity:.9">${pbText}</div>
-        </div>
-      `;
-    }
-
-    renderPickOptions(loadPicks());
-    btnCompareNow.addEventListener('click', compare);
-  </script>
+  refreshSelect();
+})();
+</script>
 </body>
 </html>

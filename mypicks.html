@@ -3,113 +3,210 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EmojiPick • My Picks</title>
-  <link rel="stylesheet" href="styles.v11.css?v=20260117v15" />
+  <title>EmojiPick — My Picks</title>
+  <link rel="stylesheet" href="styles.v11.css" />
+  <style>
+    .pageWrap{max-width:980px;margin:22px auto;padding:0 16px;}
+    .headerRow{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;}
+    .brand{display:flex;align-items:center;gap:10px;}
+    .brand .logo{width:34px;height:34px;display:grid;place-items:center;border-radius:12px;background:#f3f4f6;}
+    .brand h1{font-size:18px;margin:0;line-height:1.1;}
+    .brand p{margin:2px 0 0 0;font-size:12px;opacity:.7;}
+    .btn{border:1px solid rgba(0,0,0,.12);background:#fff;border-radius:999px;padding:8px 12px;font-weight:600;cursor:pointer;}
+    .btn:active{transform:translateY(1px)}
+    .card{border:1px solid rgba(0,0,0,.12);border-radius:18px;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.05);}
+    .cardHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 10px 0;}
+    .cardTitle{margin:0;font-size:24px;}
+    .muted{opacity:.7;font-size:13px;}
+    .pickList{display:flex;flex-direction:column;gap:12px;margin-top:14px;}
+    .pickItem{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 14px;}
+    .pickLeft{min-width:0;}
+    .pickLine1{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .tag{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#f3f4f6;}
+    .emojis{font-size:18px;letter-spacing:2px;}
+    .nums{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+    .ball{width:34px;height:34px;border-radius:999px;display:grid;place-items:center;border:1px solid rgba(0,0,0,.12);font-weight:800;}
+    .ball.pb{border-color:rgba(124,58,237,.45);background:rgba(124,58,237,.08)}
+    .footerRow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap;}
+    .linkRow a{margin-right:10px;}
+  </style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
+  <div class="pageWrap">
+    <div class="headerRow">
       <div class="brand">
-        <div class="logo" aria-hidden="true">✨</div>
+        <div class="logo">✨</div>
         <div>
-          <div class="brandName">EmojiPick</div>
-          <div class="brandTag">Your saved picks (this device)</div>
+          <h1>EmojiPick</h1>
+          <p>Your saved picks (this device)</p>
         </div>
       </div>
-      <div class="topActions">
-        <a class="chip" href="./index.html">Back</a>
-      </div>
-    </header>
+      <button class="btn" onclick="location.href='index.html'">Back</button>
+    </div>
 
-    <section class="card" style="margin-top:14px">
-      <div style="display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap">
+    <div class="card" style="padding:18px;">
+      <div class="cardHeader">
         <div>
-          <h2 style="margin:0">Saved Picks</h2>
-          <div class="micro" style="margin-top:6px; opacity:.85">Stored locally in your browser.</div>
+          <h2 class="cardTitle">Saved Picks</h2>
+          <div class="muted">Stored locally in your browser (localStorage).</div>
         </div>
-        <button id="btnClear" class="chip" type="button">Clear all</button>
+        <button id="clearAllBtn" class="btn">Clear all</button>
       </div>
-      <div id="list" style="margin-top:12px"></div>
-      <p id="empty" style="margin:12px 0 0 0; opacity:.8; display:none">No saved picks yet. Go back, generate a pick, then tap <b>Save</b>.</p>
-    </section>
 
-    <footer class="footer">
-      <div class="footerLinks">
-        <a href="./privacy.html">Privacy policy</a>
-        <a href="./terms.html">Terms and Conditions</a>
+      <div id="emptyState" class="muted" style="display:none;">No picks saved yet. Go back and generate one, then click <b>Save</b>.</div>
+      <div id="list" class="pickList"></div>
+    </div>
+
+    <div class="footerRow">
+      <div class="linkRow">
+        <a href="privacy.html">Privacy policy</a>
+        <a href="terms.html">Terms and Conditions</a>
       </div>
-      <div class="footerNote">Build v15</div>
-    </footer>
+      <div class="muted">Build v16</div>
+    </div>
   </div>
 
-  <script>
-    const LS_KEY = 'emojipick_picks_v1';
-    const listEl = document.getElementById('list');
-    const emptyEl = document.getElementById('empty');
-    const btnClear = document.getElementById('btnClear');
+<script>
+(()=>{
+  const LS_KEY = 'emojipick_picks_v1';
 
-    function fmtPick(p) {
-      const nums = (p && p.numbers ? p.numbers.join(', ') : '');
-      const pb = (p && (p.pb ?? p.powerball) != null) ? (p.pb ?? p.powerball) : '';
-      const em = (p && p.emojis ? p.emojis.join(' ') : '');
-      const game = (p && p.game ? p.game : '');
-      const when = (p && p.date ? p.date : '');
-      return { nums, pb, em, game, when };
+  // Keep in sync with index page (app.v11.js)
+  const EMOJIS = [
+    {c:'lucky',e:'🍀'},{c:'lucky',e:'✨'},{c:'lucky',e:'🌟'},{c:'lucky',e:'🌈'},{c:'lucky',e:'🔥'},
+    {c:'money',e:'💎'},{c:'money',e:'🧲'},{c:'money',e:'💰'},{c:'money',e:'🏦'},{c:'money',e:'🪙'},
+    {c:'fun',e:'🥳'},{c:'fun',e:'🎭'},{c:'fun',e:'🎲'},{c:'fun',e:'🎯'},{c:'fun',e:'🎁'},
+    {c:'animals',e:'🦊'},{c:'animals',e:'🐼'},{c:'animals',e:'🦁'},{c:'animals',e:'🐸'},{c:'animals',e:'🐬'},
+    {c:'nature',e:'🌸'},{c:'nature',e:'🦋'},{c:'nature',e:'🍄'},{c:'nature',e:'🦅'},{c:'nature',e:'🐋'},
+    {c:'all',e:'👁️'},{c:'all',e:'🪄'},{c:'all',e:'🧠'},{c:'all',e:'🧿'},{c:'all',e:'🔮'},
+    {c:'all',e:'🧸'},{c:'all',e:'🪽'},{c:'all',e:'🌙'},{c:'all',e:'⭐'},{c:'all',e:'🕯️'},
+    {c:'all',e:'🫶'},{c:'all',e:'💛'}
+  ];
+
+  const GAME_NAME = {
+    'powerball':'Powerball',
+    'mega':'Mega Millions',
+    'tx':'TX Instant (Demo)'
+  };
+
+  const $list = document.getElementById('list');
+  const $empty = document.getElementById('emptyState');
+  const $clearAll = document.getElementById('clearAllBtn');
+
+  function load(){
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
+    catch { return []; }
+  }
+  function save(arr){
+    localStorage.setItem(LS_KEY, JSON.stringify(arr));
+  }
+
+  function normalizePick(p){
+    // v16 supports both legacy and new schema
+    const gameId = p.gameId || p.game || p.draw || 'powerball';
+    const dateSeed = p.dateSeed || p.date || p.when || '';
+
+    const idxs = p.emojiIdxs || p.idxs || p.emojisIdxs || [];
+    const emojis = (p.emojis && Array.isArray(p.emojis))
+      ? p.emojis
+      : (Array.isArray(idxs) ? idxs.map(i => (EMOJIS[i] ? EMOJIS[i].e : '❓')) : []);
+
+    const main = (p.nums && Array.isArray(p.nums.main)) ? p.nums.main
+               : (Array.isArray(p.numbers) ? p.numbers : (p.mainNumbers || p.main || []));
+
+    const bonus = (p.nums && (p.nums.bonus !== undefined && p.nums.bonus !== null)) ? p.nums.bonus
+                : (p.powerball ?? p.pb ?? p.bonus ?? null);
+
+    return {
+      gameId,
+      gameName: GAME_NAME[gameId] || String(gameId),
+      dateSeed,
+      emojis,
+      main,
+      bonus
+    };
+  }
+
+  function render(){
+    const arr = load();
+    $list.innerHTML = '';
+
+    if (!arr.length){
+      $empty.style.display = 'block';
+      return;
     }
+    $empty.style.display = 'none';
 
-    function render() {
-      let arr = [];
-      try { arr = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch (e) { arr = []; }
-      if (!Array.isArray(arr) || arr.length === 0) {
-        listEl.innerHTML = '';
-        emptyEl.style.display = 'block';
-        return;
-      }
-      emptyEl.style.display = 'none';
-      const rows = arr.map((p, idx) => {
-        const x = fmtPick(p);
-        const pbText = x.pb !== '' ? `PB ${x.pb}` : '';
-        return `
-          <div class="card" style="margin:10px 0; padding:12px">
-            <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap">
-              <div>
-                <div style="font-weight:700">${x.game} <span style="opacity:.7; font-weight:500">${x.when}</span></div>
-                <div style="margin-top:6px; font-size:18px; letter-spacing:.3px">${x.nums} <span style="color:#d43">${pbText}</span></div>
-                <div style="margin-top:6px; opacity:.85">${x.em}</div>
-              </div>
-              <div>
-                <button class="chip" data-del="${idx}" type="button">Delete</button>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-      listEl.innerHTML = rows;
+    arr.forEach((raw, idx) => {
+      const p = normalizePick(raw);
 
-      listEl.querySelectorAll('[data-del]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const i = Number(btn.getAttribute('data-del'));
-          const ok = confirm('Delete this pick?');
-          if (!ok) return;
-          let cur = [];
-          try { cur = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch (e) { cur = []; }
-          if (Array.isArray(cur)) {
-            cur.splice(i, 1);
-            localStorage.setItem(LS_KEY, JSON.stringify(cur));
-          }
-          render();
-        });
+      const item = document.createElement('div');
+      item.className = 'card pickItem';
+
+      const left = document.createElement('div');
+      left.className = 'pickLeft';
+
+      const line1 = document.createElement('div');
+      line1.className = 'pickLine1';
+      line1.innerHTML = `
+        <span class="tag">${escapeHtml(p.gameName)}</span>
+        <span class="muted">${escapeHtml(p.dateSeed || '')}</span>
+        <span class="emojis">${p.emojis.map(escapeHtml).join(' ')}</span>
+      `;
+
+      const nums = document.createElement('div');
+      nums.className = 'nums';
+
+      (p.main || []).forEach(n => {
+        const b = document.createElement('div');
+        b.className = 'ball';
+        b.textContent = String(n);
+        nums.appendChild(b);
       });
-    }
+      if (p.bonus !== null && p.bonus !== undefined && p.bonus !== ''){
+        const pb = document.createElement('div');
+        pb.className = 'ball pb';
+        pb.textContent = String(p.bonus);
+        nums.appendChild(pb);
+      }
 
-    btnClear.addEventListener('click', () => {
-      const ok = confirm('Clear all saved picks on this device?');
-      if (!ok) return;
-      localStorage.removeItem(LS_KEY);
-      render();
+      left.appendChild(line1);
+      left.appendChild(nums);
+
+      const right = document.createElement('div');
+      const del = document.createElement('button');
+      del.className = 'btn';
+      del.textContent = 'Delete';
+      del.addEventListener('click', () => {
+        const next = load();
+        next.splice(idx, 1);
+        save(next);
+        render();
+      });
+      right.appendChild(del);
+
+      item.appendChild(left);
+      item.appendChild(right);
+      $list.appendChild(item);
     });
+  }
 
+  $clearAll.addEventListener('click', () => {
+    if (!confirm('Delete all saved picks from this device?')) return;
+    save([]);
     render();
-  </script>
+  });
+
+  function escapeHtml(s){
+    return String(s)
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
+  render();
+})();
+</script>
 </body>
 </html>
