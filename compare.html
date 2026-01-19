@@ -104,7 +104,7 @@
         &nbsp;&nbsp;
         <a href="terms.html">Terms and Conditions</a>
       </div>
-      <div>Build v20</div>
+      <div>Build v21</div>
     </div>
   </div>
 
@@ -169,10 +169,66 @@
   };
 
   const getGame = (code) => GAME[code] || { name: code, mainCount: 5, bonusLabel: null, dataKey: null };
+  const normalizePick = (raw) => {
+    if (!raw || typeof raw !== 'object') return null;
+
+    // game id
+    const game = raw.game || raw.gameId || raw.g || 'pb';
+
+    // date
+    const date = (raw.date || raw.dateSeed || raw.d || '').toString();
+
+    // emojis
+    const emojis = Array.isArray(raw.emojis) ? raw.emojis
+      : Array.isArray(raw.e) ? raw.e
+      : [];
+
+    // main numbers
+    let numbers = [];
+    if (Array.isArray(raw.numbers)) numbers = raw.numbers.slice();
+    else if (Array.isArray(raw.nums)) numbers = raw.nums.slice();
+    else if (raw.nums && Array.isArray(raw.nums.main)) numbers = raw.nums.main.slice();
+    else if (raw.nums && Array.isArray(raw.nums.numbers)) numbers = raw.nums.numbers.slice();
+
+    // bonus number (powerball / mega ball / etc.)
+    let bonus = (raw.powerball ?? raw.pb ?? raw.bonus ?? raw.power ?? null);
+    if (bonus == null && raw.nums && typeof raw.nums.bonus === 'number') bonus = raw.nums.bonus;
+    if (bonus == null && raw.nums && Array.isArray(raw.nums.bonus) && raw.nums.bonus.length) bonus = raw.nums.bonus[0];
+
+    // If legacy stored all 6 in numbers for PB/MM, split last as bonus
+    const g = getGame(game);
+    const expectsBonus = !!g.bonusLabel;
+    if (bonus == null && expectsBonus && numbers.length === 6) {
+      bonus = numbers[5];
+      numbers = numbers.slice(0, 5);
+    }
+
+    // created/saved time for sorting
+    const savedAt = raw.savedAt || raw.createdAt || raw.ts || raw.time || 0;
+
+    return { ...raw, game, date, emojis, numbers, bonus, savedAt };
+  };
+
+  const sortKey = (p) => {
+    const d = (p.date || '').replace(/[^0-9]/g, '').padEnd(8, '0');
+    const t = String(p.savedAt || 0).padStart(13, '0');
+    return d + '-' + t;
+  };
+
 
   const readPicks = () => {
-    const raw = localStorage.getItem(LS_KEY);
-    return safeJsonParse(raw || '[]', []);
+    const raw = safeJsonParse(localStorage.getItem(LS_KEY), []);
+    const arr = Array.isArray(raw) ? raw : [];
+    const picks = arr.map((p, idx) => {
+      const norm = normalizePick(p);
+      if (!norm) return null;
+      norm.__idx = idx;
+      return norm;
+    }).filter(p => p && p.numbers && p.numbers.length);
+
+    // newest first
+    picks.sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
+    return picks;
   };
 
   const writePicks = (arr) => {
@@ -207,7 +263,7 @@
     ph.textContent = 'Pick…';
     pickSelect.appendChild(ph);
 
-    sortPicksDesc(picks).forEach((p, idx) => {
+    picks.forEach((p, idx) => {
       const opt = document.createElement('option');
       opt.value = String(idx);
       opt.textContent = optionLabel(p);
