@@ -81,7 +81,7 @@
         &nbsp;&nbsp;
         <a href="terms.html">Terms and Conditions</a>
       </div>
-      <div>Build v17</div>
+      <div>Build v18</div>
     </div>
   </div>
 
@@ -131,10 +131,13 @@
   }
 
   function pickBonus(p){
-    if (typeof p?.nums?.bonus === 'number') return p.nums.bonus;
-    if (typeof p?.powerball === 'number') return p.powerball;
-    if (typeof p?.bonus === 'number') return p.bonus;
-    return null;
+    // Support multiple saved formats across builds
+    const raw = (p?.nums && p.nums.bonus !== undefined)
+      ? p.nums.bonus
+      : (p?.powerball ?? p?.bonus ?? p?.pb);
+    if (raw === null || raw === undefined || raw === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
   }
 
   function pickEmojis(p){
@@ -150,7 +153,7 @@
     const e = pickEmojis(p).join(' ');
     const main = pickMain(p).join('-');
     const b = pickBonus(p);
-    const suffix = (b===null||b===undefined) ? '' : ` + ${b}`;
+    const suffix = (b===null||b===undefined) ? '' : ` + ${meta.bonusLabel} ${b}`;
     return `${meta.name} • ${date} • ${e} • ${main}${suffix}`.trim();
   }
 
