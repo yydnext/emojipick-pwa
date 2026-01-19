@@ -1,0 +1,9 @@
+{
+  "game": "powerball",
+  "range_main": [1, 69],
+  "range_bonus": [1, 26],
+  "hot_main": [61, 32, 21, 63, 23, 69, 62, 36, 39, 37],
+  "hot_bonus": [24, 18, 4, 26, 6],
+  "note": "Demo 'hot number' list. Replace with real frequency stats from your historical dataset.",
+  "source": "demo"
+}

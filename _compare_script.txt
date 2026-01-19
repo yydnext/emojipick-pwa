@@ -1,114 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EmojiPick — Compare</title>
-  <link rel="stylesheet" href="styles.v11.css" />
-  <style>
-    .pageWrap{max-width:980px;margin:22px auto;padding:0 16px;}
-    .headerRow{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;}
-    .brand{display:flex;align-items:center;gap:10px;}
-    .logo{width:28px;height:28px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:#F3F4F6;}
-    .brandTitle{font-weight:800;}
-    .brandSub{font-size:12px;opacity:.7;margin-top:2px;}
-    .btn{appearance:none;border:1px solid #CBD5E1;background:white;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer;}
-    .btnPrimary{background:#111827;color:white;border-color:#111827;}
-    .card{border:1px solid #E5E7EB;border-radius:16px;padding:16px;background:white;box-shadow:0 8px 22px rgba(0,0,0,.05);}
-    .card + .card{margin-top:14px;}
-    h1{font-size:22px;margin:0 0 8px 0;}
-    .hint{font-size:13px;opacity:.75;margin-top:4px;}
-    label{display:block;font-weight:700;margin:10px 0 6px;}
-    input,select{width:100%;padding:10px 12px;border:1px solid #D1D5DB;border-radius:12px;}
-    .row{display:grid;grid-template-columns:1fr 240px;gap:14px;align-items:end;}
-    @media (max-width:720px){.row{grid-template-columns:1fr;}}
-    .results{margin-top:12px;padding:12px;border-radius:12px;background:#F8FAFC;border:1px solid #E2E8F0;}
-    .pillRow{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
-    .pill{display:inline-flex;align-items:center;justify-content:center;min-width:38px;padding:6px 10px;border:1px solid #E5E7EB;border-radius:999px;background:white;font-weight:800;}
-    .pill.hit{border-color:#22C55E;}
-    .pill.miss{opacity:.6;}
-    .footerLinks{display:flex;gap:12px;justify-content:space-between;margin-top:18px;font-size:13px;}
-    .footerLinks a{color:#2563EB;}
-  </style>
-</head>
-<body>
-  <div class="pageWrap">
-    <div class="headerRow">
-      <div class="brand">
-        <div class="logo">✨</div>
-        <div>
-          <div class="brandTitle">EmojiPick</div>
-          <div class="brandSub">Check matches vs winning numbers</div>
-        </div>
-      </div>
-      <button class="btn" onclick="location.href='index.html'">Back</button>
-    </div>
-
-    <div class="card">
-      <div class="hint">Steps: choose a saved pick → enter winning numbers → compare.</div>
-      <h1>1) Choose a saved pick</h1>
-      <select id="pickSelect"></select>
-      <div class="hint" id="noPicksHint" style="display:none;margin-top:10px;">No saved picks yet. Go back, generate numbers, and click <b>Save</b>.</div>
-    </div>
-
-    <div class="card">
-      <h1>2) Winning numbers</h1>
-      <div class="hint" id="autoHint">We auto-fill the latest published winning numbers for this game. (You can optionally edit.)</div>
-
-      <div class="results" id="latestBox" style="display:block;margin-top:12px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-          <div>
-            <div style="font-weight:800;">Latest winning numbers</div>
-            <div class="hint" id="latestMeta">Loading…</div>
-          </div>
-          <button class="btn" id="refreshLatest" type="button">Refresh</button>
-        </div>
-        <div class="pillRow" id="latestPills" style="margin-top:10px;"></div>
-      </div>
-
-      <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
-        <input id="manualToggle" type="checkbox" style="width:auto;" />
-        <label for="manualToggle" style="margin:0;font-weight:700;">Edit winning numbers manually</label>
-      </div>
-
-      <div class="row" id="manualRow" style="margin-top:8px;opacity:.65;pointer-events:none;">
-        <div style="flex:2;min-width:240px;">
-          <label for="winMain">Main numbers</label>
-          <input id="winMain" class="input" placeholder="Auto-filled" inputmode="numeric" />
-          <div class="hint">Format examples: <b>1 2 3 4 5</b>, or <b>1,2,3,4,5</b></div>
-        </div>
-        <div style="flex:1;min-width:180px;">
-          <label for="winBonus" id="bonusLabel">Bonus (optional)</label>
-          <input id="winBonus" class="input" placeholder="Auto-filled" inputmode="numeric" />
-        </div>
-      </div>
-
-      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn btnPrimary" id="compareBtn">Compare</button>
-        <button class="btn" id="clearBtn" type="button">Clear</button>
-      </div>
-
-      <div class="results" id="results" style="display:none;"></div>
-
-      <div class="results" id="hotBox" style="display:block;margin-top:14px;">
-        <div style="font-weight:800;">Hot numbers (historical)</div>
-        <div class="hint" id="hotMeta">Loading…</div>
-        <div class="pillRow" id="hotPills" style="margin-top:10px;"></div>
-        <div class="hint" id="hotMatchHint" style="margin-top:8px;"></div>
-      </div>
-    </div>
-
-    <div class="footerLinks">
-      <div>
-        <a href="privacy.html">Privacy policy</a>
-        &nbsp;&nbsp;
-        <a href="terms.html">Terms and Conditions</a>
-      </div>
-      <div>Build v20</div>
-    </div>
-  </div>
-
-<script>
 (()=>{
   const LS_KEY = 'emojipick_picks_v1';
 
@@ -275,7 +164,7 @@
       const bonus = currentPick?.powerball ?? currentPick?.bonus ?? currentPick?.pb;
       hotPills.appendChild(pill('—', true, false));
       hotBonus.forEach(n => {
-        const isHit = (bonus !== undefined && bonus !== null) ? Number(bonus) == Number(n) : false;
+        const isHit = (bonus !== undefined && bonus !== null) ? Number(bonus) == Number(n) : False;
         hotPills.appendChild(pill(`${getGame(gameCode).bonusLabel || 'Bonus'} ${n}`, true, isHit));
       });
     }
@@ -425,7 +314,3 @@
     renderStats(null, 'pb');
   }
 })();
-
-</script>
-</body>
-</html>

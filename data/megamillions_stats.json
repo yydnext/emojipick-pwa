@@ -1,0 +1,7 @@
+{
+  "game": "megamillions",
+  "window": "demo",
+  "hot_main": [10, 14, 17, 22, 24, 31, 34, 37, 46, 56],
+  "hot_bonus": [4, 7, 9, 12, 18],
+  "note": "Demo stats. Replace with real frequency stats computed from historical draws."
+}
