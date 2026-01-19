@@ -1,0 +1,31 @@
+
+    <div class="card">
+      <h1>3) Closest past draws</h1>
+      <div class="hint" id="closestMeta">Loading…</div>
+      <div id="closestList" class="results" style="display:block;margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <h1>4) Full draw history</h1>
+      <div class="hint" id="historyMeta">Loading…</div>
+
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <input id="historySearch" placeholder="Search by date (YYYY-MM-DD) or draw #" style="flex:1;min-width:240px;" />
+        <button class="btn" id="historyClear" type="button">Clear</button>
+        <button class="btn" id="historyMore" type="button">Load more</button>
+      </div>
+
+      <div style="margin-top:10px;overflow:auto;max-height:420px;border:1px solid #E5E7EB;border-radius:12px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#F8FAFC;border-bottom:1px solid #E5E7EB;">
+              <th style="text-align:left;padding:10px;">Draw</th>
+              <th style="text-align:left;padding:10px;">Winning numbers</th>
+              <th style="text-align:left;padding:10px;">Matches</th>
+            </tr>
+          </thead>
+          <tbody id="historyTbody"></tbody>
+        </table>
+      </div>
+      <div class="hint" id="historyCountHint" style="margin-top:8px;"></div>
+    </div>

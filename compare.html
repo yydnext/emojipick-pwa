@@ -45,7 +45,7 @@
     </div>
 
     <div class="card">
-      <div class="hint">Steps: choose a saved pick → enter winning numbers → compare.</div>
+      <div class="hint">Steps: choose a saved pick → we auto-load winning numbers → compare.</div>
       <h1>1) Choose a saved pick</h1>
       <select id="pickSelect"></select>
       <div class="hint" id="noPicksHint" style="display:none;margin-top:10px;">No saved picks yet. Go back, generate numbers, and click <b>Save</b>.</div>
@@ -98,13 +98,74 @@
       </div>
     </div>
 
+
+    <div class="card">
+      <h1>3) Closest past draws</h1>
+      <div class="hint" id="closestMeta">Loading…</div>
+      <div id="closestList" class="results" style="display:block;margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <h1>4) Full draw history</h1>
+      <div class="hint" id="historyMeta">Loading…</div>
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <input id="historySearch" placeholder="Search by date or draw #" style="flex:1;min-width:240px;" />
+        <button class="btn" id="historyClear" type="button">Clear</button>
+        <button class="btn" id="historyMore" type="button">Load more</button>
+      </div>
+      <div style="margin-top:10px;overflow:auto;max-height:380px;border:1px solid #E2E8F0;border-radius:12px;">
+        <table style="width:100%;border-collapse:collapse;min-width:680px;" id="historyTable">
+          <thead>
+            <tr style="position:sticky;top:0;background:#F8FAFC;border-bottom:1px solid #E2E8F0;">
+              <th style="text-align:left;padding:10px;">Date</th>
+              <th style="text-align:left;padding:10px;">Draw #</th>
+              <th style="text-align:left;padding:10px;">Winning</th>
+              <th style="text-align:left;padding:10px;">Matches</th>
+            </tr>
+          </thead>
+          <tbody id="historyTbody"></tbody>
+        </table>
+      </div>
+      <div class="hint" id="historyFoot" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+      <h1>3) Closest past draws</h1>
+      <div class="hint" id="closestMeta">Loading…</div>
+      <div id="closestList" class="results" style="display:block;margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <h1>4) Full draw history</h1>
+      <div class="hint" id="historyMeta">Loading…</div>
+
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <input id="historySearch" placeholder="Search by date (YYYY-MM-DD) or draw #" style="flex:1;min-width:240px;" />
+        <button class="btn" id="historyClear" type="button">Clear</button>
+        <button class="btn" id="historyMore" type="button">Load more</button>
+      </div>
+
+      <div style="margin-top:10px;overflow:auto;max-height:420px;border:1px solid #E5E7EB;border-radius:12px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#F8FAFC;border-bottom:1px solid #E5E7EB;">
+              <th style="text-align:left;padding:10px;">Draw</th>
+              <th style="text-align:left;padding:10px;">Winning numbers</th>
+              <th style="text-align:left;padding:10px;">Matches</th>
+            </tr>
+          </thead>
+          <tbody id="historyTbody"></tbody>
+        </table>
+      </div>
+      <div class="hint" id="historyCountHint" style="margin-top:8px;"></div>
+    </div>
     <div class="footerLinks">
       <div>
         <a href="privacy.html">Privacy policy</a>
         &nbsp;&nbsp;
         <a href="terms.html">Terms and Conditions</a>
       </div>
-      <div>Build v21</div>
+      <div>Build v22</div>
     </div>
   </div>
 
@@ -137,10 +198,26 @@
   const hotPills = document.getElementById('hotPills');
   const hotMatchHint = document.getElementById('hotMatchHint');
 
+  // History UI
+  const closestMeta = document.getElementById('closestMeta');
+  const closestList = document.getElementById('closestList');
+  const historyMeta = document.getElementById('historyMeta');
+  const historySearch = document.getElementById('historySearch');
+  const historyClear = document.getElementById('historyClear');
+  const historyMore = document.getElementById('historyMore');
+  const historyTbody = document.getElementById('historyTbody');
+  const historyCountHint = document.getElementById('historyCountHint');
+
   let picks = [];
   let currentPick = null;
   let currentWinning = null;
   let currentStats = null;
+  let currentHistory = null;
+  let historyFiltered = [];
+  let historyShown = 0;
+  const HISTORY_PAGE = 200;
+  let historyShown = 0;
+  const HISTORY_PAGE_SIZE = 200;
 
   // Helpers
   const safeJsonParse = (s, fallback) => {
@@ -290,6 +367,165 @@
     return await fetchJson(`./data/${g.dataKey}_stats.json`);
   };
 
+  const loadHistoryForGame = async (gameCode) => {
+    const g = getGame(gameCode);
+    if(!g.dataKey) return null;
+    const data = await fetchJson(`./data/${g.dataKey}_history.json`);
+    // supports either an array, or { draws: [...] }
+    const draws = Array.isArray(data) ? data : (Array.isArray(data.draws) ? data.draws : []);
+    const meta = Array.isArray(data) ? {} : (data.meta || {});
+    return { meta, draws };
+  };
+
+  const drawLabel = (d) => {
+    const no = d.draw_no ?? d.draw ?? d.drawNumber ?? '';
+    const date = d.draw_date || d.date || '';
+    return `${no ? ('#' + no + ' • ') : ''}${date}`.trim();
+  };
+
+  const pickBonusValue = (p) => (p?.powerball ?? p?.bonus ?? p?.pb);
+
+  const computeMatch = (pick, draw) => {
+    const g = getGame(pick.game);
+    const winMain = (draw.main_numbers || draw.main || draw.numbers || []).map(Number);
+    const winBonus = (draw.bonus_number ?? draw.bonus ?? draw.powerball ?? null);
+
+    const pickMain = (pick.numbers || []).map(Number);
+    const mainMatches = pickMain.filter(n => winMain.includes(Number(n)));
+
+    let bonusMatch = false;
+    const pb = pickBonusValue(pick);
+    if(g.bonusLabel && pb !== undefined && pb !== null && pb !== '' && winBonus !== undefined && winBonus !== null && winBonus !== ''){
+      bonusMatch = (Number(pb) === Number(winBonus));
+    }
+
+    const score = mainMatches.length + (bonusMatch ? 2 : 0);
+    return { mainMatches, bonusMatch, score, winMain, winBonus };
+  };
+
+  const fmtWinningLine = (draw, gameCode) => {
+    const g = getGame(gameCode);
+    const main = (draw.main_numbers || draw.main || draw.numbers || []).join(' ');
+    const b = (draw.bonus_number ?? draw.bonus ?? draw.powerball ?? null);
+    return `${main}${(g.bonusLabel && b !== null && b !== undefined && b !== '') ? (' + ' + g.bonusLabel + ' ' + b) : ''}`.trim();
+  };
+
+  const renderClosestAndHistory = () => {
+    // Clear when missing data
+    if(!currentPick){
+      closestMeta.textContent = 'Choose a saved pick to see closest past draws.';
+      closestList.innerHTML = '';
+      historyMeta.textContent = '';
+      historyTbody.innerHTML = '';
+      historyCountHint.textContent = '';
+      return;
+    }
+
+    if(!currentHistory || !Array.isArray(currentHistory.draws) || !currentHistory.draws.length){
+      closestMeta.textContent = 'History dataset not available yet for this game.';
+      closestList.innerHTML = '<div class="hint">Tip: we will auto-update history via GitHub Actions into <b>data/*_history.json</b>.</div>';
+      historyMeta.textContent = 'History dataset not available yet.';
+      historyTbody.innerHTML = '';
+      historyCountHint.textContent = '';
+      return;
+    }
+
+    const gameCode = currentPick.game;
+    const draws = currentHistory.draws;
+    const src = (currentHistory.meta && currentHistory.meta.source) ? String(currentHistory.meta.source) : '';
+
+    // Build list with match counts
+    const scored = draws.map(d => {
+      const m = computeMatch(currentPick, d);
+      return { d, ...m };
+    }).filter(x => x.mainMatches.length > 0 || x.bonusMatch);
+
+    scored.sort((a,b)=>{
+      // higher score first
+      if(b.score !== a.score) return b.score - a.score;
+      // more main matches first
+      if(b.mainMatches.length !== a.mainMatches.length) return b.mainMatches.length - a.mainMatches.length;
+      // more recent date first
+      const da = Date.parse((a.d.draw_date||a.d.date||'') + 'T00:00:00') || 0;
+      const db = Date.parse((b.d.draw_date||b.d.date||'') + 'T00:00:00') || 0;
+      return db - da;
+    });
+
+    const top = scored.slice(0, 10);
+    closestMeta.textContent = top.length
+      ? `Top ${top.length} closest past draws (sorted by match score).${src ? ' Source: ' + src : ''}`
+      : `No past draws matched any of your numbers in this dataset.${src ? ' Source: ' + src : ''}`;
+
+
+    if(!top.length){
+      closestList.innerHTML = '<div class="hint">No matches found. Try another saved pick.</div>';
+    } else {
+      const g = getGame(gameCode);
+      closestList.innerHTML = '';
+      top.forEach(x => {
+        const row = document.createElement('div');
+        row.style.padding = '10px 0';
+        row.style.borderBottom = '1px solid #E5E7EB';
+        const label = drawLabel(x.d);
+        const matchText = `${x.mainMatches.length}/${g.mainCount} main` + (g.bonusLabel ? ` · ${g.bonusLabel}: ${x.bonusMatch ? 'Yes' : 'No'}` : '');
+        row.innerHTML = `
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:800;">${label}</div>
+              <div class="hint">Winning: ${fmtWinningLine(x.d, gameCode)}</div>
+            </div>
+            <div style="font-weight:800;">${matchText}</div>
+          </div>
+          <div class="hint" style="margin-top:6px;">Matched: ${x.mainMatches.length ? x.mainMatches.join(', ') : '—'}</div>
+        `;
+        closestList.appendChild(row);
+      });
+    }
+
+    // Full history table (search + paging)
+    const q = (historySearch.value || '').trim().toLowerCase();
+    const all = draws.slice().sort((a,b)=>{
+      const da = Date.parse((a.draw_date||a.date||'') + 'T00:00:00') || 0;
+      const db = Date.parse((b.draw_date||b.date||'') + 'T00:00:00') || 0;
+      return db - da;
+    });
+
+    historyFiltered = q
+      ? all.filter(d => (String(d.draw_no||d.draw||'') + ' ' + String(d.draw_date||d.date||'')).toLowerCase().includes(q))
+      : all;
+
+    if(historyShown === 0) historyShown = Math.min(HISTORY_PAGE, historyFiltered.length);
+
+    const show = historyFiltered.slice(0, historyShown);
+    historyMeta.textContent = `Showing ${show.length} of ${historyFiltered.length} draws.${src ? ' Source: ' + src : ''}`;
+
+    historyTbody.innerHTML = '';
+    const g = getGame(gameCode);
+    show.forEach(d => {
+      const m = computeMatch(currentPick, d);
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid #E5E7EB';
+      const drawCol = document.createElement('td');
+      drawCol.style.padding='10px';
+      drawCol.innerHTML = `<div style="font-weight:800;">${drawLabel(d)}</div><div class="hint">${fmtDate(d.draw_date||d.date||'')}</div>`;
+
+      const winCol = document.createElement('td');
+      winCol.style.padding='10px';
+      winCol.textContent = fmtWinningLine(d, gameCode);
+
+      const matchCol = document.createElement('td');
+      matchCol.style.padding='10px';
+      matchCol.innerHTML = `${m.mainMatches.length}/${g.mainCount}${g.bonusLabel ? (' + ' + (m.bonusMatch ? g.bonusLabel : 'no ' + g.bonusLabel)) : ''}`;
+
+      tr.appendChild(drawCol);
+      tr.appendChild(winCol);
+      tr.appendChild(matchCol);
+      historyTbody.appendChild(tr);
+    });
+
+    historyCountHint.textContent = 'Tip: use search, then Load more to browse deeper history.';
+  };
+
   const renderLatest = (w, gameCode) => {
     latestPills.innerHTML = '';
     const g = getGame(gameCode);
@@ -405,6 +641,14 @@
       <div>Bonus match: <strong>${bonusMatch ? 'Yes' : 'No'}</strong></div>
       <div class="hint" style="margin-top:8px;">For fun only — no prediction or improved odds.</div>
     `;
+
+    // UX: make the result clearly visible
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    results.style.boxShadow = '0 0 0 3px rgba(17,24,39,.15)';
+    setTimeout(() => { results.style.boxShadow = ''; }, 700);
+
+    // Also render history sections
+    renderClosestAndHistory();
   };
 
   const refreshAutoData = async () => {
@@ -427,6 +671,12 @@
       currentStats = null;
     }
 
+    try{
+      currentHistory = await loadHistoryForGame(gameCode);
+    }catch(e){
+      currentHistory = null;
+    }
+
     renderLatest(currentWinning, gameCode);
     fillWinningInputs(currentWinning, gameCode);
     renderStats(currentStats, gameCode);
@@ -434,12 +684,19 @@
     // Auto-compare when auto data is present
     if(currentWinning){
       doCompare();
+    } else {
+      // still render history (if any) so user can browse
+      renderClosestAndHistory();
     }
   };
 
   const onPickChanged = async () => {
     const idx = parseInt(pickSelect.value, 10);
-    currentPick = Number.isFinite(idx) ? sortPicksDesc(picks)[idx] : null;
+    currentPick = Number.isFinite(idx) ? picks[idx] : null;
+
+    // reset history paging/search on pick change
+    historyShown = 0;
+    if(historySearch) historySearch.value = '';
 
     results.style.display = 'none';
 
@@ -466,6 +723,30 @@
     winBonusInput.value = '';
     results.style.display = 'none';
   });
+
+  // History browsing controls
+  if(historySearch){
+    historySearch.addEventListener('input', () => {
+      historyShown = 0;
+      renderClosestAndHistory();
+    });
+  }
+
+  if(historyClear){
+    historyClear.addEventListener('click', () => {
+      if(historySearch) historySearch.value = '';
+      historyShown = 0;
+      renderClosestAndHistory();
+    });
+  }
+
+  if(historyMore){
+    historyMore.addEventListener('click', () => {
+      const total = historyFiltered.length || 0;
+      historyShown = Math.min((historyShown || 0) + HISTORY_PAGE, total);
+      renderClosestAndHistory();
+    });
+  }
 
   // Init
   picks = readPicks();
