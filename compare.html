@@ -102,12 +102,20 @@
     <div class="card">
       <h1>3) Closest past draws</h1>
       <div class="hint" id="closestMeta">Loading…</div>
+      <div class="hint" id="closestLegend"></div>
       <div id="closestList" class="results" style="display:block;margin-top:10px;"></div>
     </div>
 
+    
     <div class="card">
-      <h1>4) Full draw history</h1>
-      <div class="hint" id="historyMeta">Loading…</div>
+      <div style="display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;">
+        <div>
+          <h1 style="margin-bottom:4px;">4) Full draw history <span class="hint">(optional)</span></h1>
+          <div class="hint">For transparency and exploring past draws. (Top matches are already shown above.)</div>
+        </div>
+        <button class="btn" id="historyToggle" type="button">Show</button>
+      </div>
+      <div id="historyWrap" style="display:none;margin-top:10px;"><div class="hint" id="historyMeta">Loading…</div>
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
         <input id="historySearch" placeholder="Search by date or draw #" style="flex:1;min-width:240px;" />
         <button class="btn" id="historyClear" type="button">Clear</button>
@@ -126,7 +134,7 @@
           <tbody id="historyTbody"></tbody>
         </table>
       </div>
-      <div class="hint" id="historyFoot" style="margin-top:8px;"></div>
+      <div class="hint" id="historyFoot" style="margin-top:8px;"></div></div>
     </div>
 
     <div class="footerLinks">
@@ -135,7 +143,7 @@
         &nbsp;&nbsp;
         <a href="terms.html">Terms and Conditions</a>
       </div>
-      <div>Build v22</div>
+      <div>Build v24</div>
     </div>
   </div>
 
@@ -425,6 +433,11 @@
       ? `Top ${top.length} closest past draws (sorted by match score).${src ? ' Source: ' + src : ''}`
       : `No past draws matched any of your numbers in this dataset.${src ? ' Source: ' + src : ''}`;
 
+    {
+      const g = getGame(gameCode);
+      closestLegend.textContent = g.bonusLabel ? `Legend: ${g.bonusLabel}: ✅ = matched, — = not matched.` : '';
+    }
+
 
     if(!top.length){
       closestList.innerHTML = '<div class="hint">No matches found. Try another saved pick.</div>';
@@ -436,7 +449,7 @@
         row.style.padding = '10px 0';
         row.style.borderBottom = '1px solid #E5E7EB';
         const label = drawLabel(x.d);
-        const matchText = `${x.mainMatches.length}/${g.mainCount} main` + (g.bonusLabel ? ` · ${g.bonusLabel}: ${x.bonusMatch ? 'Yes' : 'No'}` : '');
+        const matchText = `${x.mainMatches.length}/${g.mainCount} main` + (g.bonusLabel ? ` · ${g.bonusLabel}: ${x.bonusMatch ? '✅' : '—'}` : '');
         row.innerHTML = `
           <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
             <div>
@@ -484,7 +497,9 @@
 
       const matchCol = document.createElement('td');
       matchCol.style.padding='10px';
-      matchCol.innerHTML = `${m.mainMatches.length}/${g.mainCount}${g.bonusLabel ? (' + ' + (m.bonusMatch ? g.bonusLabel : 'no ' + g.bonusLabel)) : ''}`;
+      matchCol.innerHTML = g.bonusLabel
+        ? `${m.mainMatches.length}/${g.mainCount} main · ${g.bonusLabel}: ${m.bonusMatch ? '✅' : '—'}`
+        : `${m.mainMatches.length}/${g.mainCount} main`;
 
       tr.appendChild(drawCol);
       tr.appendChild(winCol);
