@@ -134,7 +134,7 @@
           <tbody id="historyTbody"></tbody>
         </table>
       </div>
-      <div class="hint" id="historyFoot" style="margin-top:8px;"></div></div>
+      <div class="hint" id="historyCountHint" style="margin-top:8px;"></div></div>
     </div>
 
     <div class="footerLinks">
@@ -185,6 +185,17 @@
   const historyMore = document.getElementById('historyMore');
   const historyTbody = document.getElementById('historyTbody');
   const historyCountHint = document.getElementById('historyCountHint');
+  const historyToggle = document.getElementById('historyToggle');
+  const historyWrap = document.getElementById('historyWrap');
+
+  // Full history is optional (hidden by default). Toggle on demand.
+  if (historyToggle && historyWrap) {
+    historyToggle.addEventListener('click', () => {
+      const isHidden = (historyWrap.style.display === 'none' || !historyWrap.style.display);
+      historyWrap.style.display = isHidden ? 'block' : 'none';
+      historyToggle.textContent = isHidden ? 'Hide' : 'Show';
+    });
+  }
 
   let picks = [];
   let currentPick = null;
