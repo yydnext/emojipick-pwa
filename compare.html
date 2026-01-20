@@ -298,7 +298,22 @@
 
 
   const readPicks = () => {
-    const raw = safeJsonParse(localStorage.getItem(LS_KEY), []);
+    // Backward-compatible with older storage keys + resilient to storage errors.
+    const candidateKeys = [
+      LS_KEY,
+      'emojiPick_picks_v1',
+      'emojiPick_picks',
+      'emojipick_picks'
+    ];
+    let raw = [];
+    try {
+      for (const k of candidateKeys) {
+        const v = localStorage.getItem(k);
+        if (v) { raw = safeJsonParse(v, []); break; }
+      }
+    } catch (e) {
+      raw = [];
+    }
     const arr = Array.isArray(raw) ? raw : [];
     const picks = arr.map((p, idx) => {
       const norm = normalizePick(p);
@@ -341,7 +356,7 @@
 
     const ph = document.createElement('option');
     ph.value = '';
-    ph.textContent = 'Pick…';
+    ph.textContent = (picks.length ? 'Pick…' : 'No saved picks yet — go back and save one');
     pickSelect.appendChild(ph);
 
     picks.forEach((p, idx) => {
@@ -919,7 +934,10 @@ Numbers: ${nums}${pb?` + ${g.bonusLabel||'Bonus'} ${pb}`:''}${bestLine}
 
   const refreshAutoData = async () => {
     if(!currentPick){
+      // Clear all "Loading..." placeholders until a saved pick is selected.
       renderLatest(null, 'pb');
+      renderStats(null, 'pb');
+      renderClosestAndHistory(null, null, 'pb');
       if(insightsCard) insightsCard.style.display = 'none';
       return;
     }
