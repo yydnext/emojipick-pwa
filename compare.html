@@ -223,6 +223,10 @@
   const HISTORY_PAGE = 200;
   const HISTORY_PAGE_SIZE = 200;
 
+  // Fallback pool used only if older saved picks store emoji indexes but not the emoji characters
+  const FALLBACK_EMOJI_POOL = ['✨', '🌟', '🌈', '🔥', '💎', '🍀', '🎯', '🚀', '🎲', '🎉', '🏆', '🎁', '🧿', '🪙', '⭐', '☀️', '🌙', '⚡', '🌊', '🍎', '🍉', '🍇', '🍓', '🥑', '🍔', '🍕', '🍣', '🎵', '🎨', '🧠', '💡', '📌', '🧩', '🕹️', '🛡️', '🧪', '📈', '📚', '🏁', '🧸'];
+
+
   // Helpers
   const safeJsonParse = (s, fallback) => {
     try { return JSON.parse(s); } catch { return fallback; }
@@ -253,41 +257,33 @@
   const normalizePick = (raw) => {
     if (!raw || typeof raw !== 'object') return null;
 
-    // game id
-    const game = raw.game || raw.gameId || raw.g || 'pb';
+    // Accept both legacy schema (game/date/numbers/powerball) and newer schema
+    // (gameId/dateSeed/idxs/nums.{main,bonus}). Normalize to the shape used by this page.
+    const game = (raw.game || raw.gameId || raw.draw || 'powerball');
+    const date = (raw.date || raw.dateSeed || '');
 
-    // date
-    const date = (raw.date || raw.dateSeed || raw.d || '').toString();
-
-    // emojis
-    const emojis = Array.isArray(raw.emojis) ? raw.emojis
-      : Array.isArray(raw.e) ? raw.e
-      : [];
-
-    // main numbers
-    let numbers = [];
-    if (Array.isArray(raw.numbers)) numbers = raw.numbers.slice();
-    else if (Array.isArray(raw.nums)) numbers = raw.nums.slice();
-    else if (raw.nums && Array.isArray(raw.nums.main)) numbers = raw.nums.main.slice();
-    else if (raw.nums && Array.isArray(raw.nums.numbers)) numbers = raw.nums.numbers.slice();
-
-    // bonus number (powerball / mega ball / etc.)
-    let bonus = (raw.powerball ?? raw.pb ?? raw.bonus ?? raw.power ?? null);
-    if (bonus == null && raw.nums && typeof raw.nums.bonus === 'number') bonus = raw.nums.bonus;
-    if (bonus == null && raw.nums && Array.isArray(raw.nums.bonus) && raw.nums.bonus.length) bonus = raw.nums.bonus[0];
-
-    // If legacy stored all 6 in numbers for PB/MM, split last as bonus
-    const g = getGame(game);
-    const expectsBonus = !!g.bonusLabel;
-    if (bonus == null && expectsBonus && numbers.length === 6) {
-      bonus = numbers[5];
-      numbers = numbers.slice(0, 5);
+    const idxs = (Array.isArray(raw.idxs) ? raw.idxs : (Array.isArray(raw.emojiIdxs) ? raw.emojiIdxs : []));
+    let emojis = Array.isArray(raw.emojis) ? raw.emojis : [];
+    if (!emojis.length && idxs.length && typeof FALLBACK_EMOJI_POOL !== 'undefined') {
+      emojis = idxs.map(i => FALLBACK_EMOJI_POOL[Math.abs(Number(i) || 0) % FALLBACK_EMOJI_POOL.length]);
     }
 
-    // created/saved time for sorting
-    const savedAt = raw.savedAt || raw.createdAt || raw.ts || raw.time || 0;
+    const numbers = Array.isArray(raw.numbers) ? raw.numbers : (raw.nums && Array.isArray(raw.nums.main) ? raw.nums.main : (Array.isArray(raw.mainNumbers) ? raw.mainNumbers : []));
+    const bonus = (raw.powerball ?? raw.pb ?? raw.bonus ?? (raw.nums ? raw.nums.bonus : null));
 
-    return { ...raw, game, date, emojis, numbers, bonus, savedAt };
+    const out = {
+      id: raw.id || '',
+      game,
+      date,
+      emojis,
+      numbers,
+      powerball: bonus,
+      savedAt: raw.savedAt || '',
+    };
+
+    // Minimal validity check
+    if (!Array.isArray(out.numbers) || out.numbers.length === 0) return null;
+    return out;
   };
 
   const sortKey = (p) => {
