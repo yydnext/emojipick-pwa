@@ -1,9 +1,8 @@
 {
-  "game": "megamillions",
-  "draw_date": "2026-01-16",
-  "main_numbers": [5, 12, 23, 34, 56],
-  "bonus_number": 7,
-  "bonus_label": "Mega Ball",
-  "note": "Demo data bundled with the site. Replace via automation to stay current.",
-  "source": "demo"
+  "game": "pb",
+  "draw_date": "2026-01-17",
+  "numbers": [11, 24, 33, 38, 47],
+  "bonus": 1,
+  "draw_no": 9999,
+  "source": "official"
 }
