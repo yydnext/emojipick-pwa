@@ -571,9 +571,16 @@
     });
 
     const top = scored.slice(0, 10);
-    closestMeta.textContent = top.length
-      ? `Top ${top.length} closest past draws (sorted by match score).${src ? ' Source: ' + src : ''}`
-      : `No past draws matched any of your numbers in this dataset.${src ? ' Source: ' + src : ''}`;
+    // demo/demo_synthetic 같은 데모 소스는 UI에서 숨김
+const srcHint = (src && !String(src).includes('demo/') && !String(src).includes('demo_synthetic'))
+  ? ` Source: ${src}`
+  : '';
+
+closestMeta.textContent = top.length
+  ? `Top ${top.length} closest past draws (sorted by match score).${srcHint}`
+  : `No past draws matched any of your numbers in this dataset.${srcHint}`;
+
+    
 
     {
       const g = getGame(gameCode);
