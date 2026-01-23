@@ -621,7 +621,7 @@
     if(historyShown === 0) historyShown = Math.min(HISTORY_PAGE, historyFiltered.length);
 
     const show = historyFiltered.slice(0, historyShown);
-    historyMeta.textContent = `Showing ${show.length} of ${historyFiltered.length} draws.${src ? ' Source: ' + src : ''}`;
+    historyMeta.textContent = `Showing ${show.length} of ${historyFiltered.length} draws.}`;
 
     historyTbody.innerHTML = '';
     const g = getGame(gameCode);
@@ -661,7 +661,7 @@
       return;
     }
 
-    latestMeta.textContent = `${g.name} • Draw: ${fmtDate(w.draw_date)} • Source: ${w.source || 'bundled'}`;
+    latestMeta.textContent = `${g.name} • Draw: ${fmtDate(w.draw_date)}`;
 
     (w.main_numbers || []).forEach(n => latestPills.appendChild(pill(n)));
     if(w.bonus_number !== undefined && w.bonus_number !== null && w.bonus_number !== ''){
