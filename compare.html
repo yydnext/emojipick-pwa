@@ -789,9 +789,44 @@
     const g = getGame(currentPick.game);
     const { startISO, considered, top } = bestMatchesSincePick(currentPick, currentHistory.draws);
     if(!top.length){
-      challengeBox.innerHTML = `<div style="font-weight:800;">Challenge score</div><div class="hint" style="margin-top:6px;">No history found on/after ${esc(startISO||'your save date')} for this game.</div>`;
-      return;
+
+  // 최신 추첨일(History의 마지막 draw 날짜)
+  const latestD = currentHistory.draws[currentHistory.draws.length - 1]?.d;
+
+  // 날짜 비교용(YYYY-MM-DD / YYYYMMDD / Date string 모두 대응)
+  const toTime = (x) => {
+    if (x == null) return NaN;
+    if (typeof x === 'number') {
+      const s = String(x);
+      if (/^\d{8}$/.test(s)) return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`).getTime();
+      return x; // 혹시 epoch(ms) 형태면 그대로
     }
+    const s = String(x);
+    if (/^\d{8}$/.test(s)) return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`).getTime();
+    return new Date(s).getTime();
+  };
+
+  const pickedT = toTime(startISO);
+  const latestT = toTime(latestD);
+
+  // 최신 추첨일 표시 텍스트(이미 drawLabel이 있으니 그걸 우선 사용)
+  const latestTxt = (typeof latestD === 'number') ? drawLabel(latestD) : String(latestD);
+
+  // pick이 최신 추첨일보다 미래면: "아직 추첨 전"
+  if (Number.isFinite(pickedT) && Number.isFinite(latestT) && pickedT > latestT) {
+    challengeBox.innerHTML =
+      `<div style="font-weight:800;">Challenge score</div>` +
+      `<div class="hint" style="margin-top:6px;">아직 추첨 전입니다. (최신 추첨일: ${esc(latestTxt)})</div>`;
+    return;
+  }
+
+  // 그 외(과거인데 매칭이 없음): 기존 문구 유지
+  challengeBox.innerHTML =
+    `<div style="font-weight:800;">Challenge score</div>` +
+    `<div class="hint" style="margin-top:6px;">No history found on/after ${esc(startISO||'your save date')} for this game.</div>`;
+  return;
+}
+
 
     const best = top[0];
     const bestText = `${best.mainMatches.length}/${g.mainCount} main` + (g.bonusLabel ? ` · ${g.bonusLabel}: ${best.bonusMatch ? '✅' : '—'}` : '');
