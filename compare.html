@@ -29,6 +29,15 @@
     .pill.miss{opacity:.6;}
     .footerLinks{display:flex;gap:12px;justify-content:space-between;margin-top:18px;font-size:13px;}
     .footerLinks a{color:#2563EB;}
+
+    /* Saved picks history table */
+    .tableWrap{overflow:auto;border:1px solid #E2E8F0;border-radius:12px;margin-top:10px;max-height:360px;}
+    table{width:100%;border-collapse:collapse;min-width:820px;}
+    th, td{padding:10px;text-align:left;border-bottom:1px solid #E5E7EB;vertical-align:top;}
+    thead th{position:sticky;top:0;background:#F8FAFC;border-bottom:1px solid #E2E8F0;}
+    tr.clickable{cursor:pointer;}
+    tr.clickable:hover{background:#F8FAFC;}
+    .tag{display:inline-block;font-weight:800;font-size:12px;border:1px solid #E5E7EB;background:white;border-radius:999px;padding:3px 8px;margin-left:6px;}
   </style>
 </head>
 <body>
@@ -42,6 +51,39 @@
         </div>
       </div>
       <button class="btn" onclick="location.href='index.html'">Back</button>
+    </div>
+
+    <!-- 0) Saved picks history -->
+    <div class="card" id="picksHistoryCard" style="display:none;">
+      <div style="display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;">
+        <div>
+          <div class="hint">Your saved picks list (click a row to load that pick below).</div>
+          <h1 style="margin-top:6px;">0) Saved picks history</h1>
+        </div>
+        <button class="btn" id="picksToggle" type="button">Hide</button>
+      </div>
+
+      <div id="picksHistoryWrap" style="display:block;">
+        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <input id="picksSearch" placeholder="Search by date, emoji, or number…" style="flex:1;min-width:240px;" />
+          <button class="btn" id="picksClear" type="button">Clear</button>
+        </div>
+
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:160px;">Saved</th>
+                <th style="width:120px;">Game</th>
+                <th>Pick</th>
+                <th style="width:240px;">Best records</th>
+              </tr>
+            </thead>
+            <tbody id="picksTbody"></tbody>
+          </table>
+        </div>
+        <div class="hint" id="picksCountHint" style="margin-top:8px;"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -76,19 +118,19 @@
       </div>
 
       <div class="row" id="manualRow" style="margin-top:8px;opacity:.65;pointer-events:none;">
-        <div>
+        <div style="flex:2;min-width:240px;">
           <label for="winMain">Main numbers</label>
           <input id="winMain" class="input" placeholder="Auto-filled" inputmode="numeric" />
           <div class="hint">Format examples: <b>1 2 3 4 5</b>, or <b>1,2,3,4,5</b></div>
         </div>
-        <div>
+        <div style="flex:1;min-width:180px;">
           <label for="winBonus" id="bonusLabel">Bonus (optional)</label>
           <input id="winBonus" class="input" placeholder="Auto-filled" inputmode="numeric" />
         </div>
       </div>
 
       <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn btnPrimary" id="compareBtn" type="button">Compare</button>
+        <button class="btn btnPrimary" id="compareBtn">Compare</button>
         <button class="btn" id="clearBtn" type="button">Clear</button>
       </div>
 
@@ -123,16 +165,13 @@
         </div>
         <button class="btn" id="historyToggle" type="button">Show</button>
       </div>
-
       <div id="historyWrap" style="display:none;margin-top:10px;">
         <div class="hint" id="historyMeta">Loading…</div>
-
         <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
           <input id="historySearch" placeholder="Search by date or draw #" style="flex:1;min-width:240px;" />
           <button class="btn" id="historyClear" type="button">Clear</button>
           <button class="btn" id="historyMore" type="button">Load more</button>
         </div>
-
         <div style="margin-top:10px;overflow:auto;max-height:380px;border:1px solid #E2E8F0;border-radius:12px;">
           <table style="width:100%;border-collapse:collapse;min-width:680px;" id="historyTable">
             <thead>
@@ -146,7 +185,6 @@
             <tbody id="historyTbody"></tbody>
           </table>
         </div>
-
         <div class="hint" id="historyCountHint" style="margin-top:8px;"></div>
       </div>
     </div>
@@ -162,7 +200,8 @@
   </div>
 
 <script>
-(() => {
+(()=>{
+
   const LS_KEY = 'emojipick_picks_v1';
 
   const GAME = {
@@ -171,12 +210,10 @@
     tx: { name: 'TX Instant (Demo)', mainCount: 5, bonusLabel: null, dataKey: null }
   };
 
-  // Elements
+  // -------- Elements
   const pickSelect = document.getElementById('pickSelect');
   const sharePickBtn = document.getElementById('sharePickBtn');
   const shareHint = document.getElementById('shareHint');
-  const noPicksHint = document.getElementById('noPicksHint');
-
   const insightsCard = document.getElementById('insightsCard');
   const whyBox = document.getElementById('whyBox');
   const challengeBox = document.getElementById('challengeBox');
@@ -198,7 +235,6 @@
   const hotPills = document.getElementById('hotPills');
   const hotMatchHint = document.getElementById('hotMatchHint');
 
-  // Closest + History
   const closestMeta = document.getElementById('closestMeta');
   const closestLegend = document.getElementById('closestLegend');
   const closestList = document.getElementById('closestList');
@@ -212,16 +248,16 @@
   const historyToggle = document.getElementById('historyToggle');
   const historyWrap = document.getElementById('historyWrap');
 
-  // Toggle
-  if (historyToggle && historyWrap) {
-    historyToggle.addEventListener('click', () => {
-      const isHidden = (historyWrap.style.display === 'none' || !historyWrap.style.display);
-      historyWrap.style.display = isHidden ? 'block' : 'none';
-      historyToggle.textContent = isHidden ? 'Hide' : 'Show';
-    });
-  }
+  // Saved picks history UI
+  const picksHistoryCard = document.getElementById('picksHistoryCard');
+  const picksToggle = document.getElementById('picksToggle');
+  const picksHistoryWrap = document.getElementById('picksHistoryWrap');
+  const picksSearch = document.getElementById('picksSearch');
+  const picksClear = document.getElementById('picksClear');
+  const picksTbody = document.getElementById('picksTbody');
+  const picksCountHint = document.getElementById('picksCountHint');
 
-  // State
+  // -------- State
   let picks = [];
   let currentPick = null;
   let currentWinning = null;
@@ -232,13 +268,16 @@
   let historyShown = 0;
   const HISTORY_PAGE = 200;
 
-  // Fallback emoji pool
-  const FALLBACK_EMOJI_POOL = ['✨', '🌟', '🌈', '🔥', '💎', '🍀', '🎯', '🚀', '🎲', '🎉', '🏆', '🎁', '🧿', '🪙', '⭐', '☀️', '🌙', '⚡', '🌊', '🍎', '🍉', '🍇', '🍓', '🥑', '🍔', '🍕', '🍣', '🎵', '🎨', '🧠', '💡', '📌', '🧩', '🕹️', '🛡️', '🧪', '📈', '📚', '🏁', '🧸'];
+  // Cache per game for faster best computations
+  const gameHistoryCache = new Map(); // gameCode -> { meta, draws: normalized }
+  const gameStatsCache = new Map();   // gameCode -> stats
+  const gameLatestCache = new Map();  // gameCode -> latest draw
 
-  // Helpers
-  const safeJsonParse = (s, fallback) => {
-    try { return JSON.parse(s); } catch { return fallback; }
-  };
+  // Fallback pool used only if older saved picks store emoji indexes but not the emoji characters
+  const FALLBACK_EMOJI_POOL = ['✨','🌟','🌈','🔥','💎','🍀','🎯','🚀','🎲','🎉','🏆','🎁','🧿','🪙','⭐','☀️','🌙','⚡','🌊','🍎','🍉','🍇','🍓','🥑','🍔','🍕','🍣','🎵','🎨','🧠','💡','📌','🧩','🕹️','🛡️','🧪','📈','📚','🏁','🧸'];
+
+  // -------- Helpers
+  const safeJsonParse = (s, fallback) => { try { return JSON.parse(s); } catch { return fallback; } };
 
   const esc = (s) => String(s==null?'':s)
     .replace(/&/g,'&amp;')
@@ -247,47 +286,34 @@
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
 
-  const getGame = (code) => GAME[code] || { name: code, mainCount: 5, bonusLabel: null, dataKey: null };
-
-  const toISODate = (x) => {
-    if (!x && x !== 0) return '';
-    const s = String(x).trim();
-    if (!s) return '';
-
-    // YYYYMMDD -> YYYY-MM-DD
-    if (/^\d{8}$/.test(s)) return `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
-
-    // YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-
-    // try Date parse
-    const t = Date.parse(s);
-    if (!Number.isFinite(t)) return '';
-    const d = new Date(t);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const dd = String(d.getDate()).padStart(2,'0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  const toTime = (x) => {
-    const iso = toISODate(x);
-    if (!iso) return NaN;
-    const t = Date.parse(iso + 'T00:00:00');
-    return Number.isFinite(t) ? t : NaN;
-  };
-
-  const fmtDate = (isoLike) => {
-    const iso = toISODate(isoLike);
-    if(!iso) return String(isoLike||'');
-    const d = new Date(iso + 'T00:00:00');
-    if (Number.isNaN(d.getTime())) return iso;
+  const fmtDate = (iso) => {
+    if(!iso) return '';
+    const d = new Date(String(iso).slice(0,10) + 'T00:00:00');
+    if (Number.isNaN(d.getTime())) return String(iso);
     return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'2-digit' });
   };
 
-  const pill = (text, { hit=false, muted=false } = {}) => {
+  // robust time conversion
+  const toTime = (x) => {
+    if (x == null) return NaN;
+    if (typeof x === 'number') {
+      const s = String(x);
+      if (/^\d{8}$/.test(s)) return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`).getTime();
+      return x; // assume epoch ms
+    }
+    const s = String(x).trim();
+    if (!s) return NaN;
+    if (/^\d{8}$/.test(s)) return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`).getTime();
+    // if already yyyy-mm-dd
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(`${s}T00:00:00`).getTime();
+    return new Date(s).getTime();
+  };
+
+  const getGame = (code) => GAME[code] || { name: code, mainCount: 5, bonusLabel: null, dataKey: null };
+
+  const pill = (text, isHit=false) => {
     const span = document.createElement('span');
-    span.className = 'pill' + (hit ? ' hit' : '') + (muted ? ' miss' : '');
+    span.className = 'pill' + (isHit ? ' hit' : '');
     span.textContent = String(text);
     return span;
   };
@@ -299,32 +325,19 @@
     winBonusInput.readOnly = !enabled;
   };
 
-  const pickBonusValue = (p) => (p?.powerball ?? p?.bonus ?? p?.pb ?? null);
-
-  const getPickDateISO = (pick) => {
+  const getPickStartDateISO = (pick) => {
     if(!pick) return '';
-    // prefer YYYY-MM-DD
-    if (pick.date) return toISODate(pick.date);
-    if (pick.savedAt) return toISODate(String(pick.savedAt).slice(0,10));
+    if(typeof pick.date === 'string' && pick.date.trim().length>=10) return pick.date.trim().slice(0,10);
+    if(typeof pick.savedAt === 'string' && pick.savedAt.trim().length>=10) return pick.savedAt.trim().slice(0,10);
     return '';
   };
 
-  const drawDateISO = (d) => {
-    // support many schemas
-    return toISODate(d?.draw_date ?? d?.date ?? d?.d ?? '');
-  };
-
-  const drawNumber = (d) => (d?.draw_no ?? d?.draw ?? d?.drawNumber ?? d?.no ?? '');
-
+  // Normalize saved pick schema (legacy + new)
   const normalizePick = (raw) => {
     if (!raw || typeof raw !== 'object') return null;
 
-    // game code normalization
-    let game = (raw.game || raw.gameId || raw.draw || 'pb');
-    if (game === 'powerball') game = 'pb';
-    if (game === 'megamillions' || game === 'mega') game = 'mm';
-
-    const date = (raw.date || raw.dateSeed || raw.seedDate || '');
+    const game = (raw.game || raw.gameId || raw.draw || 'pb');
+    const date = (raw.date || raw.dateSeed || raw.savedDate || '');
 
     const idxs = (Array.isArray(raw.idxs) ? raw.idxs : (Array.isArray(raw.emojiIdxs) ? raw.emojiIdxs : []));
     let emojis = Array.isArray(raw.emojis) ? raw.emojis : [];
@@ -335,18 +348,17 @@
     const numbers =
       Array.isArray(raw.numbers) ? raw.numbers :
       (raw.nums && Array.isArray(raw.nums.main)) ? raw.nums.main :
-      Array.isArray(raw.mainNumbers) ? raw.mainNumbers :
-      [];
+      Array.isArray(raw.mainNumbers) ? raw.mainNumbers : [];
 
     const bonus = (raw.powerball ?? raw.pb ?? raw.bonus ?? (raw.nums ? raw.nums.bonus : null));
 
     const out = {
       id: raw.id || '',
       game,
-      date: toISODate(date) || date || '',
+      date,
       emojis,
       numbers,
-      powerball: bonus,
+      bonus,
       savedAt: raw.savedAt || raw.createdAt || '',
     };
 
@@ -355,42 +367,38 @@
   };
 
   const sortKey = (p) => {
-    const d = (toISODate(p.date) || '').replace(/[^0-9]/g, '').padEnd(8, '0');
+    const d = (p.date || '').replace(/[^0-9]/g, '').padEnd(8, '0');
     const t = String(p.savedAt || 0).padStart(13, '0');
     return d + '-' + t;
   };
 
   const readPicks = () => {
-    const candidateKeys = [LS_KEY, 'emojiPick_picks_v1', 'emojiPick_picks', 'emojipick_picks'];
+    const candidateKeys = [ LS_KEY, 'emojiPick_picks_v1', 'emojiPick_picks', 'emojipick_picks' ];
     let raw = [];
     try {
       for (const k of candidateKeys) {
         const v = localStorage.getItem(k);
         if (v) { raw = safeJsonParse(v, []); break; }
       }
-    } catch (e) { raw = []; }
+    } catch { raw = []; }
 
     const arr = Array.isArray(raw) ? raw : [];
-    const picks = arr.map((p) => normalizePick(p)).filter(Boolean);
-
-    picks.sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
-    return picks;
+    const out = arr.map(normalizePick).filter(Boolean);
+    out.sort((a,b) => sortKey(b).localeCompare(sortKey(a)));
+    return out;
   };
 
   const optionLabel = (p) => {
     const g = getGame(p.game);
     const emojis = (p.emojis || []).join(' ');
     const main = (p.numbers || []).join('-');
-    const bonus = pickBonusValue(p);
-    const bonusText = (bonus !== undefined && bonus !== null && bonus !== '')
-      ? ` + ${g.bonusLabel || 'Bonus'} ${bonus}`
-      : '';
-    return `${g.name} • ${p.date || ''} • ${emojis} • ${main}${bonusText}`.replace(/\s+/g,' ').trim();
+    const bonus = (p.bonus !== undefined && p.bonus !== null && p.bonus !== '') ? ` + ${g.bonusLabel || 'Bonus'} ${p.bonus}` : '';
+    const saved = getPickStartDateISO(p);
+    return `${g.name} • ${saved || ''} • ${emojis} • ${main}${bonus}`.replace(/\s+/g,' ').trim();
   };
 
   const renderPickDropdown = () => {
     pickSelect.innerHTML = '';
-
     const ph = document.createElement('option');
     ph.value = '';
     ph.textContent = (picks.length ? 'Pick…' : 'No saved picks yet — go back and save one');
@@ -402,152 +410,146 @@
       opt.textContent = optionLabel(p);
       pickSelect.appendChild(opt);
     });
-
-    if (noPicksHint) noPicksHint.style.display = picks.length ? 'none' : 'block';
   };
 
-  // Data loading
+  // ----- Draw normalization (very important)
+  const normalizeDraw = (gameCode, d) => {
+    if(!d || typeof d !== 'object') return null;
+
+    // date
+    const draw_date = (d.draw_date || d.date || d.drawDate || '').toString().slice(0,10);
+
+    // draw number
+    const draw_no = (d.draw_no ?? d.draw ?? d.drawNumber ?? d.drawNo ?? '');
+
+    // main numbers
+    let main =
+      Array.isArray(d.main_numbers) ? d.main_numbers :
+      Array.isArray(d.numbers) ? d.numbers :
+      Array.isArray(d.main) ? d.main :
+      (typeof d.winning_numbers === 'string' ? d.winning_numbers.trim().split(/\s+/).slice(0,5).map(Number) : []);
+    main = (main || []).map(Number).filter(n => Number.isFinite(n));
+
+    // bonus
+    let bonus = (d.bonus_number ?? d.bonus ?? d.powerball ?? d.pb ?? d.megaball ?? null);
+    if (bonus == null && typeof d.winning_numbers === 'string') {
+      const parts = d.winning_numbers.trim().split(/\s+/).map(Number).filter(n => Number.isFinite(n));
+      if (parts.length >= 6) bonus = parts[5];
+    }
+    if (bonus != null) bonus = Number(bonus);
+    if (!Number.isFinite(bonus)) bonus = null;
+
+    // for UI label
+    const g = getGame(gameCode);
+    return { draw_date, draw_no, main_numbers: main, bonus_number: bonus, bonus_label: g.bonusLabel };
+  };
+
+  const drawLabel = (d) => {
+    const no = (d.draw_no ?? '');
+    const date = d.draw_date || '';
+    return `${no ? ('#' + no + ' • ') : ''}${date}`.trim();
+  };
+
+  const fmtWinningLine = (d, gameCode) => {
+    const g = getGame(gameCode);
+    const main = (d.main_numbers || []).join(' ');
+    const b = d.bonus_number;
+    return `${main}${(g.bonusLabel && b!=null) ? (' + ' + g.bonusLabel + ' ' + b) : ''}`.trim();
+  };
+
+  // ----- Data loading
   const fetchJson = async (url) => {
     const res = await fetch(url, { cache: 'no-store' });
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   };
 
-  // Live (optional) — currently off
-  const LIVE = {
-    pb: { enabled: false, baseUrl: 'https://data.ny.gov/resource/d6yy-54nr.json', sourceLabel: 'NY Open Data' }
-  };
-
-  const parseNyPowerballRow = (row) => {
-    const raw = (row.winning_numbers || '').trim();
-    const parts = raw.split(/\s+/).map(x => Number(x)).filter(n => Number.isFinite(n));
-    if(parts.length < 6) return null;
-    return {
-      draw_date: (row.draw_date || '').slice(0,10),
-      main_numbers: parts.slice(0,5),
-      bonus_number: parts[5],
-      multiplier: row.multiplier ? Number(row.multiplier) : undefined
-    };
-  };
-
-  const computeStatsFromHistory = (draws, gameCode) => {
-    const g = getGame(gameCode);
-    const freqMain = new Map();
-    const freqBonus = new Map();
-
-    draws.forEach(d => {
-      const main = (d.main_numbers || d.main || d.numbers || d.n || []);
-      main.forEach(n => {
-        const nn = Number(n);
-        if(!Number.isFinite(nn)) return;
-        freqMain.set(nn, (freqMain.get(nn) || 0) + 1);
-      });
-
-      const b = (d.bonus_number ?? d.bonus ?? d.powerball ?? d.b ?? null);
-      if(g.bonusLabel && b !== null && b !== undefined && b !== ''){
-        const bb = Number(b);
-        if(Number.isFinite(bb)) freqBonus.set(bb, (freqBonus.get(bb) || 0) + 1);
-      }
-    });
-
-    const hot_main = [...freqMain.entries()]
-      .sort((a,b) => (b[1]-a[1]) || (a[0]-b[0]))
-      .slice(0, 10)
-      .map(([n]) => n);
-
-    const hot_bonus = [...freqBonus.entries()]
-      .sort((a,b) => (b[1]-a[1]) || (a[0]-b[0]))
-      .slice(0, 10)
-      .map(([n]) => n);
-
-    return { window: `last ${draws.length} draws`, hot_main, hot_bonus, source: 'computed' };
-  };
-
   const loadLatestForGame = async (gameCode) => {
     const g = getGame(gameCode);
     if(!g.dataKey) return null;
-
-    if(LIVE[gameCode]?.enabled){
-      try {
-        const url = `${LIVE[gameCode].baseUrl}?$select=draw_date,winning_numbers,multiplier&$order=draw_date%20DESC&$limit=1`;
-        const rows = await fetchJson(url);
-        const draw = rows && rows[0] ? parseNyPowerballRow(rows[0]) : null;
-        if(draw) return draw;
-      } catch(e) {}
-    }
-    return await fetchJson(`./data/${g.dataKey}_latest.json`);
+    const w = await fetchJson(`./data/${g.dataKey}_latest.json`);
+    const n = normalizeDraw(gameCode, w);
+    return n;
   };
 
   const loadHistoryForGame = async (gameCode) => {
     const g = getGame(gameCode);
     if(!g.dataKey) return null;
 
-    if(LIVE[gameCode]?.enabled){
-      try {
-        const url = `${LIVE[gameCode].baseUrl}?$select=draw_date,winning_numbers,multiplier&$order=draw_date%20DESC&$limit=520`;
-        const rows = await fetchJson(url);
-        const draws = (rows || []).map(parseNyPowerballRow).filter(Boolean);
-        if(draws.length) return { meta: { source: LIVE[gameCode].sourceLabel }, draws };
-      } catch(e) {}
-    }
-
     const data = await fetchJson(`./data/${g.dataKey}_history.json`);
-    const draws = Array.isArray(data) ? data : (Array.isArray(data.draws) ? data.draws : []);
-    const meta  = Array.isArray(data) ? {} : (data.meta || {});
+    const drawsRaw = Array.isArray(data) ? data : (Array.isArray(data.draws) ? data.draws : []);
+    const meta = Array.isArray(data) ? {} : (data.meta || { source: data.source || '' });
+
+    const draws = drawsRaw.map(d => normalizeDraw(gameCode, d)).filter(Boolean);
     return { meta, draws };
   };
 
   const loadStatsForGame = async (gameCode) => {
     const g = getGame(gameCode);
     if(!g.dataKey) return null;
-
-    try {
-      const stats = await fetchJson(`./data/${g.dataKey}_stats.json`);
-      return stats;
-    } catch (e) {
-      // fallback: compute from history if stats missing
-      try {
-        const h = await loadHistoryForGame(gameCode);
-        if(h?.draws?.length) return computeStatsFromHistory(h.draws, gameCode);
-      } catch(e2) {}
-      return null;
-    }
+    const stats = await fetchJson(`./data/${g.dataKey}_stats.json`);
+    return stats;
   };
 
+  // ----- Matching logic
   const computeMatch = (pick, draw) => {
     const g = getGame(pick.game);
 
-    const winMain = (draw.main_numbers || draw.main || draw.numbers || draw.n || []).map(Number).filter(Number.isFinite);
-    const winBonus = (draw.bonus_number ?? draw.bonus ?? draw.powerball ?? draw.b ?? null);
+    const winMain = (draw.main_numbers || []).map(Number);
+    const winBonus = (draw.bonus_number ?? null);
 
-    const pickMain = (pick.numbers || []).map(Number).filter(Number.isFinite);
+    const pickMain = (pick.numbers || []).map(Number).filter(n => Number.isFinite(n));
+    const pickBonus = (pick.bonus ?? null);
+
     const mainMatches = pickMain.filter(n => winMain.includes(Number(n)));
 
     let bonusMatch = false;
-    const pb = pickBonusValue(pick);
-    if(g.bonusLabel && pb !== null && pb !== undefined && pb !== '' && winBonus !== null && winBonus !== undefined && winBonus !== ''){
-      bonusMatch = (Number(pb) === Number(winBonus));
+    if(g.bonusLabel && pickBonus != null && winBonus != null){
+      bonusMatch = (Number(pickBonus) === Number(winBonus));
     }
 
-    // score: main match count + (bonus matched ? 2 : 0)
+    // score: main match count + (bonus match gives +2 so it breaks ties)
     const score = mainMatches.length + (bonusMatch ? 2 : 0);
-
-    return { mainMatches, bonusMatch, score, winMain, winBonus };
+    return { mainMatches, bonusMatch, score };
   };
 
-  const fmtWinningLine = (draw, gameCode) => {
-    const g = getGame(gameCode);
-    const main = (draw.main_numbers || draw.main || draw.numbers || draw.n || []).join(' ');
-    const b = (draw.bonus_number ?? draw.bonus ?? draw.powerball ?? draw.b ?? null);
-    return `${main}${(g.bonusLabel && b !== null && b !== undefined && b !== '') ? (' + ' + g.bonusLabel + ' ' + b) : ''}`.trim();
+  const bestMatchAllTime = (pick, draws) => {
+    if(!draws || !draws.length) return null;
+    const scored = draws.map(d => ({ d, ...computeMatch(pick, d) }));
+    scored.sort((a,b)=>{
+      if(b.mainMatches.length !== a.mainMatches.length) return b.mainMatches.length - a.mainMatches.length;
+      if((b.bonusMatch?1:0) !== (a.bonusMatch?1:0)) return (b.bonusMatch?1:0) - (a.bonusMatch?1:0);
+      const da = toTime(a.d.draw_date) || 0;
+      const db = toTime(b.d.draw_date) || 0;
+      return db - da;
+    });
+    return scored[0];
   };
 
-  const drawLabel = (d) => {
-    const no = drawNumber(d);
-    const iso = drawDateISO(d);
-    return `${no ? ('#' + no + ' • ') : ''}${iso || ''}`.trim();
+  const bestMatchSinceSaved = (pick, draws) => {
+    if(!draws || !draws.length) return { startISO:'', considered:0, best:null };
+    const startISO = getPickStartDateISO(pick);
+    const startMs = startISO ? (toTime(startISO) || 0) : 0;
+
+    const pool = draws.filter(d => (toTime(d.draw_date) || 0) >= startMs);
+    if(!pool.length) return { startISO, considered:0, best:null };
+
+    const best = bestMatchAllTime(pick, pool);
+    return { startISO, considered: pool.length, best };
   };
 
+  const latestHistoryDraw = (draws) => {
+    if(!draws || !draws.length) return null;
+    let best = null;
+    let bestT = -Infinity;
+    for (const d of draws) {
+      const t = toTime(d.draw_date);
+      if(Number.isFinite(t) && t > bestT) { bestT = t; best = d; }
+    }
+    return best;
+  };
+
+  // ----- UI renderers
   const renderLatest = (w, gameCode) => {
     latestPills.innerHTML = '';
     const g = getGame(gameCode);
@@ -557,12 +559,10 @@
       return;
     }
 
-    latestMeta.textContent = `${g.name} • Draw: ${fmtDate(w.draw_date || w.date)}`;
-
-    (w.main_numbers || w.main || w.numbers || w.n || []).forEach(n => latestPills.appendChild(pill(n)));
-    const b = (w.bonus_number ?? w.bonus ?? w.powerball ?? w.b ?? null);
-    if(b !== null && b !== undefined && b !== ''){
-      latestPills.appendChild(pill(`${g.bonusLabel || 'Bonus'} ${b}`, { muted:false }));
+    latestMeta.textContent = `${g.name} • Draw: ${fmtDate(w.draw_date)}`;
+    (w.main_numbers || []).forEach(n => latestPills.appendChild(pill(n)));
+    if(w.bonus_number != null){
+      latestPills.appendChild(pill(`${g.bonusLabel || 'Bonus'} ${w.bonus_number}`));
     }
   };
 
@@ -574,11 +574,9 @@
       winBonusInput.placeholder = g.bonusLabel ? `e.g., 6` : '';
       return;
     }
-    const main = (w.main_numbers || w.main || w.numbers || w.n || []);
-    const b = (w.bonus_number ?? w.bonus ?? w.powerball ?? w.b ?? null);
-    winMainInput.value = main.join(' ');
-    winBonusInput.value = (b !== null && b !== undefined) ? String(b) : '';
-    winBonusInput.placeholder = g.bonusLabel ? `e.g., ${b || 6}` : '';
+    winMainInput.value = (w.main_numbers || []).join(' ');
+    winBonusInput.value = (w.bonus_number != null) ? String(w.bonus_number) : '';
+    winBonusInput.placeholder = g.bonusLabel ? `e.g., ${w.bonus_number || 6}` : '';
   };
 
   const renderStats = (stats, gameCode) => {
@@ -596,30 +594,232 @@
     const hotBonus = (stats.hot_bonus || []).slice(0, 5);
 
     const pickMain = new Set((currentPick?.numbers || []).map(Number));
-    hotMain.forEach(n => {
-      const isHit = pickMain.has(Number(n));
-      hotPills.appendChild(pill(n, { hit:isHit }));
-    });
+    hotMain.forEach(n => hotPills.appendChild(pill(n, pickMain.has(Number(n)))));
 
     if(hotBonus.length){
-      const bonus = pickBonusValue(currentPick);
-      hotPills.appendChild(pill('—', { muted:true }));
+      const g = getGame(gameCode);
+      hotPills.appendChild(pill('—', false));
+      const bonus = (currentPick?.bonus ?? null);
       hotBonus.forEach(n => {
-        const isHit = (bonus !== null && bonus !== undefined && bonus !== '') ? Number(bonus) === Number(n) : false;
-        hotPills.appendChild(pill(`${getGame(gameCode).bonusLabel || 'Bonus'} ${n}`, { hit:isHit }));
+        const hit = (bonus != null) ? (Number(bonus) === Number(n)) : false;
+        hotPills.appendChild(pill(`${g.bonusLabel || 'Bonus'} ${n}`, hit));
       });
     }
 
     if(currentPick){
       const matches = hotMain.filter(n => (currentPick.numbers||[]).map(Number).includes(Number(n)));
-      if(matches.length){
-        hotMatchHint.textContent = `Your pick shares ${matches.length} hot number(s): ${matches.join(', ')}`;
-      } else {
-        hotMatchHint.textContent = 'Your pick shares no hot main numbers (in this demo list).';
-      }
+      hotMatchHint.textContent = matches.length
+        ? `Your pick shares ${matches.length} hot number(s): ${matches.join(', ')}`
+        : 'Your pick shares no hot main numbers (in this demo list).';
     }
   };
 
+  const buildWhyHtml = (pick) => {
+    const day = getPickStartDateISO(pick) || '—';
+    const emojis = Array.isArray(pick.emojis) ? pick.emojis.join(' ') : '';
+    const nums = Array.isArray(pick.numbers) ? pick.numbers.join('-') : '';
+    const b = (pick.bonus != null && pick.bonus !== '') ? String(pick.bonus) : '';
+    const g = getGame(pick.game);
+    const note = `This pick was generated from your emoji choices. The emoji→number mapping changes each day, so the same emojis on a different day may produce different numbers.`;
+    return `
+      <div style="font-weight:800;">Why this pick looks like this</div>
+      <div class="hint" style="margin-top:6px;">Emojis: ${esc(emojis||'—')} • Numbers: ${esc(nums||'—')}${b?` + ${esc(g.bonusLabel||'Bonus')} ${esc(b)}`:''} • Saved: ${esc(day)}</div>
+      <div class="hint" style="margin-top:8px;">${esc(note)}</div>
+    `;
+  };
+
+  const renderInsights = () => {
+    if(!insightsCard) return;
+
+    if(!currentPick){
+      insightsCard.style.display = 'none';
+      return;
+    }
+    insightsCard.style.display = '';
+    whyBox.innerHTML = buildWhyHtml(currentPick);
+
+    // Need history to compute best records
+    if(!currentHistory || !Array.isArray(currentHistory.draws) || !currentHistory.draws.length){
+      challengeBox.innerHTML =
+        `<div style="font-weight:800;">Challenge score</div>` +
+        `<div class="hint" style="margin-top:6px;">History dataset not available yet for this game.</div>`;
+      return;
+    }
+
+    const g = getGame(currentPick.game);
+    const startISO = getPickStartDateISO(currentPick);
+    const latest = latestHistoryDraw(currentHistory.draws);
+
+    // If pick date is later than latest known draw -> not drawn yet
+    const pickT = startISO ? toTime(startISO) : NaN;
+    const latestT = latest ? toTime(latest.draw_date) : NaN;
+
+    const allBest = bestMatchAllTime(currentPick, currentHistory.draws);
+    const since = bestMatchSinceSaved(currentPick, currentHistory.draws);
+
+    const formatBestLine = (bestObj) => {
+      if(!bestObj) return `0/${g.mainCount} main` + (g.bonusLabel ? ` · ${g.bonusLabel}: —` : '');
+      const mm = bestObj.mainMatches.length;
+      const bb = bestObj.bonusMatch ? '✅' : '—';
+      return `${mm}/${g.mainCount} main` + (g.bonusLabel ? ` · ${g.bonusLabel}: ${bb}` : '');
+    };
+
+    const allLine = allBest
+      ? `${formatBestLine(allBest)} on <b>${esc(drawLabel(allBest.d))}</b>`
+      : `${formatBestLine(null)} (no history yet)`;
+
+    let sinceLine = '';
+    if (Number.isFinite(pickT) && Number.isFinite(latestT) && pickT > latestT) {
+      // future pick relative to history
+      sinceLine = `Not drawn yet (latest recorded draw is <b>${esc(drawLabel(latest))}</b>).`;
+    } else {
+      const best = since.best;
+      if(!best){
+        sinceLine = `No draws found on/after <b>${esc(startISO||'your save date')}</b> in this dataset.`;
+      } else {
+        sinceLine = `${formatBestLine(best)} on <b>${esc(drawLabel(best.d))}</b> (scanned ${esc(since.considered)} draws).`;
+      }
+    }
+
+    challengeBox.innerHTML = `
+      <div style="font-weight:800;">Challenge score</div>
+      <div class="hint" style="margin-top:6px;">
+        <b>All-time best:</b> ${allLine}
+      </div>
+      <div class="hint" style="margin-top:8px;">
+        <b>Since saved (${esc(startISO||'—')}):</b> ${sinceLine}
+      </div>
+      <div class="hint" style="margin-top:10px;">
+        Tip: “All-time best” is your overall best record in the available history. “Since saved” is meaningful after the draw dates pass.
+      </div>
+    `;
+  };
+
+  const renderClosestAndHistory = () => {
+    if(!currentPick){
+      closestMeta.textContent = 'Choose a saved pick to see closest past draws.';
+      closestLegend.textContent = '';
+      closestList.innerHTML = '';
+      historyMeta.textContent = '';
+      historyTbody.innerHTML = '';
+      historyCountHint.textContent = '';
+      return;
+    }
+
+    if(!currentHistory || !Array.isArray(currentHistory.draws) || !currentHistory.draws.length){
+      closestMeta.textContent = 'History dataset not available yet for this game.';
+      closestLegend.textContent = '';
+      closestList.innerHTML = '<div class="hint">Tip: when history JSON grows, this list becomes more useful.</div>';
+      historyMeta.textContent = 'History dataset not available yet.';
+      historyTbody.innerHTML = '';
+      historyCountHint.textContent = '';
+      return;
+    }
+
+    const gameCode = currentPick.game;
+    const draws = currentHistory.draws;
+    const g = getGame(gameCode);
+
+    // score all draws
+    const scored = draws.map(d => ({ d, ...computeMatch(currentPick, d) }));
+
+    // Closest: show only those with at least 1 match (or bonus match)
+    const matched = scored.filter(x => x.mainMatches.length > 0 || x.bonusMatch);
+
+    matched.sort((a,b)=>{
+      if(b.score !== a.score) return b.score - a.score;
+      if(b.mainMatches.length !== a.mainMatches.length) return b.mainMatches.length - a.mainMatches.length;
+      const da = toTime(a.d.draw_date) || 0;
+      const db = toTime(b.d.draw_date) || 0;
+      return db - da;
+    });
+
+    const top = matched.slice(0, 10);
+    const src = (currentHistory.meta && (currentHistory.meta.source || currentHistory.meta.note)) ? String(currentHistory.meta.source || currentHistory.meta.note) : '';
+    const srcHint = (src && !src.includes('demo/') && !src.includes('demo_synthetic')) ? ` Source: ${src}` : '';
+
+    closestMeta.textContent = top.length
+      ? `Top ${top.length} closest past draws (sorted by match score).${srcHint}`
+      : `No past draws matched any of your numbers in this dataset.${srcHint}`;
+
+    closestLegend.textContent = g.bonusLabel ? `Legend: ${g.bonusLabel}: ✅ = matched, — = not matched.` : '';
+
+    if(!top.length){
+      closestList.innerHTML = '<div class="hint">No matches found. Try another saved pick.</div>';
+    } else {
+      closestList.innerHTML = '';
+      top.forEach(x => {
+        const row = document.createElement('div');
+        row.style.padding = '10px 0';
+        row.style.borderBottom = '1px solid #E5E7EB';
+        const label = drawLabel(x.d);
+        const matchText = `${x.mainMatches.length}/${g.mainCount} main` + (g.bonusLabel ? ` · ${g.bonusLabel}: ${x.bonusMatch ? '✅' : '—'}` : '');
+        row.innerHTML = `
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:800;">${esc(label)}</div>
+              <div class="hint">Winning: ${esc(fmtWinningLine(x.d, gameCode))}</div>
+            </div>
+            <div style="font-weight:800;">${esc(matchText)}</div>
+          </div>
+          <div class="hint" style="margin-top:6px;">Matched: ${x.mainMatches.length ? esc(x.mainMatches.join(', ')) : '—'}</div>
+        `;
+        closestList.appendChild(row);
+      });
+    }
+
+    // Full history table (search + paging)
+    const q = (historySearch.value || '').trim().toLowerCase();
+    const all = draws.slice().sort((a,b)=>{
+      const da = toTime(a.draw_date) || 0;
+      const db = toTime(b.draw_date) || 0;
+      return db - da;
+    });
+
+    historyFiltered = q
+      ? all.filter(d => (`${d.draw_no||''} ${d.draw_date||''}`.toLowerCase().includes(q)))
+      : all;
+
+    if(historyShown === 0) historyShown = Math.min(HISTORY_PAGE, historyFiltered.length);
+
+    const show = historyFiltered.slice(0, historyShown);
+    historyMeta.textContent = `Showing ${show.length} of ${historyFiltered.length} draws.`;
+
+    historyTbody.innerHTML = '';
+    show.forEach(d => {
+      const m = computeMatch(currentPick, d);
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid #E5E7EB';
+
+      const dateCol = document.createElement('td');
+      dateCol.style.padding='10px';
+      dateCol.innerHTML = `<div style="font-weight:800;">${esc(fmtDate(d.draw_date||''))}</div>`;
+
+      const drawCol = document.createElement('td');
+      drawCol.style.padding='10px';
+      drawCol.textContent = String(d.draw_no ?? '');
+
+      const winCol = document.createElement('td');
+      winCol.style.padding='10px';
+      winCol.textContent = fmtWinningLine(d, gameCode);
+
+      const matchCol = document.createElement('td');
+      matchCol.style.padding='10px';
+      matchCol.innerHTML = g.bonusLabel
+        ? `${m.mainMatches.length}/${g.mainCount} main · ${g.bonusLabel}: ${m.bonusMatch ? '✅' : '—'}`
+        : `${m.mainMatches.length}/${g.mainCount} main`;
+
+      tr.appendChild(dateCol);
+      tr.appendChild(drawCol);
+      tr.appendChild(winCol);
+      tr.appendChild(matchCol);
+      historyTbody.appendChild(tr);
+    });
+
+    historyCountHint.textContent = 'Tip: use search, then Load more to browse deeper history.';
+  };
+
+  // -------- Compare UI
   const parseNums = (s) => {
     if(!s) return [];
     return s
@@ -650,17 +850,17 @@
     }
 
     const pickMain = (currentPick.numbers || []).map(Number);
-    const pickBonus = pickBonusValue(currentPick);
+    const pickBonus = (currentPick.bonus ?? null);
 
     const mainMatches = pickMain.filter(n => winMain.includes(Number(n)));
-    const bonusMatch = (pickBonus !== null && pickBonus !== undefined && pickBonus !== '')
+    const bonusMatch = (pickBonus != null && Number.isFinite(winBonus))
       ? (Number(pickBonus) === Number(winBonus))
       : false;
 
     results.style.display = 'block';
     results.innerHTML = `
       <div style="font-weight:800;">Match result</div>
-      <div class="hint">Pick: ${pickMain.join(' ')}${(pickBonus!==null && pickBonus!==undefined && pickBonus!=='') ? ` + ${g.bonusLabel||'Bonus'} ${pickBonus}` : ''}</div>
+      <div class="hint">Pick: ${pickMain.join(' ')}${(pickBonus!=null && pickBonus!=='') ? ` + ${g.bonusLabel||'Bonus'} ${pickBonus}` : ''}</div>
       <div class="hint">Winning: ${winMain.join(' ')}${(Number.isFinite(winBonus)) ? ` + ${g.bonusLabel||'Bonus'} ${winBonus}` : ''}</div>
       <div style="margin-top:10px;">Main matches: <strong>${mainMatches.length}</strong> ${mainMatches.length ? `(${mainMatches.join(', ')})` : ''}</div>
       <div>Bonus match: <strong>${bonusMatch ? 'Yes' : 'No'}</strong></div>
@@ -673,266 +873,10 @@
 
     renderClosestAndHistory();
     renderInsights();
+    renderSavedPicksHistory(); // refresh best records column
   };
 
-  const bestMatchesSincePick = (pick, draws) => {
-    const startISO = getPickDateISO(pick);
-    const startMs = startISO ? (Date.parse(startISO + 'T00:00:00')||0) : 0;
-
-    const pool = (draws||[]).filter(d => {
-      const iso = drawDateISO(d);
-      const ms = iso ? (Date.parse(iso + 'T00:00:00')||0) : 0;
-      return ms >= startMs;
-    });
-
-    if(!pool.length) return { startISO, considered: 0, top: [] };
-
-    const scored = pool.map(d => ({ d, ...computeMatch(pick, d) }));
-
-    scored.sort((a,b)=>{
-      if(b.mainMatches.length !== a.mainMatches.length) return b.mainMatches.length - a.mainMatches.length;
-      if((b.bonusMatch?1:0) !== (a.bonusMatch?1:0)) return (b.bonusMatch?1:0) - (a.bonusMatch?1:0);
-      const da = Date.parse((drawDateISO(a.d) || '1970-01-01') + 'T00:00:00') || 0;
-      const db = Date.parse((drawDateISO(b.d) || '1970-01-01') + 'T00:00:00') || 0;
-      return db - da;
-    });
-
-    return { startISO, considered: pool.length, top: scored.slice(0,3) };
-  };
-
-  const latestDrawInHistory = (history) => {
-    const draws = history?.draws || [];
-    let bestT = NaN;
-    let bestD = null;
-    draws.forEach(d => {
-      const t = toTime(drawDateISO(d));
-      if(Number.isFinite(t) && (!Number.isFinite(bestT) || t > bestT)){
-        bestT = t;
-        bestD = d;
-      }
-    });
-    return { t: bestT, d: bestD };
-  };
-
-  const buildWhyHtml = (pick) => {
-    const day = getPickDateISO(pick) || '—';
-    const emojis = Array.isArray(pick.emojis) ? pick.emojis.join(' ') : '';
-    const nums = Array.isArray(pick.numbers) ? pick.numbers.join('-') : '';
-    const bonus = pickBonusValue(pick);
-    const note = `This pick was generated from your emoji choices. The emoji→number mapping changes each day, so the same emojis on a different day may produce different numbers.`;
-    return `
-      <div style="font-weight:800;">Why this pick looks like this</div>
-      <div class="hint" style="margin-top:6px;">Emojis: ${esc(emojis||'—')} • Numbers: ${esc(nums||'—')}${(bonus!==null && bonus!==undefined && bonus!=='')?` + ${esc(getGame(pick.game).bonusLabel||'Bonus')} ${esc(bonus)}`:''} • Saved: ${esc(day)}</div>
-      <div class="hint" style="margin-top:8px;">${esc(note)}</div>
-    `;
-  };
-
-  const renderInsights = () => {
-    if(!insightsCard) return;
-    if(!currentPick){
-      insightsCard.style.display = 'none';
-      return;
-    }
-
-    insightsCard.style.display = '';
-    whyBox.innerHTML = buildWhyHtml(currentPick);
-
-    // If no history available
-    if(!currentHistory || !Array.isArray(currentHistory.draws) || !currentHistory.draws.length){
-      challengeBox.innerHTML =
-        `<div style="font-weight:800;">Challenge score</div>` +
-        `<div class="hint" style="margin-top:6px;">History dataset not available yet for this game.</div>`;
-      return;
-    }
-
-    const g = getGame(currentPick.game);
-    const startISO = getPickDateISO(currentPick);
-    const pickedT = toTime(startISO);
-
-    const { t: latestT, d: latestD } = latestDrawInHistory(currentHistory);
-    const latestTxt = latestD ? drawLabel(latestD) : '—';
-
-    // Pick date is in the future vs latest history draw
-    if(Number.isFinite(pickedT) && Number.isFinite(latestT) && pickedT > latestT){
-      challengeBox.innerHTML =
-        `<div style="font-weight:800;">Challenge score</div>` +
-        `<div class="hint" style="margin-top:6px;">아직 추첨 전입니다. (최신 추첨일: ${esc(latestTxt)})</div>`;
-      return;
-    }
-
-    const { considered, top } = bestMatchesSincePick(currentPick, currentHistory.draws);
-    if(!top.length){
-      challengeBox.innerHTML =
-        `<div style="font-weight:800;">Challenge score</div>` +
-        `<div class="hint" style="margin-top:6px;">No history found on/after ${esc(startISO||'your save date')} for this game.</div>`;
-      return;
-    }
-
-    const best = top[0];
-    const bestText = `${best.mainMatches.length}/${g.mainCount} main` + (g.bonusLabel ? ` · ${g.bonusLabel}: ${best.bonusMatch ? '✅' : '—'}` : '');
-    const bestLabel = drawLabel(best.d);
-
-    const lines = top.map(x => {
-      const t = `${x.mainMatches.length}/${g.mainCount} main` + (g.bonusLabel ? ` · ${g.bonusLabel}: ${x.bonusMatch ? '✅' : '—'}` : '');
-      return `<div class="hint" style="margin-top:6px;">• <b>${esc(drawLabel(x.d))}</b> — ${esc(t)} (Matched: ${esc(x.mainMatches.length ? x.mainMatches.join(', ') : '—')})</div>`;
-    }).join('');
-
-    challengeBox.innerHTML = `
-      <div style="font-weight:800;">Challenge score (since ${esc(startISO||'save date')})</div>
-      <div class="hint" style="margin-top:6px;">Best so far: <b>${esc(bestText)}</b> on <b>${esc(bestLabel)}</b>. (Scanned ${esc(considered)} draws.)</div>
-      ${lines}
-      <div class="hint" style="margin-top:10px;">Game idea: share your pick with friends, then compare who gets the highest match vs any past draw.</div>
-    `;
-  };
-
-  const buildShareText = () => {
-    if(!currentPick) return '';
-    const g = getGame(currentPick.game);
-    const emojis = Array.isArray(currentPick.emojis) ? currentPick.emojis.join(' ') : '';
-    const nums = Array.isArray(currentPick.numbers) ? currentPick.numbers.join('-') : '';
-    const bonus = pickBonusValue(currentPick);
-    const day = getPickDateISO(currentPick) || '';
-
-    let bestLine = '';
-    if(currentHistory && Array.isArray(currentHistory.draws) && currentHistory.draws.length){
-      const { top } = bestMatchesSincePick(currentPick, currentHistory.draws);
-      if(top && top.length){
-        const best = top[0];
-        const t = `${best.mainMatches.length}/${g.mainCount} main` + (g.bonusLabel ? `, ${g.bonusLabel} ${best.bonusMatch ? 'MATCH' : 'no'}` : '');
-        bestLine = `\nBest past match since ${day||'saved'}: ${t} on ${drawLabel(best.d)}`;
-      }
-    }
-
-    return `EmojiPick — ${g.name}${day?` (${day})`:''}
-Emojis: ${emojis||'-'}
-Numbers: ${nums}${(bonus!==null && bonus!==undefined && bonus!=='')?` + ${g.bonusLabel||'Bonus'} ${bonus}`:''}${bestLine}
-
-(For fun only — no prediction or improved odds.)`;
-  };
-
-  const renderClosestAndHistory = () => {
-    if(!currentPick){
-      closestMeta.textContent = 'Choose a saved pick to see closest past draws.';
-      closestLegend.textContent = '';
-      closestList.innerHTML = '';
-      historyMeta.textContent = '';
-      historyTbody.innerHTML = '';
-      historyCountHint.textContent = '';
-      return;
-    }
-
-    if(!currentHistory || !Array.isArray(currentHistory.draws) || !currentHistory.draws.length){
-      closestMeta.textContent = 'History dataset not available yet for this game.';
-      closestLegend.textContent = '';
-      closestList.innerHTML = '<div class="hint">Tip: add <b>data/*_history.json</b> to enable this section.</div>';
-      historyMeta.textContent = 'History dataset not available yet.';
-      historyTbody.innerHTML = '';
-      historyCountHint.textContent = '';
-      return;
-    }
-
-    const gameCode = currentPick.game;
-    const g = getGame(gameCode);
-    const draws = currentHistory.draws;
-    const src = (currentHistory.meta && currentHistory.meta.source) ? String(currentHistory.meta.source) : '';
-
-    // Build list with match scores
-    const scored = draws.map(d => ({ d, ...computeMatch(currentPick, d) }))
-      .filter(x => x.mainMatches.length > 0 || x.bonusMatch);
-
-    scored.sort((a,b)=>{
-      if(b.score !== a.score) return b.score - a.score;
-      if(b.mainMatches.length !== a.mainMatches.length) return b.mainMatches.length - a.mainMatches.length;
-      const da = Date.parse((drawDateISO(a.d) || '1970-01-01') + 'T00:00:00') || 0;
-      const db = Date.parse((drawDateISO(b.d) || '1970-01-01') + 'T00:00:00') || 0;
-      return db - da;
-    });
-
-    const top = scored.slice(0, 10);
-    const srcHint = (src && !src.includes('demo/') && !src.includes('demo_synthetic')) ? ` Source: ${src}` : '';
-
-    closestMeta.textContent = top.length
-      ? `Top ${top.length} closest past draws (sorted by match score).${srcHint}`
-      : `No past draws matched any of your numbers in this dataset.${srcHint}`;
-
-    closestLegend.textContent = g.bonusLabel ? `Legend: ${g.bonusLabel}: ✅ = matched, — = not matched.` : '';
-
-    if(!top.length){
-      closestList.innerHTML = '<div class="hint">No matches found. Try another saved pick.</div>';
-    } else {
-      closestList.innerHTML = '';
-      top.forEach(x => {
-        const row = document.createElement('div');
-        row.style.padding = '10px 0';
-        row.style.borderBottom = '1px solid #E5E7EB';
-
-        const label = drawLabel(x.d);
-        const matchText = `${x.mainMatches.length}/${g.mainCount} main` + (g.bonusLabel ? ` · ${g.bonusLabel}: ${x.bonusMatch ? '✅' : '—'}` : '');
-        row.innerHTML = `
-          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-            <div>
-              <div style="font-weight:800;">${esc(label)}</div>
-              <div class="hint">Winning: ${esc(fmtWinningLine(x.d, gameCode))}</div>
-            </div>
-            <div style="font-weight:800;">${esc(matchText)}</div>
-          </div>
-          <div class="hint" style="margin-top:6px;">Matched: ${esc(x.mainMatches.length ? x.mainMatches.join(', ') : '—')}</div>
-        `;
-        closestList.appendChild(row);
-      });
-    }
-
-    // Full history (search + paging)
-    const q = (historySearch.value || '').trim().toLowerCase();
-    const all = draws.slice().sort((a,b)=>{
-      const da = Date.parse((drawDateISO(a) || '1970-01-01') + 'T00:00:00') || 0;
-      const db = Date.parse((drawDateISO(b) || '1970-01-01') + 'T00:00:00') || 0;
-      return db - da;
-    });
-
-    historyFiltered = q
-      ? all.filter(d => (`${drawNumber(d)} ${drawDateISO(d)}`.toLowerCase().includes(q)))
-      : all;
-
-    if(historyShown === 0) historyShown = Math.min(HISTORY_PAGE, historyFiltered.length);
-
-    const show = historyFiltered.slice(0, historyShown);
-    historyMeta.textContent = `Showing ${show.length} of ${historyFiltered.length} draws.`;
-
-    historyTbody.innerHTML = '';
-    show.forEach(d => {
-      const m = computeMatch(currentPick, d);
-      const tr = document.createElement('tr');
-      tr.style.borderBottom = '1px solid #E5E7EB';
-
-      const dateCol = document.createElement('td');
-      dateCol.style.padding='10px';
-      dateCol.innerHTML = `<div style="font-weight:800;">${esc(fmtDate(drawDateISO(d)))}</div>`;
-
-      const drawCol = document.createElement('td');
-      drawCol.style.padding='10px';
-      drawCol.textContent = drawNumber(d) ? String(drawNumber(d)) : '—';
-
-      const winCol = document.createElement('td');
-      winCol.style.padding='10px';
-      winCol.textContent = fmtWinningLine(d, gameCode);
-
-      const matchCol = document.createElement('td');
-      matchCol.style.padding='10px';
-      matchCol.innerHTML = g.bonusLabel
-        ? `${m.mainMatches.length}/${g.mainCount} main · ${g.bonusLabel}: ${m.bonusMatch ? '✅' : '—'}`
-        : `${m.mainMatches.length}/${g.mainCount} main`;
-
-      tr.appendChild(dateCol);
-      tr.appendChild(drawCol);
-      tr.appendChild(winCol);
-      tr.appendChild(matchCol);
-      historyTbody.appendChild(tr);
-    });
-
-    historyCountHint.textContent = 'Tip: use search, then Load more to browse deeper history.';
-  };
-
+  // -------- Auto refresh data
   const refreshAutoData = async () => {
     if(!currentPick){
       renderLatest(null, 'pb');
@@ -945,21 +889,40 @@ Numbers: ${nums}${(bonus!==null && bonus!==undefined && bonus!=='')?` + ${g.bonu
 
     const gameCode = currentPick.game;
 
-    try { currentWinning = await loadLatestForGame(gameCode); } catch(e){ currentWinning = null; }
-    try { currentHistory = await loadHistoryForGame(gameCode); } catch(e){ currentHistory = null; }
-    try { currentStats = await loadStatsForGame(gameCode); } catch(e){ currentStats = null; }
+    try{
+      if(!gameLatestCache.has(gameCode)){
+        const latest = await loadLatestForGame(gameCode);
+        gameLatestCache.set(gameCode, latest);
+      }
+      currentWinning = gameLatestCache.get(gameCode) || null;
+    }catch{ currentWinning = null; }
+
+    try{
+      if(!gameStatsCache.has(gameCode)){
+        const stats = await loadStatsForGame(gameCode);
+        gameStatsCache.set(gameCode, stats);
+      }
+      currentStats = gameStatsCache.get(gameCode) || null;
+    }catch{ currentStats = null; }
+
+    try{
+      if(!gameHistoryCache.has(gameCode)){
+        const hist = await loadHistoryForGame(gameCode);
+        gameHistoryCache.set(gameCode, hist);
+      }
+      currentHistory = gameHistoryCache.get(gameCode) || null;
+    }catch{ currentHistory = null; }
 
     renderLatest(currentWinning, gameCode);
     fillWinningInputs(currentWinning, gameCode);
     renderStats(currentStats, gameCode);
+    renderClosestAndHistory();
+    renderInsights();
+    renderSavedPicksHistory();
 
-    // Auto compare when we have latest
+    // Auto-compare when auto data is present
     if(currentWinning){
       doCompare();
-    } else {
-      results.style.display = 'none';
-      renderClosestAndHistory();
-      renderInsights();
     }
   };
 
@@ -974,13 +937,128 @@ Numbers: ${nums}${(bonus!==null && bonus!==undefined && bonus!=='')?` + ${g.bonu
     await refreshAutoData();
   };
 
-  // Events
+  // -------- Saved picks history table
+  const bestRecordsText = (pick) => {
+    const g = getGame(pick.game);
+    const hist = gameHistoryCache.get(pick.game);
+    if(!hist || !hist.draws || !hist.draws.length){
+      return `<span class="hint">History not loaded yet.</span>`;
+    }
+    const all = bestMatchAllTime(pick, hist.draws);
+    const since = bestMatchSinceSaved(pick, hist.draws);
+    const latest = latestHistoryDraw(hist.draws);
+
+    const fmt = (bestObj) => {
+      if(!bestObj) return `0/${g.mainCount} main` + (g.bonusLabel ? ` · ${g.bonusLabel}: —` : '');
+      return `${bestObj.mainMatches.length}/${g.mainCount} main` + (g.bonusLabel ? ` · ${g.bonusLabel}: ${bestObj.bonusMatch ? '✅' : '—'}` : '');
+    };
+
+    const allLine = all ? `${fmt(all)} (${esc(drawLabel(all.d))})` : fmt(null);
+    const startISO = getPickStartDateISO(pick);
+    const pickT = startISO ? toTime(startISO) : NaN;
+    const latestT = latest ? toTime(latest.draw_date) : NaN;
+
+    let sinceLine = '';
+    if(Number.isFinite(pickT) && Number.isFinite(latestT) && pickT > latestT){
+      sinceLine = `Not drawn yet`;
+    } else {
+      sinceLine = since.best ? `${fmt(since.best)} (${esc(drawLabel(since.best.d))})` : `0/${g.mainCount} main`;
+    }
+
+    return `
+      <div><b>All-time:</b> ${allLine}</div>
+      <div class="hint" style="margin-top:4px;"><b>Since saved:</b> ${sinceLine}</div>
+    `;
+  };
+
+  const renderSavedPicksHistory = () => {
+    if(!picks || !picks.length){
+      if(picksHistoryCard) picksHistoryCard.style.display = 'none';
+      return;
+    }
+    if(picksHistoryCard) picksHistoryCard.style.display = '';
+
+    const q = (picksSearch.value || '').trim().toLowerCase();
+
+    const filtered = q ? picks.filter(p=>{
+      const saved = getPickStartDateISO(p);
+      const g = getGame(p.game).name;
+      const em = (p.emojis||[]).join(' ');
+      const nums = (p.numbers||[]).join(' ');
+      const b = (p.bonus!=null ? String(p.bonus) : '');
+      return `${saved} ${g} ${em} ${nums} ${b}`.toLowerCase().includes(q);
+    }) : picks.slice();
+
+    picksTbody.innerHTML = '';
+    filtered.forEach((p, idxOriginal) => {
+      // idxOriginal must map to original picks index
+      const idx = picks.indexOf(p);
+      const tr = document.createElement('tr');
+      tr.className = 'clickable';
+      tr.addEventListener('click', ()=>{
+        pickSelect.value = String(idx);
+        onPickChanged();
+        // scroll to step 1 area
+        pickSelect.scrollIntoView({ behavior:'smooth', block:'center' });
+      });
+
+      const saved = getPickStartDateISO(p);
+      const g = getGame(p.game);
+      const nums = (p.numbers||[]).join('-');
+      const b = (p.bonus!=null && p.bonus!=='') ? ` + ${g.bonusLabel} ${p.bonus}` : '';
+      const emojis = (p.emojis||[]).join(' ');
+
+      tr.innerHTML = `
+        <td><div style="font-weight:800;">${esc(saved || '—')}</div></td>
+        <td><div style="font-weight:800;">${esc(g.name)}</div></td>
+        <td>
+          <div style="font-weight:800;">${esc(nums)}${esc(b)}</div>
+          <div class="hint" style="margin-top:4px;">${esc(emojis || '—')}</div>
+        </td>
+        <td>${bestRecordsText(p)}</td>
+      `;
+      picksTbody.appendChild(tr);
+    });
+
+    picksCountHint.textContent = `Showing ${filtered.length} of ${picks.length} saved picks.`;
+  };
+
+  // -------- Share text
+  const buildShareText = () => {
+    if(!currentPick) return '';
+    const g = getGame(currentPick.game);
+    const emojis = Array.isArray(currentPick.emojis) ? currentPick.emojis.join(' ') : '';
+    const nums = Array.isArray(currentPick.numbers) ? currentPick.numbers.join('-') : '';
+    const b = (currentPick.bonus != null && currentPick.bonus !== '') ? String(currentPick.bonus) : '';
+    const day = getPickStartDateISO(currentPick) || '';
+
+    let bestLine = '';
+    if(currentHistory && Array.isArray(currentHistory.draws) && currentHistory.draws.length){
+      const best = bestMatchAllTime(currentPick, currentHistory.draws);
+      if(best){
+        const t = `${best.mainMatches.length}/${g.mainCount} main` + (g.bonusLabel ? `, ${g.bonusLabel} ${best.bonusMatch ? 'MATCH' : 'no'}` : '');
+        bestLine = `\nBest all-time match: ${t} on ${drawLabel(best.d)}`;
+      }
+    }
+
+    return `EmojiPick — ${g.name}${day?` (${day})`:''}
+Emojis: ${emojis||'-'}
+Numbers: ${nums}${b?` + ${g.bonusLabel||'Bonus'} ${b}`:''}${bestLine}
+
+(For fun only — no prediction or improved odds.)`;
+  };
+
+  // -------- Events
+  if (historyToggle && historyWrap) {
+    historyToggle.addEventListener('click', () => {
+      const isHidden = (historyWrap.style.display === 'none' || !historyWrap.style.display);
+      historyWrap.style.display = isHidden ? 'block' : 'none';
+      historyToggle.textContent = isHidden ? 'Hide' : 'Show';
+    });
+  }
+
   manualToggle.addEventListener('change', () => setManualEnabled(manualToggle.checked));
-
-  refreshLatestBtn.addEventListener('click', async () => {
-    await refreshAutoData();
-  });
-
+  refreshLatestBtn.addEventListener('click', async () => refreshAutoData());
   pickSelect.addEventListener('change', onPickChanged);
 
   if (sharePickBtn) {
@@ -994,7 +1072,7 @@ Numbers: ${nums}${(bonus!==null && bonus!==undefined && bonus!=='')?` + ${g.bonu
           shareHint.textContent = 'Copied to clipboard.';
           setTimeout(() => (shareHint.textContent = SHARE_HINT_DEFAULT), 1800);
         }
-      } catch (e) {
+      } catch {
         window.prompt('Copy this text:', text);
       }
     });
@@ -1012,19 +1090,15 @@ Numbers: ${nums}${(bonus!==null && bonus!==undefined && bonus!=='')?` + ${g.bonu
     historySearch.addEventListener('input', () => {
       historyShown = 0;
       renderClosestAndHistory();
-      renderInsights();
     });
   }
-
   if(historyClear){
     historyClear.addEventListener('click', () => {
       if(historySearch) historySearch.value = '';
       historyShown = 0;
       renderClosestAndHistory();
-      renderInsights();
     });
   }
-
   if(historyMore){
     historyMore.addEventListener('click', () => {
       const total = historyFiltered.length || 0;
@@ -1033,20 +1107,41 @@ Numbers: ${nums}${(bonus!==null && bonus!==undefined && bonus!=='')?` + ${g.bonu
     });
   }
 
-  // Init
+  // picks history toggle/search
+  if(picksToggle && picksHistoryWrap){
+    picksToggle.addEventListener('click', ()=>{
+      const hidden = (picksHistoryWrap.style.display === 'none' || !picksHistoryWrap.style.display);
+      picksHistoryWrap.style.display = hidden ? 'block' : 'none';
+      picksToggle.textContent = hidden ? 'Hide' : 'Show';
+    });
+  }
+  if(picksSearch){
+    picksSearch.addEventListener('input', renderSavedPicksHistory);
+  }
+  if(picksClear){
+    picksClear.addEventListener('click', ()=>{
+      if(picksSearch) picksSearch.value = '';
+      renderSavedPicksHistory();
+    });
+  }
+
+  // -------- Init
   picks = readPicks();
   renderPickDropdown();
   setManualEnabled(false);
+  renderSavedPicksHistory();
 
   if(picks.length){
     pickSelect.value = '0';
     onPickChanged();
   } else {
+    // no picks
+    if(picksHistoryCard) picksHistoryCard.style.display = 'none';
     renderLatest(null, 'pb');
     fillWinningInputs(null, 'pb');
     renderStats(null, 'pb');
-    renderClosestAndHistory();
   }
+
 })();
 </script>
 </body>
