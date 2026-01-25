@@ -56,9 +56,13 @@ def die(msg: str, code: int = 1) -> None:
 
 
 def http_get_json(url: str, params: Dict[str, str]) -> Any:
-    r = requests.get(url, params=params, timeout=TIMEOUT, headers={"Accept": "application/json"})
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "EmojiPick-Updater/1.0",
+    }
+    r = requests.get(url, params=params, timeout=TIMEOUT, headers=headers)
     if r.status_code != 200:
-        die(f"HTTP {r.status_code} from {r.url}: {r.text[:200]}")
+        die(f"HTTP {r.status_code} from {r.url}: {r.text[:300]}")
     return r.json()
 
 
@@ -66,6 +70,7 @@ def parse_winning_numbers(raw: str) -> Optional[Tuple[List[int], int]]:
     """
     Socrata rows usually have `winning_numbers` like: "11 24 33 38 47 1"
     => first 5 are main, last is bonus.
+    (Powerball, MegaMillions 모두 이 포맷으로 제공되는 경우가 많음)
     """
     if not raw:
         return None
@@ -126,12 +131,14 @@ def fetch_game(game: Dict[str, str]) -> Tuple[Dict[str, Any], Dict[str, Any], Di
     dataset = game["dataset"]
     url = f"{BASE}/{dataset}.json"
 
-    # Try to fetch draw_date + winning_numbers (most stable)
+    # ✅ 가장 안전한 컬럼만 요청: draw_date, winning_numbers
+    # (존재하지 않는 컬럼을 $select에 넣으면 Socrata가 400으로 바로 실패함)
     params = {
-        "$select": "draw_date,winning_numbers,draw_number,draw_no,draw",  # extra fields if present
+        "$select": "draw_date,winning_numbers",
         "$order": "draw_date DESC",
         "$limit": str(FETCH_LIMIT),
     }
+
     rows = http_get_json(url, params=params)
     if not isinstance(rows, list) or not rows:
         die(f"No rows returned for {game['data_key']} ({dataset}).")
@@ -147,8 +154,13 @@ def fetch_game(game: Dict[str, str]) -> Tuple[Dict[str, Any], Dict[str, Any], Di
             continue
         main, bonus = parsed
 
-        # draw number field varies; best effort
-        draw_no = row.get("draw_number") or row.get("draw_no") or row.get("draw") or ""
+        # draw_no는 데이터셋마다 없을 수 있으니 "optional" 처리 (없으면 빈 문자열)
+        draw_no = (
+            row.get("draw_number")
+            or row.get("draw_no")
+            or row.get("draw")
+            or ""
+        )
 
         key = (raw_date, tuple(main), int(bonus))
         if key in seen:
@@ -171,6 +183,8 @@ def fetch_game(game: Dict[str, str]) -> Tuple[Dict[str, Any], Dict[str, Any], Di
         die(f"Parsed 0 draws for {game['data_key']} ({dataset}).")
 
     latest = draws[0]
+    nowz = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
     latest_out = {
         "game": game["code"],
         "draw_date": latest["draw_date"],
@@ -178,7 +192,7 @@ def fetch_game(game: Dict[str, str]) -> Tuple[Dict[str, Any], Dict[str, Any], Di
         "bonus_number": latest["bonus_number"],
         "bonus_label": game["bonus_label"],
         "source": "NY Open Data",
-        "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "updated_at": nowz,
     }
 
     history_out = {
@@ -186,7 +200,7 @@ def fetch_game(game: Dict[str, str]) -> Tuple[Dict[str, Any], Dict[str, Any], Di
         "meta": {
             "source": "NY Open Data",
             "dataset": dataset,
-            "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "updated_at": nowz,
             "count": len(draws),
         },
         "draws": draws,
