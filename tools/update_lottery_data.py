@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
+"""  
 Update EmojiPick lottery data files from NY Open Data (Socrata).
 
 Outputs (in ./data):
