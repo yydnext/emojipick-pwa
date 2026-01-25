@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""  
+"""
 Update EmojiPick lottery data files from NY Open Data (Socrata).
 
 Outputs (in ./data):
@@ -11,11 +11,18 @@ Outputs (in ./data):
 - megamillions_latest.json
 - megamillions_history.json
 - megamillions_stats.json
+
+Design goals:
+- Avoid Socrata $select to prevent "no-such-column" 400 errors.
+- Keep output schema stable for the existing compare.html/app.js.
+- Be tolerant to minor schema/format variations in the dataset.
 """
 
 from __future__ import annotations
+
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -24,30 +31,36 @@ import requests
 
 
 BASE = "https://data.ny.gov/resource"
+TIMEOUT = 30
+
+# How many draws to store (recent -> older)
+HISTORY_LIMIT = 520  # ~2 years (2 draws/week)
+FETCH_LIMIT = 800    # fetch extra to be safe
 
 GAMES = [
     {
         "code": "pb",
         "data_key": "powerball",
-        "dataset": "d6yy-54nr",  # Powerball Winning Numbers (NY Open Data)
+        "dataset": "d6yy-54nr",  # NY Open Data: Powerball Winning Numbers
         "label": "Powerball",
         "bonus_label": "Powerball",
     },
     {
         "code": "mm",
         "data_key": "megamillions",
-        "dataset": "5xaw-6ayf",  # Mega Millions Winning Numbers (NY Open Data)
+        "dataset": "5xaw-6ayf",  # NY Open Data: Mega Millions Winning Numbers
         "label": "Mega Millions",
         "bonus_label": "Mega Ball",
     },
 ]
 
-OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-TIMEOUT = 30
+# repo root = parent of /tools
+REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
+OUT_DIR = os.path.join(REPO_ROOT, "data")
 
-# How many draws to store (recent -> older)
-HISTORY_LIMIT = 520  # ~2 years for 2 draws/week games
-FETCH_LIMIT = 700    # fetch a bit more to be safe
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def die(msg: str, code: int = 1) -> None:
@@ -58,83 +71,102 @@ def die(msg: str, code: int = 1) -> None:
 def http_get_json(url: str, params: Dict[str, str]) -> Any:
     headers = {
         "Accept": "application/json",
-        "User-Agent": "EmojiPick-Updater/1.0",
+        "User-Agent": "EmojiPick-Updater/1.0 (+github-actions)",
     }
-    r = requests.get(url, params=params, timeout=TIMEOUT, headers=headers)
+    try:
+        r = requests.get(url, params=params, timeout=TIMEOUT, headers=headers)
+    except requests.RequestException as e:
+        die(f"Request failed: {e}")
+
     if r.status_code != 200:
-        die(f"HTTP {r.status_code} from {r.url}: {r.text[:300]}")
-    return r.json()
-
-
-def parse_winning_numbers(raw: str) -> Optional[Tuple[List[int], int]]:
-    """
-    Socrata rows usually have `winning_numbers` like: "11 24 33 38 47 1"
-    => first 5 are main, last is bonus.
-    (Powerball, MegaMillions 모두 이 포맷으로 제공되는 경우가 많음)
-    """
-    if not raw:
-        return None
-    parts = [p for p in raw.strip().split() if p.strip()]
-    nums: List[int] = []
-    for p in parts:
-        try:
-            nums.append(int(p))
-        except ValueError:
-            return None
-    if len(nums) < 6:
-        return None
-    main = nums[:5]
-    bonus = nums[5]
-    return main, bonus
+        # Print a useful short snippet. (Socrata errors include JSON text.)
+        text = (r.text or "").strip().replace("\n", " ")
+        die(f"HTTP {r.status_code} from {r.url}: {text[:300]}")
+    try:
+        return r.json()
+    except ValueError:
+        die(f"Non-JSON response from {r.url}: {(r.text or '')[:200]}")
 
 
 def normalize_date(s: str) -> str:
-    """
-    draw_date sometimes includes time; keep YYYY-MM-DD.
-    """
+    """draw_date sometimes contains time; keep YYYY-MM-DD."""
     if not s:
         return ""
     return str(s)[:10]
 
 
-def compute_stats(draws: List[Dict[str, Any]]) -> Dict[str, Any]:
+_NUM_RE = re.compile(r"\d+")
+
+
+def parse_winning_numbers(raw: str) -> Optional[Tuple[List[int], int]]:
+    """
+    Common format in NY Open Data:
+      "11 24 33 38 47 1"  => first 5 are main, last is bonus
+    Be tolerant: extract digits even if commas/hyphens exist.
+    """
+    if not raw:
+        return None
+
+    parts = _NUM_RE.findall(str(raw))
+    if len(parts) < 6:
+        return None
+
+    nums = []
+    for p in parts:
+        try:
+            nums.append(int(p))
+        except ValueError:
+            return None
+
+    main = nums[:5]
+    bonus = nums[5]
+    return main, bonus
+
+
+def compute_stats(draws: List[Dict[str, Any]], bonus_label: str) -> Dict[str, Any]:
     freq_main: Dict[int, int] = {}
     freq_bonus: Dict[int, int] = {}
+
     for d in draws:
-        for n in d.get("main_numbers", []) or []:
-            try:
-                nn = int(n)
-            except Exception:
-                continue
-            freq_main[nn] = freq_main.get(nn, 0) + 1
-        b = d.get("bonus_number", None)
-        if b is not None and b != "":
-            try:
-                bb = int(b)
-            except Exception:
-                bb = None
-            if bb is not None:
-                freq_bonus[bb] = freq_bonus.get(bb, 0) + 1
+        for n in d.get("numbers", []) or []:
+            if isinstance(n, int):
+                freq_main[n] = freq_main.get(n, 0) + 1
+        b = d.get("bonus", None)
+        if isinstance(b, int):
+            freq_bonus[b] = freq_bonus.get(b, 0) + 1
 
     hot_main = [n for (n, _c) in sorted(freq_main.items(), key=lambda kv: (-kv[1], kv[0]))[:10]]
     hot_bonus = [n for (n, _c) in sorted(freq_bonus.items(), key=lambda kv: (-kv[1], kv[0]))[:10]]
 
     return {
-        "window": f"last {len(draws)} draws",
         "hot_main": hot_main,
         "hot_bonus": hot_bonus,
-        "source": "NY Open Data (computed)",
+        "bonus_label": bonus_label,      # UI can render: f"{bonus_label} {n}"
+        "window_draws": len(draws),
+        "source": "computed_from_history",
+        "updated_at": utc_now_iso(),
     }
+
+
+def pick_draw_no(row: Dict[str, Any]) -> Any:
+    """
+    Socrata datasets vary. Prefer one of:
+    draw_no, draw_number, draw, draw_nbr, etc.
+    If none exists, leave "" (string) so schema stays stable.
+    """
+    for k in ("draw_no", "draw_number", "draw", "draw_nbr", "drawid", "drawing"):
+        if k in row and row.get(k) not in (None, ""):
+            return row.get(k)
+    return ""
 
 
 def fetch_game(game: Dict[str, str]) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
     dataset = game["dataset"]
     url = f"{BASE}/{dataset}.json"
 
-    # ✅ 가장 안전한 컬럼만 요청: draw_date, winning_numbers
-    # (존재하지 않는 컬럼을 $select에 넣으면 Socrata가 400으로 바로 실패함)
+    # IMPORTANT: Do NOT use $select. If you select a non-existent column, Socrata returns 400.
+    # Keep only $order + $limit. We'll safely read columns via row.get(...).
     params = {
-        "$select": "draw_date,winning_numbers",
         "$order": "draw_date DESC",
         "$limit": str(FETCH_LIMIT),
     }
@@ -148,19 +180,15 @@ def fetch_game(game: Dict[str, str]) -> Tuple[Dict[str, Any], Dict[str, Any], Di
 
     for row in rows:
         raw_date = normalize_date(row.get("draw_date", ""))
-        wn = row.get("winning_numbers", "")
+        wn = row.get("winning_numbers", "") or row.get("winning_number", "") or row.get("winning", "")
         parsed = parse_winning_numbers(wn)
+
         if not raw_date or not parsed:
             continue
+
         main, bonus = parsed
 
-        # draw_no는 데이터셋마다 없을 수 있으니 "optional" 처리 (없으면 빈 문자열)
-        draw_no = (
-            row.get("draw_number")
-            or row.get("draw_no")
-            or row.get("draw")
-            or ""
-        )
+        draw_no = pick_draw_no(row)
 
         key = (raw_date, tuple(main), int(bonus))
         if key in seen:
@@ -171,8 +199,8 @@ def fetch_game(game: Dict[str, str]) -> Tuple[Dict[str, Any], Dict[str, Any], Di
             {
                 "draw_no": draw_no,
                 "draw_date": raw_date,
-                "main_numbers": main,
-                "bonus_number": bonus,
+                "numbers": main,
+                "bonus": int(bonus),
             }
         )
 
@@ -182,31 +210,29 @@ def fetch_game(game: Dict[str, str]) -> Tuple[Dict[str, Any], Dict[str, Any], Di
     if not draws:
         die(f"Parsed 0 draws for {game['data_key']} ({dataset}).")
 
-    latest = draws[0]
-    nowz = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    updated_at = utc_now_iso()
 
+    latest = draws[0]
     latest_out = {
         "game": game["code"],
+        "draw_no": latest.get("draw_no", ""),
         "draw_date": latest["draw_date"],
-        "main_numbers": latest["main_numbers"],
-        "bonus_number": latest["bonus_number"],
+        "numbers": latest["numbers"],
+        "bonus": latest["bonus"],
         "bonus_label": game["bonus_label"],
-        "source": "NY Open Data",
-        "updated_at": nowz,
+        "source": "official",
+        "updated_at": updated_at,
     }
 
     history_out = {
         "game": game["code"],
-        "meta": {
-            "source": "NY Open Data",
-            "dataset": dataset,
-            "updated_at": nowz,
-            "count": len(draws),
-        },
         "draws": draws,
+        "source": "official",
+        "updated_at": updated_at,
     }
 
-    stats_out = compute_stats(draws)
+    stats_out = compute_stats(draws, bonus_label=game["bonus_label"])
+    stats_out["game"] = game["code"]
 
     return latest_out, history_out, stats_out
 
@@ -231,7 +257,7 @@ def main() -> None:
         write_json(os.path.join(OUT_DIR, f"{dk}_history.json"), history)
         write_json(os.path.join(OUT_DIR, f"{dk}_stats.json"), stats)
 
-        print(f"[update_lottery_data] Wrote {dk}_latest/history/stats.json")
+        print(f"[update_lottery_data] Wrote {dk}_latest.json / {dk}_history.json / {dk}_stats.json")
 
     print("[update_lottery_data] Done.")
 
