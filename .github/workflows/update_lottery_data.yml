@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     # 매일 UTC 08:10 (미국 동부 새벽/아침 사이)
-    - cron: "30 6 * * *"
+    - cron: "30 6 * * 0,2,3,4,6"
 
 permissions:
   contents: write
