@@ -98,29 +98,61 @@ def normalize_date(s: str) -> str:
 _NUM_RE = re.compile(r"\d+")
 
 
-def parse_winning_numbers(raw: str) -> Optional[Tuple[List[int], int]]:
-    """
-    Common format in NY Open Data:
-      "11 24 33 38 47 1"  => first 5 are main, last is bonus
-    Be tolerant: extract digits even if commas/hyphens exist.
-    """
+def parse_int_list(raw: str) -> List[int]:
     if not raw:
-        return None
-
-    parts = _NUM_RE.findall(str(raw))
-    if len(parts) < 6:
-        return None
-
-    nums = []
-    for p in parts:
+        return []
+    out: List[int] = []
+    for p in raw.strip().replace(",", " ").split():
         try:
-            nums.append(int(p))
+            out.append(int(p))
         except ValueError:
-            return None
+            return []
+    return out
 
-    main = nums[:5]
-    bonus = nums[5]
-    return main, bonus
+
+def get_int(row: Dict[str, Any], keys: List[str]) -> Optional[int]:
+    for k in keys:
+        v = row.get(k)
+        if v in (None, ""):
+            continue
+        try:
+            return int(v)
+        except Exception:
+            pass
+    return None
+
+
+def parse_numbers_for_game(game_code: str, row: Dict[str, Any]) -> Optional[Tuple[List[int], int]]:
+    """
+    Powerball: often winning_numbers has 6 nums (5 + powerball)
+    Mega Millions: winning_numbers has 5 nums, mega_ball is separate column
+    """
+    wn = row.get("winning_numbers") or row.get("winning_number") or row.get("winning") or ""
+    nums = parse_int_list(str(wn))
+
+    if game_code == "mm":
+        if len(nums) < 5:
+            return None
+        main = nums[:5]
+        bonus = get_int(row, ["mega_ball", "megaball", "mega", "mega_ball_number"])
+        if bonus is None and len(nums) >= 6:
+            bonus = nums[5]
+        if bonus is None:
+            return None
+        return main, bonus
+
+    # default: powerball
+    if len(nums) >= 6:
+        return nums[:5], nums[5]
+
+    # fallback if powerball is separate
+    if len(nums) >= 5:
+        bonus = get_int(row, ["powerball", "power_ball", "pb", "powerball_number"])
+        if bonus is None:
+            return None
+        return nums[:5], bonus
+
+    return None
 
 
 def compute_stats(draws: List[Dict[str, Any]], bonus_label: str) -> Dict[str, Any]:
@@ -181,7 +213,8 @@ def fetch_game(game: Dict[str, str]) -> Tuple[Dict[str, Any], Dict[str, Any], Di
     for row in rows:
         raw_date = normalize_date(row.get("draw_date", ""))
         wn = row.get("winning_numbers", "") or row.get("winning_number", "") or row.get("winning", "")
-        parsed = parse_winning_numbers(wn)
+        parsed = parse_numbers_for_game(game["code"], row)
+
 
         if not raw_date or not parsed:
             continue
