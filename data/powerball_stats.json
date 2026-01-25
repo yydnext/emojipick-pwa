@@ -1,9 +1,31 @@
 {
-  "game": "powerball",
-  "range_main": [1, 69],
-  "range_bonus": [1, 26],
-  "hot_main": [61, 32, 21, 63, 23, 69, 62, 36, 39, 37],
-  "hot_bonus": [24, 18, 4, 26, 6],
-  "note": "Demo 'hot number' list. Replace with real frequency stats from your historical dataset.",
-  "source": "demo"
+  "hot_main": [
+    33,
+    28,
+    24,
+    27,
+    64,
+    19,
+    47,
+    53,
+    66,
+    4
+  ],
+  "hot_bonus": [
+    14,
+    20,
+    4,
+    21,
+    23,
+    25,
+    1,
+    5,
+    9,
+    2
+  ],
+  "bonus_label": "Powerball",
+  "window_draws": 520,
+  "source": "computed_from_history",
+  "updated_at": "2026-01-25T04:19:26Z",
+  "game": "pb"
 }

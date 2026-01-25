@@ -1,7 +1,31 @@
 {
-  "game": "megamillions",
-  "window": "demo",
-  "hot_main": [10, 14, 17, 22, 24, 31, 34, 37, 46, 56],
-  "hot_bonus": [4, 7, 9, 12, 18],
-  "note": "Demo stats. Replace with real frequency stats computed from historical draws."
+  "hot_main": [
+    10,
+    18,
+    19,
+    66,
+    3,
+    17,
+    40,
+    38,
+    42,
+    22
+  ],
+  "hot_bonus": [
+    18,
+    24,
+    1,
+    22,
+    4,
+    11,
+    13,
+    3,
+    9,
+    19
+  ],
+  "bonus_label": "Mega Ball",
+  "window_draws": 520,
+  "source": "computed_from_history",
+  "updated_at": "2026-01-25T04:19:26Z",
+  "game": "mm"
 }
