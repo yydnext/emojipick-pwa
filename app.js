@@ -843,18 +843,21 @@ function setupModalClose() {
 
     // Top actions
     const myBtn = document.getElementById('btnMyPicks');
-    if (myBtn) myBtn.addEventListener('click', () => openHistoryModal());
+    if (myBtn) myBtn.addEventListener('click', () => {
+  track('open_mypicks', { page: 'home', ui: 'top_actions' }); openHistoryModal());
 
     const cmpBtn = document.getElementById('btnCompare');
-    if (cmpBtn) cmpBtn.addEventListener('click', () => openCompareModal());
+    if (cmpBtn) cmpBtn.addEventListener('click', () => {
+  track('open_compare', { page: 'home', ui: 'top_actions' }); openCompareModal());
 
     const upBtn = document.getElementById('btnUpgrade');
-    if (upBtn) upBtn.addEventListener('click', () => openUpgradeModal());
+    if (upBtn) upBtn.addEventListener('click', () => {
+  track('open_upgrade', { page: 'home', ui: 'top_actions' }); openUpgradeModal());
 
     const partnerBtn = document.getElementById('btnPartner');
     if (partnerBtn) {
       partnerBtn.addEventListener('click', (e) => {
-        e.preventDefault();
+        e.preventDefault(); track('open_partner', { page: 'home', ui: 'top_actions' });
         openPartnerModal();
       });
     }
