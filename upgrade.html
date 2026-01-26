@@ -58,13 +58,39 @@
         <li>Auto reminders (calendar / notifications)</li>
         <li>Advanced analytics (frequency &amp; similarity views)</li>
       </ul>
+      <div style="margin-top:14px;">
+     <a href="#" id="btnUpgradeCTA"
+     style="display:inline-block; padding:10px 14px; border-radius:10px; text-decoration:none;
+            border:1px solid #333; font-weight:600;">
+    Support / Donate
+  </a>
+  <div class="small" style="margin-top:8px; opacity:0.8;">
+    (Coming soon) — We’re validating first.
+  </div>
+</div>
+
       <p style="margin:14px 0 0 0" class="small">
         Pricing can be decided later. The key is: keep the free version fun and fully usable.
       </p>
     </section>
   </div>
-  <script>
+<script>
   track('view_upgrade', { page: 'upgrade', placement: 'page_load' });
+
+  (function () {
+    const btn = document.getElementById('btnUpgradeCTA');
+    if (!btn) return;
+
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+
+      track('click_upgrade', { page: 'upgrade', placement: 'cta' });
+
+      // 아직 결제/후원 연결 전이므로 안내만
+      alert('Support/Donate is coming soon. We are validating first.');
+    });
+  })();
 </script>
+
 </body>
 </html>
