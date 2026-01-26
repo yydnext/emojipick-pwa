@@ -410,6 +410,7 @@ window.track = function(eventName, params = {}) {
 
     // keep for “what next?” actions
     lastResult = { gameId, idxs: [...idxs], dateSeed, nums, mode };
+    if (window.gtag) gtag('event', 'generate_numbers', { game: gameId, mode });
     const more = $('#morePicks');
     if (more) { more.hidden = true; more.innerHTML = ''; }
   }
