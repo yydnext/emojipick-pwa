@@ -1091,6 +1091,7 @@ Numbers: ${nums}${b?` + ${g.bonusLabel||'Bonus'} ${b}`:''}${bestLine}
       if (!text) return;
       try {
         await navigator.clipboard.writeText(text);
+       track('share_pick', { page: 'compare', method: 'clipboard' });
         if (shareHint) {
           shareHint.textContent = 'Copied to clipboard.';
           setTimeout(() => (shareHint.textContent = SHARE_HINT_DEFAULT), 1800);
@@ -1101,7 +1102,8 @@ Numbers: ${nums}${b?` + ${g.bonusLabel||'Bonus'} ${b}`:''}${bestLine}
     });
   }
 
-  compareBtn.addEventListener('click', () => doCompare());
+  compareBtn.addEventListener('click', () => doCompare()); 
+  track('open_compare', { page: 'compare', input: manualToggle.checked ? 'manual' : 'auto_latest' });
 
   clearBtn.addEventListener('click', () => {
     winMainInput.value = '';
