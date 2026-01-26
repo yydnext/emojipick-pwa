@@ -1,3 +1,21 @@
+// ---- GA4 helper (EmojiPick) ----
+window.track = function(eventName, params = {}) {
+  try {
+    if (typeof gtag === 'function') {
+      gtag('event', eventName, {
+        app: 'emojipick-pwa',
+        ...params
+      });
+      // 필요하면 개발 중 확인용:
+      // console.log('[GA4]', eventName, params);
+    } else {
+      // console.warn('gtag not ready');
+    }
+  } catch (e) {
+    // console.warn('track error', e);
+  }
+};
+
 // APP_VERSION: emojipick-white-v8 (2026-01-16)
 /*
   EmojiPick (PWA)
