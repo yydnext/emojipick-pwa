@@ -878,6 +878,7 @@ function setupModalClose() {
         }
         hist.push(makePickRecord(lastResult));
         saveHistory(hist);
+        if (window.gtag) gtag('event', 'save_pick', { game: lastResult?.gameId, mode: lastResult?.mode });
         track('save_pick', { page: 'home', game: currentGame || 'pb', store: 'localStorage' });
         saveBtn.textContent = 'Saved ✓';
         setTimeout(() => (saveBtn.textContent = 'Save'), 1200);
