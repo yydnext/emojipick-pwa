@@ -877,6 +877,7 @@ function setupModalClose() {
         }
         hist.push(makePickRecord(lastResult));
         saveHistory(hist);
+        track('save_pick', { page: 'home', game: currentGame || 'pb', store: 'localStorage' });
         saveBtn.textContent = 'Saved ✓';
         setTimeout(() => (saveBtn.textContent = 'Save'), 1200);
       });
