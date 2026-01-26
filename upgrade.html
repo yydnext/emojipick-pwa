@@ -1,96 +1,107 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-D63MJPZ47S"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-D63MJPZ47S');
-</script>
-
-  <script>
-  // EmojiPick GA4 helper
-  window.track = function(name, params) {
-    try {
-      if (typeof gtag === 'function') {
-        var p = params || {};
-        // 디버그 모드: URL에 ?debug=1 붙이면 DebugView에서 더 잘 보임
-        if (location.search.includes('debug=1')) p.debug_mode = true;
-        gtag('event', name, p);
-      }
-    } catch (e) {}
-  };
-</script>
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EmojiPick • Upgrade</title>
+
+  <!-- Styles (프로젝트에 이미 있던 링크 유지) -->
   <link rel="stylesheet" href="styles.v11.css?v=20260116v12" />
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-D63MJPZ47S"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-D63MJPZ47S');
+  </script>
+
+  <!-- EmojiPick GA4 helper -->
+  <script>
+    window.track = function(name, params) {
+      try {
+        if (typeof gtag === 'function') {
+          var p = params || {};
+          if (location.search.includes('debug=1')) p.debug_mode = true;
+          gtag('event', name, p);
+        }
+      } catch (e) {}
+    };
+  </script>
+
+  <style>
+    /* upgrade.html 단독으로도 보기 좋게(기존 CSS가 있어도 충돌 적게) */
+    .wrap { max-width: 920px; margin: 0 auto; padding: 18px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .brand img { width: 34px; height: 34px; border-radius: 10px; }
+    .brand .title { font-weight: 800; font-size: 18px; line-height: 1.1; }
+    .brand .sub { font-size: 12px; opacity: .75; margin-top: 2px; }
+    .card { border: 1px solid rgba(0,0,0,.08); border-radius: 18px; padding: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.06); background: #fff; }
+    .btn { cursor: pointer; border: 1px solid rgba(0,0,0,.2); background: #fff; padding: 10px 14px; border-radius: 12px; font-weight: 700; }
+    .btn.primary { border-color: rgba(0,0,0,.25); }
+    .note { margin-top: 10px; font-size: 13px; opacity: .8; }
+    ul { margin: 10px 0 0 18px; }
+    h2 { margin: 0 0 8px 0; }
+    h3 { margin: 14px 0 6px 0; }
+  </style>
 </head>
+
 <body>
-  <div class="app">
-    <header class="topbar">
+  <div class="wrap">
+    <div class="topbar">
       <div class="brand">
-        <div class="logo" aria-hidden="true">✨</div>
+        <!-- 로고 파일이 프로젝트에 없으면 이 줄은 지워도 됩니다 -->
+        <img src="icon-512.png" alt="EmojiPick" />
         <div>
-          <div class="brandName">EmojiPick</div>
-          <div class="brandTag">Pick emojis → Get lucky numbers → Share &amp; challenge</div>
+          <div class="title">EmojiPick</div>
+          <div class="sub">Pick emojis → Get lucky numbers — Share & challenge</div>
         </div>
       </div>
-      <div class="topActions">
-        <a class="chip" href="./index.html">Back</a>
-      </div>
-    </header>
 
-    <section class="card" style="margin-top:14px">
-      <h2 style="margin:0 0 8px 0">Upgrade (coming soon)</h2>
-      <p style="margin:0 0 12px 0">
+      <a class="btn" href="./index.html">Back</a>
+    </div>
+
+    <section class="card" style="margin-top:14px;">
+      <h2>Upgrade (coming soon)</h2>
+
+      <p style="margin:0 0 12px 0;">
         For now, EmojiPick is free. If we add a paid tier later, it should only unlock convenience features
         (not “better luck”).
       </p>
-      <h3 style="margin:14px 0 8px 0">Possible Pro features</h3>
-      <ul style="margin:0; padding-left:18px">
+
+      <h3>Possible Pro features</h3>
+      <ul>
         <li>Longer pick history &amp; export</li>
         <li>Multi-room challenges (friends leaderboard)</li>
         <li>Auto reminders (calendar / notifications)</li>
         <li>Advanced analytics (frequency &amp; similarity views)</li>
       </ul>
-      <div style="margin-top:14px;">
-     <a href="#" id="btnUpgradeCTA"
-     style="display:inline-block; padding:10px 14px; border-radius:10px; text-decoration:none;
-            border:1px solid #333; font-weight:600;">
-    Support / Donate
-  </a>
-  <div class="small" style="margin-top:8px; opacity:0.8;">
-    (Coming soon) — We’re validating first.
-  </div>
-</div>
 
-      <p style="margin:14px 0 0 0" class="small">
+      <div style="margin-top:14px;">
+        <button id="btnDonate" class="btn primary">Support / Donate</button>
+        <div class="note">(Validation stage) — Support helps keep it running.</div>
+      </div>
+
+      <p class="note" style="margin-top:12px;">
         Pricing can be decided later. The key is: keep the free version fun and fully usable.
       </p>
     </section>
   </div>
-<script>
-  track('view_upgrade', { page: 'upgrade', placement: 'page_load' });
 
-  (function () {
-    const btn = document.getElementById('btnUpgradeCTA');
-    if (!btn) return;
+  <script>
+    // Page view event
+    track('view_upgrade', { page: 'upgrade', placement: 'page_load' });
 
-    btn.addEventListener('click', function (e) {
-      e.preventDefault();
-
-      track('click_upgrade', { page: 'upgrade', placement: 'cta' });
-
-      // 아직 결제/후원 연결 전이므로 안내만
-      alert('Support/Donate is coming soon. We are validating first.');
-    });
-  })();
-</script>
-
+    // CTA click -> open BuyMeACoffee in new tab + track
+    const donateBtn = document.getElementById('btnDonate');
+    if (donateBtn) {
+      donateBtn.addEventListener('click', () => {
+        track('click_upgrade', { page: 'upgrade', placement: 'cta', dest: 'bmac' });
+        window.open('https://buymeacoffee.com/emojipick', '_blank', 'noopener');
+      });
+    }
+  </script>
 </body>
 </html>
