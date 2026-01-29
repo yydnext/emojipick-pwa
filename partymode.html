@@ -91,7 +91,22 @@
       <input id="seedEmojis" type="text" placeholder="예: 🍀✨🔥  (여러 명이 돌아가며 1~2개씩 입력)" />
       <div class="hint">비워두면 시스템이 자동으로 당첨번호를 생성합니다.</div>
     </div>
- 
+
+  <!-- ✅ 여기(바로 이 자리)에 추가 -->
+    <div style="margin-top:8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <div class="hint" id="seedTurnLabel" style="margin:0;"></div>
+      <div class="hint" id="seedCountLabel" style="margin:0;"></div>
+
+      <button class="btn" id="btnSeedNext" type="button">Next person</button>
+      <button class="btn" id="btnSeedClear" type="button">Clear seed</button>
+    </div>
+
+  <div class="hint" id="seedHint" style="margin-top:6px;">
+    Tip: Each person adds 1–2 emojis, then click “Next person”.
+  </div>
+</div>
+핵심 체크 2개
+      
       <div class="row">
         <div>
           <label>Rounds</label>
