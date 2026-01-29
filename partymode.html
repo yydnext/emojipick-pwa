@@ -734,10 +734,20 @@ const genWinningFromGroupSeed = (gameCode, roundIndex, seedEmojis) => {
       roundWinning: {}
     };
 
-    // pre-generate winning numbers per round
-    for(let r=1;r<=rounds;r++){
-      state.roundWinning[String(r)] = genWinningForRound(gameCode, r);
+   // (1) seed emojis 읽기: input#seedEmojis 에서
+  const seedStr = (document.getElementById('seedEmojis')?.value || '').trim();
+  const seedEmojis = seedStr ? [...seedStr] : [];
+
+  // (2) roundWinning 생성: seed 있으면 seed로, 없으면 기존 방식
+  state.roundWinning = {};
+  for (let r = 0; r < rounds; r++) {
+    if (seedEmojis.length > 0) {
+      state.roundWinning[r] = genWinningFromGroupSeed(gameCode, r, seedEmojis);
+    } else {
+      state.roundWinning[r] = genWinningForRound(gameCode, r);
     }
+  }
+
 
     saveState();
     showPlay();
