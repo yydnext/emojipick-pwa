@@ -940,6 +940,81 @@ const genWinningFromGroupSeed = (gameCode, roundIndex, seedEmojis) => {
     btnResume.style.display = '';
   }
 
+// ---------------- Seed UI helpers (Option A) ----------------
+const seedInput = document.getElementById('seedEmojis');
+const seedTurnLabel = document.getElementById('seedTurnLabel');
+const seedCountLabel = document.getElementById('seedCountLabel');
+const btnSeedNext = document.getElementById('btnSeedNext');
+const btnSeedClear = document.getElementById('btnSeedClear');
+
+let seedTurnIndex = 0; // 0-based: whose turn to add seed emojis
+
+const countSeedUnits = (s) => {
+  // counts code points except whitespace (good enough for emojis)
+  return [...(s || '')].filter(ch => ch.trim() !== '').length;
+};
+
+const getPlayerCountSafe = () => {
+  const pc = Number(playerCount?.value || 0);
+  return Number.isFinite(pc) && pc > 0 ? pc : 2;
+};
+
+const updateSeedUI = () => {
+  if (!seedInput || !seedTurnLabel || !seedCountLabel || !btnSeedNext || !btnSeedClear) return;
+
+  const pc = getPlayerCountSafe();
+  const turn = Math.min(seedTurnIndex + 1, pc);
+
+  seedTurnLabel.textContent = `Seed turn: Player ${turn}/${pc}`;
+  seedCountLabel.textContent = `Seed length: ${countSeedUnits(seedInput.value)} chars`;
+
+  btnSeedNext.textContent = (seedTurnIndex >= pc - 1) ? 'Seed done' : 'Next person';
+};
+
+if (seedInput) {
+  seedInput.addEventListener('input', updateSeedUI);
+}
+
+if (btnSeedNext) {
+  btnSeedNext.addEventListener('click', () => {
+    const pc = getPlayerCountSafe();
+
+    // add a separator space so people can visually see turns
+    if (seedInput && seedInput.value && !seedInput.value.endsWith(' ')) {
+      seedInput.value += ' ';
+    }
+
+    if (seedTurnIndex < pc - 1) {
+      seedTurnIndex++;
+      updateSeedUI();
+      seedInput?.focus();
+    } else {
+      // last person already contributed -> just keep UI stable
+      updateSeedUI();
+      seedInput?.blur();
+    }
+  });
+}
+
+if (btnSeedClear) {
+  btnSeedClear.addEventListener('click', () => {
+    if (seedInput) seedInput.value = '';
+    seedTurnIndex = 0;
+    updateSeedUI();
+    seedInput?.focus();
+  });
+}
+
+// when player count changes, reset seed turn
+playerCount?.addEventListener('change', () => {
+  seedTurnIndex = 0;
+  updateSeedUI();
+});
+
+// initial draw
+updateSeedUI();
+
+  
   // events
   playerCount.addEventListener('change', renderNamesInputs);
 
