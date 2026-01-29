@@ -371,7 +371,20 @@
     const bonus = 1 + Math.floor(rng() * g.bonusMax);
     return { main_numbers: main, bonus_number: bonus };
   };
+// Winning generation from GROUP seed emojis (party-only)
+const genWinningFromGroupSeed = (gameCode, roundIndex, seedEmojis) => {
+  const g = GAME[gameCode];
 
+  // seedEmojis: ['🍀','🔥', ...] 같은 배열
+  const seed = `${todayISO()}|WIN|${gameCode}|R${roundIndex}|GROUP|${(seedEmojis||[]).join('')}`;
+
+  const rng = makeRng(seed);
+  const main = uniqueInts(rng, g.mainCount, g.mainMax);
+  const bonus = 1 + Math.floor(rng() * g.bonusMax);
+  return { main_numbers: main, bonus_number: bonus };
+};
+
+  
   // Player pick generation from emojis (party-only; deterministic per day/round/player/emojis)
   const genPickFromEmojis = (gameCode, roundIndex, playerIndex, emojis) => {
     const g = GAME[gameCode];
