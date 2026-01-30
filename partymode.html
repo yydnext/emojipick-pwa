@@ -87,10 +87,38 @@
       </div>
 
     <div style="margin-top:12px;">
-      <label for="seedEmojis">Winning seed (optional)</label>
-      <input id="seedEmojis" type="text" placeholder="예: 🍀✨🔥  (여러 명이 돌아가며 1~2개씩 입력)" />
-      <div class="hint">비워두면 시스템이 자동으로 당첨번호를 생성합니다.</div>
+  <label for="seedEmojis">Winning seed (optional)</label>
+
+  <!-- 보여주기용(읽기 전용) -->
+  <input id="seedEmojis" type="text" readonly
+         placeholder="Click emojis below (each person adds 1–2), then press Next person" />
+
+  <div class="hint">Leave blank to let the system generate winning numbers automatically.</div>
+
+  <!-- 상태/턴 UI -->
+  <div style="display:flex; gap:10px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+    <span class="hint" id="seedTurnLabel"></span>
+    <span class="hint" id="seedCountLabel"></span>
+    <button class="btn" type="button" id="btnSeedPick">Pick emojis</button>
+    <button class="btn" type="button" id="btnSeedNext">Next person</button>
+    <button class="btn" type="button" id="btnSeedClear">Clear seed</button>
+  </div>
+
+  <!-- 선택된 seed 미리보기(토큰 단위로 정확히 보여줌) -->
+  <div id="seedPreview"
+       style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;"></div>
+
+  <!-- ✅ Seed Emoji Picker Panel -->
+  <div id="seedPickerPanel"
+       style="display:none; margin-top:10px; padding:10px; border:1px solid #eee; border-radius:12px;">
+    <div class="hint" style="margin-bottom:8px;">
+      Tip: Each person selects 1–2 emojis, then press “Next person”.
     </div>
+    <div id="seedPickerGrid"
+         style="display:grid; grid-template-columns:repeat(10, minmax(0, 1fr)); gap:6px;"></div>
+  </div>
+</div>
+
 
   <!-- ✅ 여기(바로 이 자리)에 추가 -->
     <div style="margin-top:8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
