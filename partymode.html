@@ -756,8 +756,14 @@ const genWinningFromGroupSeed = (gameCode, roundIndex, seedEmojis) => {
     };
 
    // (1) seed emojis 읽기: input#seedEmojis 에서
-  const seedStr = (document.getElementById('seedEmojis')?.value || '').trim();
-  const seedEmojis = seedStr ? [...seedStr] : [];
+  // (1) seed emojis read (input#seedEmojis)
+const SEED_MAX_UNITS = 40; // keep seed reasonable (game feel)
+const seedRaw  = (document.getElementById('seedEmojis')?.value || '');
+const seedClean = seedRaw.replace(/\s+/g, ' ').trim();
+const seedEmojis = [...seedClean]
+  .filter(ch => ch.trim() !== '')     // remove spaces
+  .slice(0, SEED_MAX_UNITS);          // max length guard
+
 
   // (2) roundWinning 생성: seed 있으면 seed로, 없으면 기존 방식
   state.roundWinning = {};
