@@ -974,103 +974,157 @@ const seedEmojis = [...seedClean]
     btnResume.style.display = '';
   }
 
-// ---------------- Seed UI helpers (Option A) ----------------
+// ---------------- Seed UI helpers (Option B: picker + exact token counting) ----------------
 const seedInput = document.getElementById('seedEmojis');
 const seedTurnLabel = document.getElementById('seedTurnLabel');
 const seedCountLabel = document.getElementById('seedCountLabel');
+const btnSeedPick = document.getElementById('btnSeedPick');
 const btnSeedNext = document.getElementById('btnSeedNext');
 const btnSeedClear = document.getElementById('btnSeedClear');
+const seedPreview = document.getElementById('seedPreview');
+const seedPickerPanel = document.getElementById('seedPickerPanel');
+const seedPickerGrid = document.getElementById('seedPickerGrid');
 
-let seedTurnIndex = 0; // 0-based: whose turn to add seed emojis
-const SEED_MAX_UNITS = 40; // keep the game feel (not a security limit)
-
-const seedUnits = (s) => [...(s || '')].filter(ch => ch.trim() !== '');
-const countSeedUnits = (s) => seedUnits(s).length;
+let seedTurnIndex = 0;                 // whose turn (0-based)
+let seedTokens = [];                   // EXACT emoji tokens (each click = 1 token)
+let seedTurnCounts = [];               // per player counts in current seed session
 
 const getPlayerCountSafe = () => {
   const pc = Number(playerCount?.value || 0);
   return Number.isFinite(pc) && pc > 0 ? pc : 2;
 };
 
-const normalizeSeed = () => {
-  if (!seedInput) return '';
-  // Collapse multiple spaces + trim
-  seedInput.value = (seedInput.value || '').replace(/\s+/g, ' ').trim();
-  return seedInput.value;
+// IMPORTANT: we store as "token|token|token" so complex emojis remain intact
+const serializeSeedTokens = (tokens) => tokens.join('|');
+const parseSeedTokens = (s) => (s || '').split('|').map(t => t.trim()).filter(Boolean);
+
+// A safe default emoji pool for seed picker (can expand later)
+const SEED_EMOJI_POOL = [
+  "🍀","✨","🔥","🌈","💎","🎯","🎁","🎉","🧠","⚡",
+  "🌟","🌙","☀️","🌊","🌸","🍎","🍇","🍋","🥑","🍩",
+  "🐶","🐱","🦊","🐼","🦁","🐸","🦄","🐢","🦋","🐬",
+  "🏆","🎲","🎮","🎸","🎬","📈","💰","🪙","🏦","🧲"
+];
+
+const renderSeedPicker = () => {
+  if (!seedPickerGrid) return;
+  seedPickerGrid.innerHTML = '';
+  SEED_EMOJI_POOL.forEach(e => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'emojiBtn';   // existing style is okay; if not, it still works
+    b.textContent = e;
+    b.addEventListener('click', () => addSeedEmoji(e));
+    seedPickerGrid.appendChild(b);
+  });
+};
+
+const renderSeedPreview = () => {
+  if (!seedPreview) return;
+  seedPreview.innerHTML = '';
+  seedTokens.forEach((e, idx) => {
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'btn';
+    pill.style.padding = '4px 8px';
+    pill.style.borderRadius = '999px';
+    pill.textContent = `${e} ✕`;
+    pill.title = 'Remove';
+    pill.addEventListener('click', () => {
+      // remove token and keep turn counts consistent (simple reset is safest)
+      seedTokens.splice(idx, 1);
+      // safest: reset turn counts to avoid ambiguity
+      seedTurnIndex = 0;
+      seedTurnCounts = [];
+      updateSeedUI();
+    });
+    seedPreview.appendChild(pill);
+  });
+};
+
+const addSeedEmoji = (emoji) => {
+  const pc = getPlayerCountSafe();
+  if (seedTurnCounts.length !== pc) seedTurnCounts = Array(pc).fill(0);
+
+  // enforce 1~2 per person
+  if (seedTurnCounts[seedTurnIndex] >= 2) {
+    alert('This player already added 2 emojis. Click "Next person".');
+    return;
+  }
+
+  seedTokens.push(emoji);
+  seedTurnCounts[seedTurnIndex] += 1;
+  updateSeedUI();
 };
 
 const updateSeedUI = () => {
   if (!seedInput || !seedTurnLabel || !seedCountLabel || !btnSeedNext || !btnSeedClear) return;
 
   const pc = getPlayerCountSafe();
-  const done = seedTurnIndex >= pc; // after last turn -> locked
+  if (seedTurnCounts.length !== pc) seedTurnCounts = Array(pc).fill(0);
+
   const turn = Math.min(seedTurnIndex + 1, pc);
+  const total = seedTokens.length;
 
-  const units = countSeedUnits(seedInput.value);
-  seedTurnLabel.textContent = done
-    ? `Seed done ✅ (${pc}/${pc})`
-    : `Seed turn: Player ${turn}/${pc}`;
+  seedTurnLabel.textContent = `Seed turn: Player ${turn}/${pc}`;
+  seedCountLabel.textContent = `Seed emojis: ${total}`;
 
-  seedCountLabel.textContent = `Seed emojis: ${units}`;
+  btnSeedNext.textContent = (seedTurnIndex >= pc - 1) ? 'Seed done' : 'Next person';
 
-  // Lock after last person
-  btnSeedNext.disabled = done;
-  btnSeedNext.textContent = done ? 'Seed done ✅' : 'Next person';
+  // write to input (serialized) so startParty() can read reliably
+  seedInput.value = total ? serializeSeedTokens(seedTokens) : '';
 
-  // Soft warning if too long
-  if (units > SEED_MAX_UNITS) {
-    seedCountLabel.textContent = `Seed emojis: ${units} (please keep ≤ ${SEED_MAX_UNITS})`;
-  }
+  renderSeedPreview();
 };
 
-if (seedInput) {
-  seedInput.addEventListener('input', () => {
-    normalizeSeed();
-    updateSeedUI();
+if (btnSeedPick) {
+  btnSeedPick.addEventListener('click', () => {
+    const visible = seedPickerPanel.style.display !== 'none';
+    seedPickerPanel.style.display = visible ? 'none' : 'block';
   });
 }
 
 if (btnSeedNext) {
   btnSeedNext.addEventListener('click', () => {
     const pc = getPlayerCountSafe();
-    if (!seedInput) return;
+    if (seedTurnCounts.length !== pc) seedTurnCounts = Array(pc).fill(0);
 
-    normalizeSeed();
-
-    // If already locked, do nothing
-    if (seedTurnIndex >= pc) return;
-
-    // Add a separator space so people visually see turns
-    if (seedInput.value && !seedInput.value.endsWith(' ')) seedInput.value += ' ';
-
-    seedTurnIndex++;
-
-    // If just finished the last player's turn -> lock
-    if (seedTurnIndex >= pc) {
-      normalizeSeed();
+    // require at least 1 emoji before moving (optional but recommended)
+    if (seedTurnCounts[seedTurnIndex] === 0) {
+      alert('Please select at least 1 emoji for this player before moving on.');
+      return;
     }
 
-    updateSeedUI();
-    seedInput.focus();
+    if (seedTurnIndex < pc - 1) {
+      seedTurnIndex++;
+      updateSeedUI();
+    } else {
+      // finished
+      updateSeedUI();
+      seedPickerPanel.style.display = 'none';
+    }
   });
 }
 
 if (btnSeedClear) {
   btnSeedClear.addEventListener('click', () => {
-    if (seedInput) seedInput.value = '';
+    seedTokens = [];
     seedTurnIndex = 0;
+    seedTurnCounts = [];
     updateSeedUI();
-    seedInput?.focus();
   });
 }
 
-// When player count changes, reset seed turn
+// when player count changes, reset seed session (clean and deterministic)
 playerCount?.addEventListener('change', () => {
+  seedTokens = [];
   seedTurnIndex = 0;
+  seedTurnCounts = [];
   updateSeedUI();
 });
 
-// Initial draw
+// initial draw
+renderSeedPicker();
 updateSeedUI();
 
 
