@@ -1186,6 +1186,31 @@ if (iosInstallHint) {
   }
 }
 
+// ---------------- PWA Install (Android/Chrome) ----------------
+const btnInstall = document.getElementById('btnInstall');
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (btnInstall) btnInstall.style.display = 'inline-block';
+});
+
+if (btnInstall) {
+  btnInstall.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    try { await deferredPrompt.userChoice; } catch (e) {}
+    deferredPrompt = null;
+    btnInstall.style.display = 'none';
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  if (btnInstall) btnInstall.style.display = 'none';
+});
+
   
   // events
   playerCount.addEventListener('change', renderNamesInputs);
