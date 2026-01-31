@@ -1162,6 +1162,28 @@ window.addEventListener('appinstalled', () => {
   if (btnInstall) btnInstall.style.display = 'none';
 });
 
+// ---------------- iOS install hint ----------------
+const iosInstallHint = document.getElementById('iosInstallHint');
+
+const isIOS = () => {
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  const iOSDevice = /iPad|iPhone|iPod/.test(ua);
+  const iPadOS13Plus = (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return iOSDevice || iPadOS13Plus;
+};
+
+const isInStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+if (iosInstallHint) {
+  // iOS + Safari(대부분)에서만 힌트 표시, 이미 설치(standalone)면 숨김
+  if (isIOS() && !isInStandalone()) {
+    iosInstallHint.style.display = '';
+  } else {
+    iosInstallHint.style.display = 'none';
+  }
+}
+
   
   // events
   playerCount.addEventListener('change', renderNamesInputs);
