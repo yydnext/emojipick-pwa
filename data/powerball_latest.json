@@ -1,16 +1,16 @@
 {
   "game": "pb",
   "draw_no": "",
-  "draw_date": "2026-01-26",
+  "draw_date": "2026-01-28",
   "numbers": [
     21,
-    31,
-    51,
-    60,
-    63
+    35,
+    40,
+    46,
+    68
   ],
-  "bonus": 18,
+  "bonus": 11,
   "bonus_label": "Powerball",
   "source": "official",
-  "updated_at": "2026-01-29T07:25:26Z"
+  "updated_at": "2026-01-31T07:04:58Z"
 }
