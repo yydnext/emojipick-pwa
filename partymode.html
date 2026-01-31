@@ -1127,6 +1127,36 @@ playerCount?.addEventListener('change', () => {
 renderSeedPicker();
 updateSeedUI();
 
+ // ---------------- PWA Install (Android/Chrome) ----------------
+let deferredPrompt = null;
+const btnInstall = document.getElementById('btnInstall');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Chrome이 자동 미니바를 띄우는 걸 막고, 우리가 버튼으로 유도
+  e.preventDefault();
+  deferredPrompt = e;
+
+  if (btnInstall) btnInstall.style.display = '';
+});
+
+if (btnInstall) {
+  btnInstall.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+
+    // 사용자가 설치/취소를 선택했든, 이벤트는 1회성이므로 비움
+    deferredPrompt = null;
+    btnInstall.style.display = 'none';
+  });
+}
+
+// 설치 완료 후 버튼 숨김(이미 설치된 상태면 설치 버튼 불필요)
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  if (btnInstall) btnInstall.style.display = 'none';
+});
 
   
   // events
