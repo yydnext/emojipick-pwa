@@ -1187,29 +1187,32 @@ if (iosInstallHint) {
 }
 
 // ---------------- PWA Install (Android/Chrome) ----------------
-const btnInstall = document.getElementById('btnInstall');
-let deferredPrompt = null;
+// ---------------- Install (PWA) ----------------
+const installBtnEl = document.getElementById('btnInstall');
+let installPromptEvent = null;
 
+// Fired only when the site meets PWA installability criteria AND not already installed
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
-  deferredPrompt = e;
-  if (btnInstall) btnInstall.style.display = 'inline-block';
+  installPromptEvent = e;
+  if (installBtnEl) installBtnEl.style.display = '';
 });
 
-if (btnInstall) {
-  btnInstall.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    try { await deferredPrompt.userChoice; } catch (e) {}
-    deferredPrompt = null;
-    btnInstall.style.display = 'none';
+if (installBtnEl) {
+  installBtnEl.addEventListener('click', async () => {
+    if (!installPromptEvent) return;
+    installPromptEvent.prompt();
+    await installPromptEvent.userChoice;
+    installPromptEvent = null;
+    installBtnEl.style.display = 'none';
   });
 }
 
 window.addEventListener('appinstalled', () => {
-  deferredPrompt = null;
-  if (btnInstall) btnInstall.style.display = 'none';
+  installPromptEvent = null;
+  if (installBtnEl) installBtnEl.style.display = 'none';
 });
+
 
   
   // events
