@@ -38,6 +38,10 @@
     @media (max-width:720px){.gridEmoji{grid-template-columns:repeat(8,1fr);}}
     .emojiBtn{padding:10px;border:1px solid #E5E7EB;border-radius:12px;background:white;font-size:20px;cursor:pointer;line-height:1;}
     .emojiBtn.sel{outline:3px solid rgba(17,24,39,.15);border-color:#111827;}
+    .gridNum{display:grid;grid-template-columns:repeat(10,1fr);gap:8px;margin-top:10px;}
+    @media (max-width:720px){.gridNum{grid-template-columns:repeat(8,1fr);}}
+    .numBtn{padding:10px;border:1px solid #E5E7EB;border-radius:12px;background:white;font-size:14px;font-weight:900;cursor:pointer;line-height:1;}
+    .numBtn.sel{outline:3px solid rgba(17,24,39,.15);border-color:#111827;}
     .topRow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
     .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
     .table{width:100%;border-collapse:collapse;}
@@ -87,10 +91,10 @@
       </div>
 
     <div style="margin-top:12px;">
-  <label for="seedEmojis">Winning seed (optional)</label>
+  <label for="seedTokens">Winning seed (optional)</label>
 
   <!-- 보여주기용(읽기 전용) -->
-  <input id="seedEmojis" type="text" readonly
+  <input id="seedTokens" type="text" readonly
          placeholder="Click emojis below (each person adds 1–2), then press Next person" />
 
   <div class="hint">Leave blank to let the system generate winning numbers automatically.</div>
@@ -191,19 +195,17 @@ Install check (2)
         </div>
 
         <div style="margin-top:10px;">
-        <div class="hint">Your pick (select 5 + 1 bonus):</div>
-        <div class="pillRow" id="selNums"></div>
+          <div style="font-weight:900;">Your pick <span class="hint">(tap numbers)</span></div>
+          <div class="hint" id="pickHint">Select <b id="mainCountLabel"></b> main numbers + 1 <b id="bonusLabel"></b>.</div>
+          <div class="pillRow" id="pickMainPills"></div>
+          <div class="pillRow" id="pickBonusPill"></div>
         </div>
 
-        <div class="hint">Main numbers</div>
-        <div class="gridNums" id="mainGrid"></div>
-
-        <div class="hint" style="margin-top:8px;">Bonus number</div>
-        <div class="gridNums" id="bonusGrid"></div>
-
+        <div class="gridNum" id="mainGrid"></div>
+        <div class="gridNum" id="bonusGrid"></div>
 
         <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btnPrimary" id="btnGenerate" type="button">Generate</button>
+          <button class="btn btnPrimary" id="btnGenerate" type="button">Confirm</button>
           <button class="btn" id="btnLock" type="button" disabled>Lock in</button>
           <button class="btn" id="btnClearPick" type="button">Clear</button>
         </div>
@@ -308,13 +310,13 @@ Install check (2)
   const turnHint = document.getElementById('turnHint');
   const gameMeta = document.getElementById('gameMeta');
 
-   const selMainNums = document.getElementById('selMainNums');
-  const mainNumGrid = document.getElementById('mainNumGrid');
-
-  const bonusPickBox = document.getElementById('bonusPickBox');
-  const selBonusNum  = document.getElementById('selBonusNum');
-  const bonusNumGrid = document.getElementById('bonusNumGrid');
-
+  const pickMainPills = document.getElementById('pickMainPills');
+  const pickBonusPill = document.getElementById('pickBonusPill');
+  const mainGrid = document.getElementById('mainGrid');
+  const bonusGrid = document.getElementById('bonusGrid');
+  const mainCountLabel = document.getElementById('mainCountLabel');
+  const bonusLabelEl = document.getElementById('bonusLabel');
+  const pickHint = document.getElementById('pickHint');
 
   const btnGenerate = document.getElementById('btnGenerate');
   const btnLock = document.getElementById('btnLock');
@@ -435,11 +437,11 @@ Install check (2)
     return { main_numbers: main, bonus_number: bonus };
   };
 // Winning generation from GROUP seed emojis (party-only)
-const genWinningFromGroupSeed = (gameCode, roundIndex, seedEmojis) => {
+const genWinningFromGroupSeed = (gameCode, roundIndex, seedTokens) => {
   const g = GAME[gameCode];
 
-  // seedEmojis: ['🍀','🔥', ...] 같은 배열
-  const seed = `${todayISO()}|WIN|${gameCode}|R${roundIndex}|GROUP|${(seedEmojis||[]).join('')}`;
+  // seedTokens: ['🍀','🔥', ...] 같은 배열
+  const seed = `${todayISO()}|WIN|${gameCode}|R${roundIndex}|GROUP|${(seedTokens||[]).join('')}`;
 
   const rng = makeRng(seed);
   const main = uniqueInts(rng, g.mainCount, g.mainMax);
@@ -472,19 +474,8 @@ const genWinningFromGroupSeed = (gameCode, roundIndex, seedEmojis) => {
     return { mainMatches, bonusMatch, score, g };
   };
 
-  const renderEmojiGrid = () => {
-    emojiGrid.innerHTML = '';
-    EMOJI_POOL.forEach((e) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'emojiBtn';
-      b.textContent = e;
-      b.addEventListener('click', () => toggleEmoji(e, b));
-      emojiGrid.appendChild(b);
-    });
-  };
-
-  const cur = () => {
+  const renderEmojiGrid = () => { buildNumberGridsIfNeeded(); };
+const cur = () => {
     const r = state.currentRound;
     const i = state.currentPlayerIndex;
     const player = state.players[i];
@@ -517,203 +508,154 @@ const genWinningFromGroupSeed = (gameCode, roundIndex, seedEmojis) => {
     boardCard.style.display = '';
   };
 
-  // ---------- Emoji selection ----------
- // ---------- Number selection (Option 1) ----------
-const mainGrid = document.getElementById('mainGrid');
-const bonusGrid = document.getElementById('bonusGrid');
-const selMainPills = document.getElementById('selMainPills');
-const selBonusPills = document.getElementById('selBonusPills');
-const btnConfirmPick = document.getElementById('btnConfirmPick');
+  // ---------- Number selection (Option A: pick numbers directly) ----------
+  let gridBuiltFor = null;
 
-const pickWarn = document.getElementById('pickWarn');
-const mainNeedEl = document.getElementById('mainNeed');
-const bonusTitle = document.getElementById('bonusTitle');
-
-// (decorative) reuse your existing emoji pool if present; fallback:
-const DECOR_EMOJIS = (typeof EMOJIS !== 'undefined' && Array.isArray(EMOJIS) && EMOJIS.length)
-  ? EMOJIS
-  : ['🍀','✨','🔥','🌈','💎','🎯','🎁','🎉','⚡','🌙','🍎','🍋','🍇','🍑','🐶','🐱','🦊','🐼','🦁','🐸','🦄','🐢','🦋','🐬','🏆','🎲','🎮','🎸','🎬','✈️','💰','🏛️','🧲','📌','🧠','🧩','🔔','🎈','🪙','🌟'];
-
-const pillNum = (t, cls='') => {
-  const s = document.createElement('span');
-  s.className = 'pill ' + cls;
-  s.textContent = t;
-  return s;
-};
-
-const getPickData = (player) => {
-  const rd = getCurRoundData(player);
-  if(!rd.mainNums) rd.mainNums = [];
-  if(typeof rd.bonusNum === 'undefined') rd.bonusNum = null;
-  return rd;
-};
-
-const renderSelected = (rd, g) => {
-  selMainPills.innerHTML = '';
-  selBonusPills.innerHTML = '';
-
-  const main = (rd.mainNums || []).slice().sort((a,b)=>a-b);
-  main.forEach(n => selMainPills.appendChild(pillNum(n)));
-
-  if(rd.bonusNum != null){
-    selBonusPills.appendChild(pillNum(`${g.bonusLabel} ${rd.bonusNum}`, 'bonus'));
-  }
-
-  const needMain = g.mainCount || 5;
-  const needBonus = 1;
-
-  const okMain = main.length === needMain;
-  const okBonus = rd.bonusNum != null;
-
-  pickWarn.textContent = okMain && okBonus
-    ? 'Ready. Press "Confirm pick".'
-    : `Select ${needMain} main numbers and ${needBonus} bonus number.`;
-
-  if (mainNeedEl) mainNeedEl.textContent = String(needMain);
-  if (bonusTitle) bonusTitle.textContent = g.bonusLabel || 'Bonus';
-
-  // enable confirm only when complete
-  btnConfirmPick.disabled = !(okMain && okBonus);
-};
-
-const buildNumberGrid = (gridEl, maxN, selectedFn, toggleFn) => {
-  gridEl.innerHTML = '';
-  for(let n=1; n<=maxN; n++){
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'emojiBtn'; // reuse existing button style
-    const deco = DECOR_EMOJIS[(n-1) % DECOR_EMOJIS.length];
-    b.textContent = `${deco} ${n}`;
-    b.style.fontSize = '14px';
-    b.style.padding = '10px 8px';
-    b.style.textAlign = 'center';
-    b.classList.toggle('sel', selectedFn(n));
-    b.addEventListener('click', () => toggleFn(n, b));
-    gridEl.appendChild(b);
-  }
-};
-
-const renderPickNumbersUI = () => {
-  const { player, g } = cur();
-  const rd = getPickData(player);
-
-  const needMain = g.mainCount || 5;
-
-  buildNumberGrid(
-    mainGrid,
-    g.mainMax,
-    (n) => (rd.mainNums || []).includes(n),
-    (n, btnEl) => {
-      const arr = rd.mainNums || [];
-      const idx = arr.indexOf(n);
-
-      if(idx >= 0){
-        arr.splice(idx, 1);
-        btnEl.classList.remove('sel');
-      } else {
-        if(arr.length >= needMain){
-          alert(`Main numbers: pick exactly ${needMain}.`);
-          return;
-        }
-        arr.push(n);
-        btnEl.classList.add('sel');
-      }
-      rd.mainNums = arr;
-      renderSelected(rd, g);
-      saveState();
-    }
-  );
-
-  buildNumberGrid(
-    bonusGrid,
-    g.bonusMax,
-    (n) => rd.bonusNum === n,
-    (n, btnEl) => {
-      // single select
-      rd.bonusNum = (rd.bonusNum === n) ? null : n;
-
-      // refresh grid highlight
-      [...bonusGrid.querySelectorAll('.emojiBtn')].forEach(x => x.classList.remove('sel'));
-      if(rd.bonusNum != null) btnEl.classList.add('sel');
-
-      renderSelected(rd, g);
-      saveState();
-    }
-  );
-
-  renderSelected(rd, g);
-};
-
-// clear
-const clearPickNumbers = () => {
-  const { player, g } = cur();
-  const rd = getPickData(player);
-  rd.mainNums = [];
-  rd.bonusNum = null;
-  rd.pick = null;
-  rd.match = null;
-
-  renderPickNumbersUI();
-
-  // hide generated/match boxes if you use them
-  if (typeof genBox !== 'undefined') genBox.style.display = 'none';
-  if (typeof matchBox !== 'undefined') matchBox.style.display = 'none';
-
-  saveState();
-};
-
-btnClearPick?.addEventListener('click', clearPickNumbers);
-
-// confirm -> set rd.pick directly (NO random conversion)
-btnConfirmPick?.addEventListener('click', () => {
-  const { player, g } = cur();
-  const rd = getPickData(player);
-
-  const main = (rd.mainNums || []).slice().sort((a,b)=>a-b);
-  if(main.length !== (g.mainCount || 5) || rd.bonusNum == null){
-    alert('Complete your pick first.');
-    return;
-  }
-
-  rd.pick = {
-    main_numbers: main,
-    bonus_number: rd.bonusNum
+  const ensurePickDraft = (rd) => {
+    if (!rd.pickDraft) rd.pickDraft = { main: [], bonus: null };
   };
 
-  // render generated pick pills using your existing UI if present
-  if (typeof genPills !== 'undefined') {
+  const buildNumberGridsIfNeeded = () => {
+    if (!mainGrid || !bonusGrid) return;
+    const g = GAME[state.gameCode];
+    if (!g) return;
+
+    if (gridBuiltFor === state.gameCode && mainGrid.childElementCount) return;
+    gridBuiltFor = state.gameCode;
+
+    if (mainCountLabel) mainCountLabel.textContent = String(g.mainCount);
+    if (bonusLabelEl) bonusLabelEl.textContent = g.bonusLabel;
+
+    mainGrid.innerHTML = '';
+    for (let n = 1; n <= g.mainMax; n++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'numBtn';
+      b.textContent = String(n);
+      b.addEventListener('click', () => toggleMainNumber(n));
+      mainGrid.appendChild(b);
+    }
+
+    bonusGrid.innerHTML = '';
+    for (let n = 1; n <= g.bonusMax; n++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'numBtn';
+      b.textContent = String(n);
+      b.addEventListener('click', () => setBonusNumber(n));
+      bonusGrid.appendChild(b);
+    }
+  };
+
+  const updatePickUI = () => {
+    const { player } = cur();
+    const rd = getCurRoundData(player);
+    ensurePickDraft(rd);
+    const g = GAME[state.gameCode];
+
+    if (pickMainPills) {
+      pickMainPills.innerHTML = '';
+      rd.pickDraft.main.slice().sort((a, b) => a - b).forEach((n) => {
+        pickMainPills.appendChild(pill(String(n)));
+      });
+    }
+    if (pickBonusPill) {
+      pickBonusPill.innerHTML = '';
+      if (rd.pickDraft.bonus != null) {
+        pickBonusPill.appendChild(pill(`${g.bonusLabel} ${rd.pickDraft.bonus}`, 'bonus'));
+      }
+    }
+
+    if (mainGrid) {
+      [...mainGrid.querySelectorAll('.numBtn')].forEach((btn) => {
+        const n = Number(btn.textContent);
+        if (rd.pickDraft.main.includes(n)) btn.classList.add('sel');
+        else btn.classList.remove('sel');
+      });
+    }
+    if (bonusGrid) {
+      [...bonusGrid.querySelectorAll('.numBtn')].forEach((btn) => {
+        const n = Number(btn.textContent);
+        if (rd.pickDraft.bonus === n) btn.classList.add('sel');
+        else btn.classList.remove('sel');
+      });
+    }
+
+    if (pickHint) {
+      pickHint.innerHTML = `Select <b>${g.mainCount}</b> main numbers + 1 <b>${g.bonusLabel}</b>.`;
+    }
+  };
+
+  const clearSelection = () => {
+    const { player } = cur();
+    const rd = getCurRoundData(player);
+    rd.pickDraft = { main: [], bonus: null };
+    rd.pick = null;
+
     genPills.innerHTML = '';
-    (rd.pick.main_numbers || []).forEach(n => genPills.appendChild(pill(n)));
-    genPills.appendChild(pill(`${g.bonusLabel} ${rd.pick.bonus_number}`, 'bonus'));
-  }
-  if (typeof genBox !== 'undefined') genBox.style.display = '';
+    genBox.style.display = 'none';
+    matchBox.style.display = 'none';
+    btnGenerate.disabled = false;
+    btnLock.disabled = true;
 
-  // now user can lock in
-  if (typeof btnLock !== 'undefined') btnLock.disabled = false;
+    updatePickUI();
+    saveState();
+  };
 
-  saveState();
-});
+  const toggleMainNumber = (n) => {
+    const { player } = cur();
+    const rd = getCurRoundData(player);
+    ensurePickDraft(rd);
+    const g = GAME[state.gameCode];
 
+    const idx = rd.pickDraft.main.indexOf(n);
+    if (idx >= 0) rd.pickDraft.main.splice(idx, 1);
+    else {
+      if (rd.pickDraft.main.length >= g.mainCount) return;
+      rd.pickDraft.main.push(n);
+    }
 
-  // ---------- Turn rendering ----------
+    rd.pick = null;
+    genBox.style.display = 'none';
+    matchBox.style.display = 'none';
+    btnLock.disabled = true;
+
+    updatePickUI();
+    saveState();
+  };
+
+  const setBonusNumber = (n) => {
+    const { player } = cur();
+    const rd = getCurRoundData(player);
+    ensurePickDraft(rd);
+
+    rd.pickDraft.bonus = (rd.pickDraft.bonus === n) ? null : n;
+
+    rd.pick = null;
+    genBox.style.display = 'none';
+    matchBox.style.display = 'none';
+    btnLock.disabled = true;
+
+    updatePickUI();
+    saveState();
+  };
+
+// ---------- Turn rendering ----------
   const renderTurn = () => {
     const { r, i, player, g } = cur();
 
     turnTitle.textContent = `Round ${r} / ${state.rounds} • ${player.name}`;
-    turnHint.innerHTML = `Pick <b>5 emojis</b>, then Generate → Lock in.`;
-    gameMeta.textContent = `${g.label} • Main 1-${g.mainMax}, Bonus 1-${g.bonusMax}`;
+    turnHint.innerHTML = `Pick <b>${g.mainCount}</b> numbers + 1 <b>${g.bonusLabel}</b>. Then <b>Confirm</b> → <b>Lock in</b>.`;
+  gameMeta.textContent = `${g.label} • Main 1-${g.mainMax}, ${g.bonusLabel} 1-${g.bonusMax}`;
 
-    // selection
-   renderPickNumbersUI();
+  // selection
+  const rd = getCurRoundData(player);
+  if (!rd.pickDraft) rd.pickDraft = { main: [], bonus: null };
 
+  buildNumberGridsIfNeeded();
+  updatePickUI();
 
-    // sync button states for emoji grid
-    [...emojiGrid.querySelectorAll('.emojiBtn')].forEach(btn => {
-      const e = btn.textContent;
-      btn.classList.toggle('sel', (rd.emojis || []).includes(e));
-    });
-
-    // generated pick
+  // generated pick
     genPills.innerHTML = '';
     if(rd.pick){
       genBox.style.display = '';
@@ -933,28 +875,16 @@ btnConfirmPick?.addEventListener('click', () => {
       roundWinning: {}
     };
 
-   // (1) seed emojis 읽기: input#seedEmojis 에서
-  // (1) seed emojis read (input#seedEmojis)
-    // (1) seed emojis read (input#seedEmojis)
-  const SEED_MAX_UNITS = 40; // keep seed reasonable (game feel)
-  const seedRaw = (document.getElementById('seedEmojis')?.value || '');
-  const seedClean = seedRaw.replace(/\s+/g, ' ').trim();
+   // (1) seed emojis (optional; used only to make winning numbers deterministic)
+    const seedTokens = parseSeedTokens(seedInput.value);
 
-  // Treat each emoji/symbol as one unit (code point based; OK for this use)
-  const seedEmojis = [...seedClean]
-    .filter(ch => ch.trim() !== '')   // remove spaces
-    .slice(0, SEED_MAX_UNITS);        // max length guard
-
-  // (2) roundWinning 생성: seed 있으면 seed로, 없으면 기존 방식
-  state.roundWinning = {};
-  for (let r = 0; r < rounds; r++) {
-    if (seedEmojis.length > 0) {
-      state.roundWinning[r] = genWinningFromGroupSeed(gameCode, r, seedEmojis);
-    } else {
-      state.roundWinning[r] = genWinningForRound(gameCode, r);
+    // (2) roundWinning 생성 (1-based rounds)
+    state.roundWinning = {};
+    for (let r = 1; r <= rounds; r++) {
+      state.roundWinning[String(r)] = seedTokens.length
+        ? genWinningFromGroupSeed(gameCode, r, seedTokens)
+        : genWinningForRound(gameCode, r);
     }
-  }
-
 
     saveState();
     showPlay();
@@ -965,42 +895,30 @@ btnConfirmPick?.addEventListener('click', () => {
   };
 
   const generatePick = () => {
-    const { r, i, player, g } = cur();
+    const { player, g } = cur();
     const rd = getCurRoundData(player);
+    if (!rd.pickDraft) rd.pickDraft = { main: [], bonus: null };
 
-    const generatePick = () => {
-  const g = getG();
-  const { player } = cur();
-  const rd = getCurRoundData(player);
-  ensureRoundPickFields(rd);
+    const main = rd.pickDraft.main.slice().sort((a, b) => a - b);
+    const bonus = rd.pickDraft.bonus;
 
-  if (rd.selMain.length !== g.mainCount) {
-    alert(`Pick exactly ${g.mainCount} main numbers.`);
-    return;
-  }
-  if (g.bonusMax && g.bonusMax > 0 && (rd.selBonus == null)) {
-    alert(`Pick 1 bonus number.`);
-    return;
-  }
+    if (main.length !== g.mainCount || bonus == null) {
+      alert(`Please select ${g.mainCount} main numbers and 1 ${g.bonusLabel}.`);
+      return;
+    }
 
-  rd.pick = {
-    main_numbers: rd.selMain.slice().sort((a,b)=>a-b),
-    bonus_number: (g.bonusMax && g.bonusMax > 0) ? rd.selBonus : null
-  };
+    rd.pick = { main_numbers: main, bonus_number: bonus };
 
-  genBox.style.display = '';
-  btnLock.disabled = false;
-  saveState();
-  renderTurn(); // 화면 갱신
-};
-
+    // render confirmed pick
+    genPills.innerHTML = '';
+    main.forEach((n) => genPills.appendChild(pill(String(n))));
+    genPills.appendChild(pill(`${g.bonusLabel} ${bonus}`, 'bonus'));
 
     genBox.style.display = '';
     btnLock.disabled = false;
     matchBox.style.display = 'none';
 
     saveState();
-    track('party_generate', { page:'partymode', round:r, player:i+1, game: state.gameCode });
   };
 
   const lockIn = () => {
@@ -1142,7 +1060,7 @@ btnConfirmPick?.addEventListener('click', () => {
   }
 
 // ---------------- Seed UI helpers (Option B: picker + exact token counting) ----------------
-const seedInput = document.getElementById('seedEmojis');
+const seedInput = document.getElementById('seedTokens');
 const seedTurnLabel = document.getElementById('seedTurnLabel');
 const seedCountLabel = document.getElementById('seedCountLabel');
 const btnSeedPick = document.getElementById('btnSeedPick');
@@ -1346,34 +1264,6 @@ if (iosInstallHint) {
     iosInstallHint.style.display = 'none';
   }
 }
-
-// ---------------- PWA Install (Android/Chrome) ----------------
-// ---------------- Install (PWA) ----------------
-const installBtnEl = document.getElementById('btnInstall');
-let installPromptEvent = null;
-
-// Fired only when the site meets PWA installability criteria AND not already installed
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  installPromptEvent = e;
-  if (installBtnEl) installBtnEl.style.display = '';
-});
-
-if (installBtnEl) {
-  installBtnEl.addEventListener('click', async () => {
-    if (!installPromptEvent) return;
-    installPromptEvent.prompt();
-    await installPromptEvent.userChoice;
-    installPromptEvent = null;
-    installBtnEl.style.display = 'none';
-  });
-}
-
-window.addEventListener('appinstalled', () => {
-  installPromptEvent = null;
-  if (installBtnEl) installBtnEl.style.display = 'none';
-});
-
 
   
   // events
