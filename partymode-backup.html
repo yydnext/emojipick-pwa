@@ -1,0 +1,1430 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EmojiPick — Party Mode</title>
+
+  <!-- 기존 스타일 재사용 -->
+  <link rel="stylesheet" href="styles.v12.css" />
+  <!-- v12가 없는 배포라면 아래 줄로 바꾸세요: styles.v11.css -->
+  <!-- <link rel="stylesheet" href="styles.v11.css" /> -->
+
+  <style>
+    .pageWrap{max-width:980px;margin:22px auto;padding:0 16px;}
+    .headerRow{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;}
+    .brand{display:flex;align-items:center;gap:10px;}
+    .logo{width:34px;height:34px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;background:#F3F4F6;overflow:hidden}
+    .logo img{width:100%;height:100%;object-fit:cover;display:block}
+    .brandTitle{font-weight:900;font-size:18px;line-height:1;}
+    .brandSub{font-size:12px;opacity:.7;margin-top:2px;}
+    .btn{appearance:none;border:1px solid #CBD5E1;background:white;border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;}
+    .btnPrimary{background:#111827;color:white;border-color:#111827;}
+    .btnGhost{background:transparent;}
+    .card{border:1px solid #E5E7EB;border-radius:16px;padding:16px;background:white;box-shadow:0 8px 22px rgba(0,0,0,.05);}
+    .card + .card{margin-top:14px;}
+    h1{font-size:22px;margin:0 0 8px 0;}
+    .hint{font-size:13px;opacity:.75;margin-top:4px;line-height:1.35;}
+    label{display:block;font-weight:800;margin:10px 0 6px;}
+    input,select{width:100%;padding:10px 12px;border:1px solid #D1D5DB;border-radius:12px;}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:end;}
+    @media (max-width:720px){.row{grid-template-columns:1fr;}}
+    .results{margin-top:12px;padding:12px;border-radius:12px;background:#F8FAFC;border:1px solid #E2E8F0;}
+    .pillRow{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+    .pill{display:inline-flex;align-items:center;justify-content:center;min-width:38px;padding:6px 10px;border:1px solid #E5E7EB;border-radius:999px;background:white;font-weight:900;}
+    .pill.hit{border-color:#22C55E;}
+    .pill.bonus{border-style:dashed;}
+    .gridEmoji{display:grid;grid-template-columns:repeat(10,1fr);gap:8px;margin-top:10px;}
+    @media (max-width:720px){.gridEmoji{grid-template-columns:repeat(8,1fr);}}
+    .emojiBtn{padding:10px;border:1px solid #E5E7EB;border-radius:12px;background:white;font-size:20px;cursor:pointer;line-height:1;}
+    .emojiBtn.sel{outline:3px solid rgba(17,24,39,.15);border-color:#111827;}
+    .topRow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    .table{width:100%;border-collapse:collapse;}
+    .table th,.table td{border-bottom:1px solid #E5E7EB;padding:10px;text-align:left;font-size:14px;}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid #E5E7EB;background:#fff;font-weight:800;font-size:12px;}
+    .danger{color:#B91C1C;}
+  </style>
+</head>
+<body>
+  <div class="pageWrap">
+    <div class="headerRow">
+      <div class="brand">
+        <div class="logo" title="EmojiPick">
+          <!-- 로고 파일명은 프로젝트에 맞게 바꾸세요 (예: icon-192.png / emojipick_left_192.png 등) -->
+          <img src="icon-192.png" alt="EmojiPick logo" onerror="this.style.display='none'; this.parentNode.textContent='✨';">
+        </div>
+        <div>
+          <div class="brandTitle">EmojiPick — Party Mode</div>
+          <div class="brandSub">Pick emojis, get lucky numbers, and find a winner (game simulation)</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btnGhost" id="btnReset" type="button">Reset</button>
+        <button class="btn" type="button" onclick="location.href='index.html'">Back</button>
+      </div>
+    </div>
+
+    <!-- SETUP -->
+    <div class="card" id="setupCard">
+      <h1>1) Set up your party</h1>
+      <div class="hint">
+        This is a <b>game simulation</b>. It does <b>not</b> use real lottery results. For entertainment only.
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label for="gameSel">Game</label>
+          <select id="gameSel">
+            <option value="pb">Powerball (5 + Powerball)</option>
+            <option value="mm">Mega Millions (5 + Mega Ball)</option>
+          </select>
+        </div>
+        <div>
+          <label for="playerCount">Players</label>
+          <select id="playerCount"></select>
+        </div>
+      </div>
+
+    <div style="margin-top:12px;">
+  <label for="seedEmojis">Winning seed (optional)</label>
+
+  <!-- 보여주기용(읽기 전용) -->
+  <input id="seedEmojis" type="text" readonly
+         placeholder="Click emojis below (each person adds 1–2), then press Next person" />
+
+  <div class="hint">Leave blank to let the system generate winning numbers automatically.</div>
+
+  <!-- 상태/턴 UI -->
+  <div style="display:flex; gap:10px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+    <span class="hint" id="seedTurnLabel"></span>
+    <span class="hint" id="seedCountLabel"></span>
+    <button class="btn" type="button" id="btnSeedPick">Pick emojis</button>
+    <button class="btn" type="button" id="btnSeedNext">Next person</button>
+    <button class="btn" type="button" id="btnSeedClear">Clear seed</button>
+  </div>
+
+  <!-- 선택된 seed 미리보기(토큰 단위로 정확히 보여줌) -->
+  <div id="seedPreview"
+       style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;"></div>
+
+  <!-- ✅ Seed Emoji Picker Panel -->
+  <div id="seedPickerPanel"
+       style="display:none; margin-top:10px; padding:10px; border:1px solid #eee; border-radius:12px;">
+    <div class="hint" style="margin-bottom:8px;">
+      Tip: Each person selects 1–2 emojis, then press “Next person”.
+    </div>
+    <div id="seedPickerGrid"
+         style="display:grid; grid-template-columns:repeat(10, minmax(0, 1fr)); gap:6px;"></div>
+  </div>
+</div>
+
+
+  <!-- ✅ 여기(바로 이 자리)에 추가 -->
+    <div style="margin-top:8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <div class="hint" id="seedTurnLabel" style="margin:0;"></div>
+      <div class="hint" id="seedCountLabel" style="margin:0;"></div>
+
+      <button class="btn" id="btnSeedNext" type="button">Next person</button>
+      <button class="btn" id="btnSeedClear" type="button">Clear seed</button>
+    </div>
+
+  <div class="hint" id="seedHint" style="margin-top:6px;">
+    Tip: Each person adds 1–2 emojis, then click “Next person”.
+  </div>
+</div>
+Install check (2)
+      <button class="btn" type="button" id="btnInstall" style="display:none;">Install</button>
+      <div class="hint" id="iosInstallHint" style="display:none; margin-top:6px;">
+      On iPhone/iPad: tap <b>Share</b> (↑) → <b>Add to Home Screen</b>.
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Rounds</label>
+          <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+            <label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:800;">
+              <input type="radio" name="rounds" value="1" checked style="width:auto;"> 1 Round (default)
+            </label>
+            <label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:800;">
+              <input type="radio" name="rounds" value="3" style="width:auto;"> 3 Rounds (best of 3)
+            </label>
+          </div>
+          <div class="hint">Tip: 3 rounds feels more like a “real game”.</div>
+        </div>
+        <div>
+          <label>Reveal winning numbers</label>
+          <label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:800;">
+            <input type="checkbox" id="revealAfterRound" checked style="width:auto;">
+            Reveal after each round finishes
+          </label>
+          <div class="hint">Keep suspense during picks.</div>
+        </div>
+      </div>
+
+      <div id="namesWrap" style="margin-top:10px;"></div>
+
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btnPrimary" id="btnStart" type="button">Start Party</button>
+        <button class="btn" id="btnResume" type="button" style="display:none;">Resume saved party</button>
+        <span class="hint" id="setupHint" style="margin:0;">Players take turns on the same device.</span>
+      </div>
+    </div>
+
+    <!-- PLAY -->
+    <div class="card" id="playCard" style="display:none;">
+      <div class="topRow">
+        <h1 style="margin:0;">2) Play</h1>
+        <div class="badge" id="statusBadge">Ready</div>
+      </div>
+
+      <div class="results" style="margin-top:10px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start;">
+          <div>
+            <div style="font-weight:900;" id="turnTitle">Round 1 • Player 1</div>
+            <div class="hint" id="turnHint">Pick <b>5 emojis</b>, then Generate → Lock in.</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="hint">Game</div>
+            <div class="mono" id="gameMeta">—</div>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;">
+        <div class="hint">Your pick (select 5 + 1 bonus):</div>
+        <div class="pillRow" id="selNums"></div>
+        </div>
+
+        <div class="hint">Main numbers</div>
+        <div class="gridNums" id="mainGrid"></div>
+
+        <div class="hint" style="margin-top:8px;">Bonus number</div>
+        <div class="gridNums" id="bonusGrid"></div>
+
+
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btnPrimary" id="btnGenerate" type="button">Generate</button>
+          <button class="btn" id="btnLock" type="button" disabled>Lock in</button>
+          <button class="btn" id="btnClearPick" type="button">Clear</button>
+        </div>
+
+        <div class="results" id="genBox" style="display:none;">
+          <div style="font-weight:900;">Generated numbers</div>
+          <div class="pillRow" id="genPills"></div>
+          <div class="hint">Round score will be computed after you lock in.</div>
+        </div>
+
+        <div class="results" id="matchBox" style="display:none;">
+          <div style="font-weight:900;">Your match vs round winning numbers</div>
+          <div class="hint" id="matchText">—</div>
+          <div class="pillRow" id="matchPills"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn" id="btnRoundBoard" type="button">View round leaderboard</button>
+        <button class="btn" id="btnNext" type="button" style="display:none;">Next player</button>
+        <button class="btn btnPrimary" id="btnNextRound" type="button" style="display:none;">Next round</button>
+        <button class="btn btnPrimary" id="btnFinish" type="button" style="display:none;">Finish party</button>
+      </div>
+    </div>
+
+    <!-- LEADERBOARD -->
+    <div class="card" id="boardCard" style="display:none;">
+      <div class="topRow">
+        <h1 style="margin:0;">3) Leaderboard</h1>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn" id="btnBackToPlay" type="button">Back to play</button>
+          <button class="btn" id="btnShare" type="button">Copy results</button>
+        </div>
+      </div>
+
+      <div class="results" id="winBox" style="margin-top:10px;"></div>
+      <div class="results" id="roundWinBox" style="margin-top:10px;"></div>
+
+      <div class="results" style="margin-top:10px;">
+        <div style="font-weight:900;">Total ranking</div>
+        <div class="hint">Score = mainMatches × 10 + bonusMatch × 5 (each round)</div>
+        <div style="margin-top:10px;overflow:auto;">
+          <table class="table" id="totalTable"></table>
+        </div>
+      </div>
+
+      <div class="results" id="roundDetail" style="margin-top:10px;"></div>
+
+      <div class="hint danger" style="margin-top:12px;">
+        Reminder: This is a game simulation. No real-money wagering in the app.
+      </div>
+    </div>
+
+    <div class="hint" style="margin:18px 0 0 2px;">
+      Build: Party Mode v1
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ---------- Analytics helper ----------
+  const track = (name, params={}) => {
+    try {
+      if (typeof window.track === 'function') return window.track(name, params);
+      if (typeof window.gtag === 'function') return window.gtag('event', name, params);
+    } catch(e) {}
+  };
+
+  // ---------- Constants ----------
+  const LS_PARTY = 'emojipick_party_v1';
+
+  const GAME = {
+    pb: { label:'Powerball', mainCount:5, mainMax:69, bonusMax:26, bonusLabel:'Powerball' },
+    mm: { label:'Mega Millions', mainCount:5, mainMax:70, bonusMax:25, bonusLabel:'Mega Ball' }
+  };
+
+  // Emoji pool (safe default; independent of main app)
+  const EMOJI_POOL = [
+    '✨','🌟','🌈','🔥','💎','🍀','🎯','🚀','🎲','🎉',
+    '🏆','🎁','🧿','🪙','⭐','☀️','🌙','⚡','🌊','🍎',
+    '🍉','🍇','🍓','🥑','🍔','🍕','🍣','🎵','🎨','🧠',
+    '💡','📌','🧩','🕹️','🛡️','🧪','📈','📚','🏁','🧸',
+    '🐣','🐳','🦊','🐯','🦁','🐼','🐸','🦄','🐝','🐙',
+    '🌻','🌵','🍁','❄️','💫','🌍','🧭','🗺️','🧤','🧣'
+  ];
+
+  // ---------- DOM ----------
+  const setupCard = document.getElementById('setupCard');
+  const playCard  = document.getElementById('playCard');
+  const boardCard = document.getElementById('boardCard');
+
+  const gameSel = document.getElementById('gameSel');
+  const playerCount = document.getElementById('playerCount');
+  const namesWrap = document.getElementById('namesWrap');
+  const btnStart = document.getElementById('btnStart');
+  const btnResume = document.getElementById('btnResume');
+  const btnReset = document.getElementById('btnReset');
+  const revealAfterRound = document.getElementById('revealAfterRound');
+
+  const statusBadge = document.getElementById('statusBadge');
+  const turnTitle = document.getElementById('turnTitle');
+  const turnHint = document.getElementById('turnHint');
+  const gameMeta = document.getElementById('gameMeta');
+
+   const selMainNums = document.getElementById('selMainNums');
+  const mainNumGrid = document.getElementById('mainNumGrid');
+
+  const bonusPickBox = document.getElementById('bonusPickBox');
+  const selBonusNum  = document.getElementById('selBonusNum');
+  const bonusNumGrid = document.getElementById('bonusNumGrid');
+
+
+  const btnGenerate = document.getElementById('btnGenerate');
+  const btnLock = document.getElementById('btnLock');
+  const btnClearPick = document.getElementById('btnClearPick');
+
+  const genBox = document.getElementById('genBox');
+  const genPills = document.getElementById('genPills');
+
+  const matchBox = document.getElementById('matchBox');
+  const matchText = document.getElementById('matchText');
+  const matchPills = document.getElementById('matchPills');
+
+  const btnRoundBoard = document.getElementById('btnRoundBoard');
+  const btnNext = document.getElementById('btnNext');
+  const btnNextRound = document.getElementById('btnNextRound');
+  const btnFinish = document.getElementById('btnFinish');
+
+  const btnBackToPlay = document.getElementById('btnBackToPlay');
+  const btnShare = document.getElementById('btnShare');
+  const winBox = document.getElementById('winBox');
+  const roundWinBox = document.getElementById('roundWinBox');
+  const totalTable = document.getElementById('totalTable');
+  const roundDetail = document.getElementById('roundDetail');
+
+  // ---------- Party state ----------
+  // state = {
+  //   id, createdAt, gameCode, rounds, revealAfterRound,
+  //   players: [{name, totalScore, rounds:[{emojis, pick:{main,bonus}, match:{mainMatches, bonusMatch, score}}]}],
+  //   currentRound (1-based), currentPlayerIndex (0-based),
+  //   roundWinning: { [roundIndex]: {main_numbers, bonus_number} }
+  // }
+  let state = null;
+
+  // ---------- Helpers ----------
+  const esc = (s) => String(s==null?'':s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+
+  const pill = (text, cls='') => {
+    const span = document.createElement('span');
+    span.className = 'pill ' + cls;
+    span.textContent = String(text);
+    return span;
+  };
+
+  const todayISO = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const da = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${da}`;
+  };
+
+  const readRoundsSel = () => {
+    const v = document.querySelector('input[name="rounds"]:checked')?.value || '1';
+    return (v === '3') ? 3 : 1;
+  };
+
+  const saveState = () => {
+    try { localStorage.setItem(LS_PARTY, JSON.stringify(state)); } catch(e) {}
+  };
+
+  const loadState = () => {
+    try {
+      const raw = localStorage.getItem(LS_PARTY);
+      if(!raw) return null;
+      const obj = JSON.parse(raw);
+      if(!obj || !obj.players || !obj.roundWinning) return null;
+      return obj;
+    } catch(e) { return null; }
+  };
+
+  const clearState = () => {
+    try { localStorage.removeItem(LS_PARTY); } catch(e) {}
+  };
+
+  // Simple deterministic RNG from string (xorshift32)
+  const hash32 = (str) => {
+    let h = 2166136261 >>> 0;
+    for (let i=0;i<str.length;i++){
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  };
+  const makeRng = (seedStr) => {
+    let x = (hash32(seedStr) || 123456789) >>> 0;
+    return () => {
+      // xorshift32
+      x ^= x << 13; x >>>= 0;
+      x ^= x >>> 17; x >>>= 0;
+      x ^= x << 5;  x >>>= 0;
+      return (x >>> 0) / 4294967296;
+    };
+  };
+
+  const uniqueInts = (rng, count, maxInclusive) => {
+    const set = new Set();
+    const guardMax = 10000;
+    let guard = 0;
+    while(set.size < count && guard < guardMax){
+      const n = 1 + Math.floor(rng() * maxInclusive);
+      set.add(n);
+      guard++;
+    }
+    return [...set].sort((a,b)=>a-b);
+  };
+
+  const genWinningForRound = (gameCode, roundIndex) => {
+    const g = GAME[gameCode];
+    const seed = `${todayISO()}|WIN|${gameCode}|R${roundIndex}`;
+    const rng = makeRng(seed);
+    const main = uniqueInts(rng, g.mainCount, g.mainMax);
+    const bonus = 1 + Math.floor(rng() * g.bonusMax);
+    return { main_numbers: main, bonus_number: bonus };
+  };
+// Winning generation from GROUP seed emojis (party-only)
+const genWinningFromGroupSeed = (gameCode, roundIndex, seedEmojis) => {
+  const g = GAME[gameCode];
+
+  // seedEmojis: ['🍀','🔥', ...] 같은 배열
+  const seed = `${todayISO()}|WIN|${gameCode}|R${roundIndex}|GROUP|${(seedEmojis||[]).join('')}`;
+
+  const rng = makeRng(seed);
+  const main = uniqueInts(rng, g.mainCount, g.mainMax);
+  const bonus = 1 + Math.floor(rng() * g.bonusMax);
+  return { main_numbers: main, bonus_number: bonus };
+};
+
+  
+  // Player pick generation from emojis (party-only; deterministic per day/round/player/emojis)
+  const genPickFromEmojis = (gameCode, roundIndex, playerIndex, emojis) => {
+    const g = GAME[gameCode];
+    const seed = `${todayISO()}|PICK|${gameCode}|R${roundIndex}|P${playerIndex}|${(emojis||[]).join('')}`;
+    const rng = makeRng(seed);
+    const main = uniqueInts(rng, g.mainCount, g.mainMax);
+    const bonus = 1 + Math.floor(rng() * g.bonusMax);
+    return { main_numbers: main, bonus_number: bonus };
+  };
+
+  const computeMatch = (gameCode, pick, win) => {
+    const g = GAME[gameCode];
+    const pm = (pick?.main_numbers || []).map(Number);
+    const wm = (win?.main_numbers || []).map(Number);
+    const mainMatches = pm.filter(n => wm.includes(Number(n)));
+    const bonusMatch = (pick?.bonus_number != null && win?.bonus_number != null)
+      ? (Number(pick.bonus_number) === Number(win.bonus_number))
+      : false;
+
+    // Simple scoring: main*10 + bonus*5
+    const score = (mainMatches.length * 10) + (bonusMatch ? 5 : 0);
+    return { mainMatches, bonusMatch, score, g };
+  };
+
+  const renderEmojiGrid = () => {
+    emojiGrid.innerHTML = '';
+    EMOJI_POOL.forEach((e) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'emojiBtn';
+      b.textContent = e;
+      b.addEventListener('click', () => toggleEmoji(e, b));
+      emojiGrid.appendChild(b);
+    });
+  };
+
+  const cur = () => {
+    const r = state.currentRound;
+    const i = state.currentPlayerIndex;
+    const player = state.players[i];
+    return { r, i, player, g: GAME[state.gameCode] };
+  };
+
+  const getCurRoundData = (player) => {
+    const idx = state.currentRound - 1;
+    if(!player.rounds[idx]) player.rounds[idx] = { emojis: [], pick:null, match:null };
+    return player.rounds[idx];
+  };
+
+  const setBadge = (text) => { statusBadge.textContent = text; };
+
+  const showSetup = () => {
+    setupCard.style.display = '';
+    playCard.style.display = 'none';
+    boardCard.style.display = 'none';
+  };
+
+  const showPlay = () => {
+    setupCard.style.display = 'none';
+    playCard.style.display = '';
+    boardCard.style.display = 'none';
+  };
+
+  const showBoard = () => {
+    setupCard.style.display = 'none';
+    playCard.style.display = 'none';
+    boardCard.style.display = '';
+  };
+
+  // ---------- Emoji selection ----------
+ // ---------- Number selection (Option 1) ----------
+const mainGrid = document.getElementById('mainGrid');
+const bonusGrid = document.getElementById('bonusGrid');
+const selMainPills = document.getElementById('selMainPills');
+const selBonusPills = document.getElementById('selBonusPills');
+const btnConfirmPick = document.getElementById('btnConfirmPick');
+
+const pickWarn = document.getElementById('pickWarn');
+const mainNeedEl = document.getElementById('mainNeed');
+const bonusTitle = document.getElementById('bonusTitle');
+
+// (decorative) reuse your existing emoji pool if present; fallback:
+const DECOR_EMOJIS = (typeof EMOJIS !== 'undefined' && Array.isArray(EMOJIS) && EMOJIS.length)
+  ? EMOJIS
+  : ['🍀','✨','🔥','🌈','💎','🎯','🎁','🎉','⚡','🌙','🍎','🍋','🍇','🍑','🐶','🐱','🦊','🐼','🦁','🐸','🦄','🐢','🦋','🐬','🏆','🎲','🎮','🎸','🎬','✈️','💰','🏛️','🧲','📌','🧠','🧩','🔔','🎈','🪙','🌟'];
+
+const pillNum = (t, cls='') => {
+  const s = document.createElement('span');
+  s.className = 'pill ' + cls;
+  s.textContent = t;
+  return s;
+};
+
+const getPickData = (player) => {
+  const rd = getCurRoundData(player);
+  if(!rd.mainNums) rd.mainNums = [];
+  if(typeof rd.bonusNum === 'undefined') rd.bonusNum = null;
+  return rd;
+};
+
+const renderSelected = (rd, g) => {
+  selMainPills.innerHTML = '';
+  selBonusPills.innerHTML = '';
+
+  const main = (rd.mainNums || []).slice().sort((a,b)=>a-b);
+  main.forEach(n => selMainPills.appendChild(pillNum(n)));
+
+  if(rd.bonusNum != null){
+    selBonusPills.appendChild(pillNum(`${g.bonusLabel} ${rd.bonusNum}`, 'bonus'));
+  }
+
+  const needMain = g.mainCount || 5;
+  const needBonus = 1;
+
+  const okMain = main.length === needMain;
+  const okBonus = rd.bonusNum != null;
+
+  pickWarn.textContent = okMain && okBonus
+    ? 'Ready. Press "Confirm pick".'
+    : `Select ${needMain} main numbers and ${needBonus} bonus number.`;
+
+  if (mainNeedEl) mainNeedEl.textContent = String(needMain);
+  if (bonusTitle) bonusTitle.textContent = g.bonusLabel || 'Bonus';
+
+  // enable confirm only when complete
+  btnConfirmPick.disabled = !(okMain && okBonus);
+};
+
+const buildNumberGrid = (gridEl, maxN, selectedFn, toggleFn) => {
+  gridEl.innerHTML = '';
+  for(let n=1; n<=maxN; n++){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'emojiBtn'; // reuse existing button style
+    const deco = DECOR_EMOJIS[(n-1) % DECOR_EMOJIS.length];
+    b.textContent = `${deco} ${n}`;
+    b.style.fontSize = '14px';
+    b.style.padding = '10px 8px';
+    b.style.textAlign = 'center';
+    b.classList.toggle('sel', selectedFn(n));
+    b.addEventListener('click', () => toggleFn(n, b));
+    gridEl.appendChild(b);
+  }
+};
+
+const renderPickNumbersUI = () => {
+  const { player, g } = cur();
+  const rd = getPickData(player);
+
+  const needMain = g.mainCount || 5;
+
+  buildNumberGrid(
+    mainGrid,
+    g.mainMax,
+    (n) => (rd.mainNums || []).includes(n),
+    (n, btnEl) => {
+      const arr = rd.mainNums || [];
+      const idx = arr.indexOf(n);
+
+      if(idx >= 0){
+        arr.splice(idx, 1);
+        btnEl.classList.remove('sel');
+      } else {
+        if(arr.length >= needMain){
+          alert(`Main numbers: pick exactly ${needMain}.`);
+          return;
+        }
+        arr.push(n);
+        btnEl.classList.add('sel');
+      }
+      rd.mainNums = arr;
+      renderSelected(rd, g);
+      saveState();
+    }
+  );
+
+  buildNumberGrid(
+    bonusGrid,
+    g.bonusMax,
+    (n) => rd.bonusNum === n,
+    (n, btnEl) => {
+      // single select
+      rd.bonusNum = (rd.bonusNum === n) ? null : n;
+
+      // refresh grid highlight
+      [...bonusGrid.querySelectorAll('.emojiBtn')].forEach(x => x.classList.remove('sel'));
+      if(rd.bonusNum != null) btnEl.classList.add('sel');
+
+      renderSelected(rd, g);
+      saveState();
+    }
+  );
+
+  renderSelected(rd, g);
+};
+
+// clear
+const clearPickNumbers = () => {
+  const { player, g } = cur();
+  const rd = getPickData(player);
+  rd.mainNums = [];
+  rd.bonusNum = null;
+  rd.pick = null;
+  rd.match = null;
+
+  renderPickNumbersUI();
+
+  // hide generated/match boxes if you use them
+  if (typeof genBox !== 'undefined') genBox.style.display = 'none';
+  if (typeof matchBox !== 'undefined') matchBox.style.display = 'none';
+
+  saveState();
+};
+
+btnClearPick?.addEventListener('click', clearPickNumbers);
+
+// confirm -> set rd.pick directly (NO random conversion)
+btnConfirmPick?.addEventListener('click', () => {
+  const { player, g } = cur();
+  const rd = getPickData(player);
+
+  const main = (rd.mainNums || []).slice().sort((a,b)=>a-b);
+  if(main.length !== (g.mainCount || 5) || rd.bonusNum == null){
+    alert('Complete your pick first.');
+    return;
+  }
+
+  rd.pick = {
+    main_numbers: main,
+    bonus_number: rd.bonusNum
+  };
+
+  // render generated pick pills using your existing UI if present
+  if (typeof genPills !== 'undefined') {
+    genPills.innerHTML = '';
+    (rd.pick.main_numbers || []).forEach(n => genPills.appendChild(pill(n)));
+    genPills.appendChild(pill(`${g.bonusLabel} ${rd.pick.bonus_number}`, 'bonus'));
+  }
+  if (typeof genBox !== 'undefined') genBox.style.display = '';
+
+  // now user can lock in
+  if (typeof btnLock !== 'undefined') btnLock.disabled = false;
+
+  saveState();
+});
+
+
+  // ---------- Turn rendering ----------
+  const renderTurn = () => {
+    const { r, i, player, g } = cur();
+
+    turnTitle.textContent = `Round ${r} / ${state.rounds} • ${player.name}`;
+    turnHint.innerHTML = `Pick <b>5 emojis</b>, then Generate → Lock in.`;
+    gameMeta.textContent = `${g.label} • Main 1-${g.mainMax}, Bonus 1-${g.bonusMax}`;
+
+    // selection
+   renderPickNumbersUI();
+
+
+    // sync button states for emoji grid
+    [...emojiGrid.querySelectorAll('.emojiBtn')].forEach(btn => {
+      const e = btn.textContent;
+      btn.classList.toggle('sel', (rd.emojis || []).includes(e));
+    });
+
+    // generated pick
+    genPills.innerHTML = '';
+    if(rd.pick){
+      genBox.style.display = '';
+      (rd.pick.main_numbers || []).forEach(n => genPills.appendChild(pill(n)));
+      genPills.appendChild(pill(`${g.bonusLabel} ${rd.pick.bonus_number}`, 'bonus'));
+      btnLock.disabled = false;
+    } else {
+      genBox.style.display = 'none';
+      btnLock.disabled = true;
+    }
+
+    // match
+    if(rd.match){
+      matchBox.style.display = '';
+      matchPills.innerHTML = '';
+      const win = state.roundWinning[String(r)];
+      const pm = rd.pick?.main_numbers || [];
+      const wmSet = new Set((win?.main_numbers || []).map(Number));
+      pm.forEach(n => matchPills.appendChild(pill(n, wmSet.has(Number(n)) ? 'hit' : '')));
+      matchPills.appendChild(pill(`${g.bonusLabel} ${rd.pick.bonus_number}`, rd.match.bonusMatch ? 'bonus hit' : 'bonus'));
+
+      const winLine = `${(win?.main_numbers || []).join(' ')} + ${g.bonusLabel} ${win?.bonus_number}`;
+      matchText.innerHTML = `Winning (Round ${r}): <b class="mono">${esc(winLine)}</b><br>
+        You matched <b>${rd.match.mainMatches.length}</b> main + bonus <b>${rd.match.bonusMatch ? 'YES' : 'NO'}</b> → Score <b>${rd.match.score}</b>.`;
+    } else {
+      matchBox.style.display = 'none';
+    }
+
+    // next buttons
+    btnNext.style.display = 'none';
+    btnNextRound.style.display = 'none';
+    btnFinish.style.display = 'none';
+
+    // Determine if current player already locked in
+    const idx = r - 1;
+    const done = !!(player.rounds[idx] && player.rounds[idx].match);
+
+    if(done){
+      // if all players done in this round:
+      const roundDone = state.players.every(p => p.rounds[idx] && p.rounds[idx].match);
+      if(roundDone){
+        if(r < state.rounds){
+          btnNextRound.style.display = '';
+        } else {
+          btnFinish.style.display = '';
+        }
+      } else {
+        btnNext.style.display = '';
+      }
+      setBadge(done ? 'Locked' : 'Ready');
+    } else {
+      setBadge('Picking…');
+    }
+  };
+
+  // ---------- Leaderboard ----------
+  const buildRoundRanking = (roundIndex1based) => {
+    const idx = roundIndex1based - 1;
+    const rows = state.players.map(p => {
+      const m = p.rounds[idx]?.match;
+      return { name:p.name, score: m ? m.score : 0, main: m ? m.mainMatches.length : 0, bonus: m ? (m.bonusMatch?1:0) : 0 };
+    }).sort((a,b)=>{
+      if(b.score !== a.score) return b.score - a.score;
+      if(b.main !== a.main) return b.main - a.main;
+      return b.bonus - a.bonus;
+    });
+    return rows;
+  };
+
+  const buildTotalRanking = () => {
+    const rows = state.players.map(p => ({ name:p.name, score: p.totalScore || 0 }))
+      .sort((a,b)=> b.score - a.score);
+    return rows;
+  };
+
+  const renderBoard = (focusRound=null) => {
+    showBoard();
+
+    const g = GAME[state.gameCode];
+
+    // totals table
+    const total = buildTotalRanking();
+    totalTable.innerHTML = `
+      <thead><tr><th>Rank</th><th>Player</th><th>Total Score</th></tr></thead>
+      <tbody>
+        ${total.map((r,idx)=>`
+          <tr>
+            <td>${idx+1}</td>
+            <td style="font-weight:900;">${esc(r.name)}</td>
+            <td class="mono">${esc(r.score)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    `;
+
+    const top = total[0];
+    const winners = total.filter(x => x.score === top.score).map(x => x.name);
+    winBox.innerHTML = `
+      <div style="font-weight:900;">Winner</div>
+      <div class="hint" style="margin-top:6px;">
+        ${winners.length === 1
+          ? `🥇 <b>${esc(winners[0])}</b> wins with <b class="mono">${esc(top.score)}</b> points.`
+          : `🏆 Tie! Winners: <b>${esc(winners.join(', '))}</b> (<b class="mono">${esc(top.score)}</b> points).`
+        }
+      </div>
+      <div class="hint" style="margin-top:6px;">Fun idea: winner chooses the “pizza / coffee” deal 😄</div>
+    `;
+
+    // round winners
+    let rwHtml = `<div style="font-weight:900;">Round winners</div>`;
+    for(let r=1;r<=state.rounds;r++){
+      const rr = buildRoundRanking(r);
+      const best = rr[0];
+      const ties = rr.filter(x => x.score === best.score).map(x => x.name);
+      const win = state.roundWinning[String(r)];
+      const winLine = `${(win.main_numbers||[]).join(' ')} + ${g.bonusLabel} ${win.bonus_number}`;
+
+      rwHtml += `
+        <div class="hint" style="margin-top:10px;">
+          <b>Round ${r}</b> — winning: <span class="mono">${esc(winLine)}</span><br>
+          ${ties.length===1 ? `🥇 ${esc(ties[0])}` : `🏆 Tie: ${esc(ties.join(', '))}`} (score ${esc(best.score)})
+        </div>
+      `;
+    }
+    roundWinBox.innerHTML = rwHtml;
+
+    // details per round
+    const rd = (focusRound || state.currentRound);
+    let detail = `<div style="font-weight:900;">Round details</div>`;
+    for(let r=1;r<=state.rounds;r++){
+      const rr = buildRoundRanking(r);
+      detail += `
+        <div class="results" style="margin-top:10px;">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
+            <div style="font-weight:900;">Round ${r}</div>
+            <button class="btn" type="button" data-round="${r}">View</button>
+          </div>
+          <div style="margin-top:10px;overflow:auto;">
+            <table class="table">
+              <thead><tr><th>Rank</th><th>Player</th><th>Score</th><th>Main</th><th>Bonus</th></tr></thead>
+              <tbody>
+                ${rr.map((x,idx)=>`
+                  <tr>
+                    <td>${idx+1}</td>
+                    <td style="font-weight:900;">${esc(x.name)}</td>
+                    <td class="mono">${esc(x.score)}</td>
+                    <td>${esc(x.main)}</td>
+                    <td>${x.bonus? '✅':'—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+    roundDetail.innerHTML = detail;
+
+    // hook view buttons
+    [...roundDetail.querySelectorAll('button[data-round]')].forEach(b=>{
+      b.addEventListener('click', ()=>{
+        // just scroll; details already visible
+        b.closest('.results')?.scrollIntoView({behavior:'smooth', block:'start'});
+      });
+    });
+
+    track('party_view_board', { page:'partymode', rounds: state.rounds, game: state.gameCode });
+  };
+
+  const buildShareText = () => {
+    const g = GAME[state.gameCode];
+    const total = buildTotalRanking();
+    const lines = [];
+    lines.push(`EmojiPick — Party Mode (${g.label})`);
+    lines.push(`Date: ${todayISO()} • Rounds: ${state.rounds}`);
+    lines.push('');
+    total.forEach((x,idx)=> lines.push(`${idx+1}. ${x.name} — ${x.score}`));
+    lines.push('');
+    for(let r=1;r<=state.rounds;r++){
+      const win = state.roundWinning[String(r)];
+      lines.push(`Round ${r} winning: ${(win.main_numbers||[]).join(' ')} + ${g.bonusLabel} ${win.bonus_number}`);
+    }
+    lines.push('');
+    lines.push('(Game simulation — for entertainment only.)');
+    return lines.join('\n');
+  };
+
+  // ---------- Actions ----------
+  const startParty = (resumeObj=null) => {
+    if(resumeObj){
+      state = resumeObj;
+      showPlay();
+      renderTurn();
+      track('party_resume', { page:'partymode', rounds: state.rounds, game: state.gameCode });
+      return;
+    }
+
+    const gameCode = gameSel.value || 'pb';
+    const rounds = readRoundsSel();
+    const count = parseInt(playerCount.value,10) || 2;
+
+    const names = [];
+    for(let i=0;i<count;i++){
+      const v = document.getElementById(`pname_${i}`)?.value?.trim();
+      names.push(v || `Player ${i+1}`);
+    }
+
+    state = {
+      id: 'party_' + Math.random().toString(36).slice(2,10),
+      createdAt: new Date().toISOString(),
+      gameCode,
+      rounds,
+      revealAfterRound: !!revealAfterRound.checked,
+      players: names.map(n => ({ name:n, totalScore:0, rounds:[] })),
+      currentRound: 1,
+      currentPlayerIndex: 0,
+      roundWinning: {}
+    };
+
+   // (1) seed emojis 읽기: input#seedEmojis 에서
+  // (1) seed emojis read (input#seedEmojis)
+    // (1) seed emojis read (input#seedEmojis)
+  const SEED_MAX_UNITS = 40; // keep seed reasonable (game feel)
+  const seedRaw = (document.getElementById('seedEmojis')?.value || '');
+  const seedClean = seedRaw.replace(/\s+/g, ' ').trim();
+
+  // Treat each emoji/symbol as one unit (code point based; OK for this use)
+  const seedEmojis = [...seedClean]
+    .filter(ch => ch.trim() !== '')   // remove spaces
+    .slice(0, SEED_MAX_UNITS);        // max length guard
+
+  // (2) roundWinning 생성: seed 있으면 seed로, 없으면 기존 방식
+  state.roundWinning = {};
+  for (let r = 0; r < rounds; r++) {
+    if (seedEmojis.length > 0) {
+      state.roundWinning[r] = genWinningFromGroupSeed(gameCode, r, seedEmojis);
+    } else {
+      state.roundWinning[r] = genWinningForRound(gameCode, r);
+    }
+  }
+
+
+    saveState();
+    showPlay();
+    clearSelection();
+    renderTurn();
+
+    track('party_start', { page:'partymode', rounds, players: count, game: gameCode });
+  };
+
+  const generatePick = () => {
+    const { r, i, player, g } = cur();
+    const rd = getCurRoundData(player);
+
+    const generatePick = () => {
+  const g = getG();
+  const { player } = cur();
+  const rd = getCurRoundData(player);
+  ensureRoundPickFields(rd);
+
+  if (rd.selMain.length !== g.mainCount) {
+    alert(`Pick exactly ${g.mainCount} main numbers.`);
+    return;
+  }
+  if (g.bonusMax && g.bonusMax > 0 && (rd.selBonus == null)) {
+    alert(`Pick 1 bonus number.`);
+    return;
+  }
+
+  rd.pick = {
+    main_numbers: rd.selMain.slice().sort((a,b)=>a-b),
+    bonus_number: (g.bonusMax && g.bonusMax > 0) ? rd.selBonus : null
+  };
+
+  genBox.style.display = '';
+  btnLock.disabled = false;
+  saveState();
+  renderTurn(); // 화면 갱신
+};
+
+
+    genBox.style.display = '';
+    btnLock.disabled = false;
+    matchBox.style.display = 'none';
+
+    saveState();
+    track('party_generate', { page:'partymode', round:r, player:i+1, game: state.gameCode });
+  };
+
+  const lockIn = () => {
+    const { r, i, player, g } = cur();
+    const rd = getCurRoundData(player);
+    if(!rd.pick) return;
+
+    const win = state.roundWinning[String(r)];
+    rd.match = computeMatch(state.gameCode, rd.pick, win);
+
+    // update totals
+    player.totalScore = (player.totalScore || 0) + (rd.match.score || 0);
+
+    // show match
+    matchBox.style.display = '';
+    matchPills.innerHTML = '';
+    const wmSet = new Set((win.main_numbers||[]).map(Number));
+    (rd.pick.main_numbers || []).forEach(n => matchPills.appendChild(pill(n, wmSet.has(Number(n)) ? 'hit' : '')));
+    matchPills.appendChild(pill(`${g.bonusLabel} ${rd.pick.bonus_number}`, rd.match.bonusMatch ? 'bonus hit' : 'bonus'));
+
+    const winLine = `${(win.main_numbers||[]).join(' ')} + ${g.bonusLabel} ${win.bonus_number}`;
+    matchText.innerHTML = `Winning (Round ${r}): <b class="mono">${esc(winLine)}</b><br>
+      You matched <b>${rd.match.mainMatches.length}</b> main + bonus <b>${rd.match.bonusMatch ? 'YES' : 'NO'}</b> → Score <b>${rd.match.score}</b>.`;
+
+    btnLock.disabled = true;
+    btnGenerate.disabled = true;
+    setBadge('Locked');
+    saveState();
+
+    track('party_lockin', { page:'partymode', round:r, player:i+1, score:rd.match.score, main:rd.match.mainMatches.length, bonus:rd.match.bonusMatch?1:0 });
+
+    // move buttons
+    const idx = r - 1;
+    const roundDone = state.players.every(p => p.rounds[idx] && p.rounds[idx].match);
+    if(roundDone){
+      if(state.revealAfterRound){
+        // optional: could show a quick alert; keeping it subtle
+      }
+      if(r < state.rounds){
+        btnNextRound.style.display = '';
+      } else {
+        btnFinish.style.display = '';
+      }
+      btnNext.style.display = 'none';
+      track('party_round_complete', { page:'partymode', round:r, game:state.gameCode });
+    } else {
+      btnNext.style.display = '';
+      btnNextRound.style.display = 'none';
+      btnFinish.style.display = 'none';
+    }
+  };
+
+  const nextPlayer = () => {
+    // advance to next unfinished player in this round
+    const idx = state.currentRound - 1;
+    let next = state.currentPlayerIndex + 1;
+    while(next < state.players.length){
+      const p = state.players[next];
+      if(!(p.rounds[idx] && p.rounds[idx].match)) break;
+      next++;
+    }
+    // if we reach end, loop find first unfinished
+    if(next >= state.players.length){
+      next = 0;
+      while(next < state.players.length){
+        const p = state.players[next];
+        if(!(p.rounds[idx] && p.rounds[idx].match)) break;
+        next++;
+      }
+    }
+
+    state.currentPlayerIndex = Math.min(next, state.players.length-1);
+    saveState();
+
+    // reset UI for next player
+    btnGenerate.disabled = false;
+    genBox.style.display = 'none';
+    matchBox.style.display = 'none';
+    btnNext.style.display = 'none';
+    btnNextRound.style.display = 'none';
+    btnFinish.style.display = 'none';
+
+    renderTurn();
+  };
+
+  const nextRound = () => {
+    state.currentRound += 1;
+    state.currentPlayerIndex = 0;
+
+    // reset UI
+    btnGenerate.disabled = false;
+    genBox.style.display = 'none';
+    matchBox.style.display = 'none';
+    btnNext.style.display = 'none';
+    btnNextRound.style.display = 'none';
+    btnFinish.style.display = 'none';
+
+    saveState();
+    renderTurn();
+  };
+
+  const finishParty = () => {
+    saveState();
+    renderBoard();
+    track('party_finish', { page:'partymode', rounds: state.rounds, players: state.players.length, game: state.gameCode });
+  };
+
+  const renderNamesInputs = () => {
+    const n = parseInt(playerCount.value,10) || 2;
+    let html = `<label>Player names</label><div class="hint">You can keep defaults (Player 1, Player 2...).</div>`;
+    html += `<div class="row" style="margin-top:8px;">`;
+    for(let i=0;i<n;i++){
+      html += `
+        <div>
+          <input id="pname_${i}" placeholder="Player ${i+1}" />
+        </div>
+      `;
+    }
+    html += `</div>`;
+    namesWrap.innerHTML = html;
+  };
+
+  // ---------- Init ----------
+  // players dropdown 2..8
+  for(let i=2;i<=8;i++){
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = String(i);
+    playerCount.appendChild(o);
+  }
+  playerCount.value = '4';
+  renderNamesInputs();
+  renderEmojiGrid();
+
+  // show resume if saved
+  const saved = loadState();
+  if(saved){
+    btnResume.style.display = '';
+  }
+
+// ---------------- Seed UI helpers (Option B: picker + exact token counting) ----------------
+const seedInput = document.getElementById('seedEmojis');
+const seedTurnLabel = document.getElementById('seedTurnLabel');
+const seedCountLabel = document.getElementById('seedCountLabel');
+const btnSeedPick = document.getElementById('btnSeedPick');
+const btnSeedNext = document.getElementById('btnSeedNext');
+const btnSeedClear = document.getElementById('btnSeedClear');
+const seedPreview = document.getElementById('seedPreview');
+const seedPickerPanel = document.getElementById('seedPickerPanel');
+const seedPickerGrid = document.getElementById('seedPickerGrid');
+
+let seedTurnIndex = 0;                 // whose turn (0-based)
+let seedTokens = [];                   // EXACT emoji tokens (each click = 1 token)
+let seedTurnCounts = [];               // per player counts in current seed session
+
+const getPlayerCountSafe = () => {
+  const pc = Number(playerCount?.value || 0);
+  return Number.isFinite(pc) && pc > 0 ? pc : 2;
+};
+
+// IMPORTANT: we store as "token|token|token" so complex emojis remain intact
+const serializeSeedTokens = (tokens) => tokens.join('|');
+const parseSeedTokens = (s) => (s || '').split('|').map(t => t.trim()).filter(Boolean);
+
+// A safe default emoji pool for seed picker (can expand later)
+const SEED_EMOJI_POOL = [
+  "🍀","✨","🔥","🌈","💎","🎯","🎁","🎉","🧠","⚡",
+  "🌟","🌙","☀️","🌊","🌸","🍎","🍇","🍋","🥑","🍩",
+  "🐶","🐱","🦊","🐼","🦁","🐸","🦄","🐢","🦋","🐬",
+  "🏆","🎲","🎮","🎸","🎬","📈","💰","🪙","🏦","🧲"
+];
+
+const renderSeedPicker = () => {
+  if (!seedPickerGrid) return;
+  seedPickerGrid.innerHTML = '';
+  SEED_EMOJI_POOL.forEach(e => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'emojiBtn';   // existing style is okay; if not, it still works
+    b.textContent = e;
+    b.addEventListener('click', () => addSeedEmoji(e));
+    seedPickerGrid.appendChild(b);
+  });
+};
+
+const renderSeedPreview = () => {
+  if (!seedPreview) return;
+  seedPreview.innerHTML = '';
+  seedTokens.forEach((e, idx) => {
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'btn';
+    pill.style.padding = '4px 8px';
+    pill.style.borderRadius = '999px';
+    pill.textContent = `${e} ✕`;
+    pill.title = 'Remove';
+    pill.addEventListener('click', () => {
+      // remove token and keep turn counts consistent (simple reset is safest)
+      seedTokens.splice(idx, 1);
+      // safest: reset turn counts to avoid ambiguity
+      seedTurnIndex = 0;
+      seedTurnCounts = [];
+      updateSeedUI();
+    });
+    seedPreview.appendChild(pill);
+  });
+};
+
+const addSeedEmoji = (emoji) => {
+  const pc = getPlayerCountSafe();
+  if (seedTurnCounts.length !== pc) seedTurnCounts = Array(pc).fill(0);
+
+  // enforce 1~2 per person
+  if (seedTurnCounts[seedTurnIndex] >= 2) {
+    alert('This player already added 2 emojis. Click "Next person".');
+    return;
+  }
+
+  seedTokens.push(emoji);
+  seedTurnCounts[seedTurnIndex] += 1;
+  updateSeedUI();
+};
+
+const updateSeedUI = () => {
+  if (!seedInput || !seedTurnLabel || !seedCountLabel || !btnSeedNext || !btnSeedClear) return;
+
+  const pc = getPlayerCountSafe();
+  if (seedTurnCounts.length !== pc) seedTurnCounts = Array(pc).fill(0);
+
+  const turn = Math.min(seedTurnIndex + 1, pc);
+  const total = seedTokens.length;
+
+  seedTurnLabel.textContent = `Seed turn: Player ${turn}/${pc}`;
+  seedCountLabel.textContent = `Seed emojis: ${total}`;
+
+  btnSeedNext.textContent = (seedTurnIndex >= pc - 1) ? 'Seed done' : 'Next person';
+
+  // write to input (serialized) so startParty() can read reliably
+  seedInput.value = total ? serializeSeedTokens(seedTokens) : '';
+
+  renderSeedPreview();
+};
+
+if (btnSeedPick) {
+  btnSeedPick.addEventListener('click', () => {
+    const visible = seedPickerPanel.style.display !== 'none';
+    seedPickerPanel.style.display = visible ? 'none' : 'block';
+  });
+}
+
+if (btnSeedNext) {
+  btnSeedNext.addEventListener('click', () => {
+    const pc = getPlayerCountSafe();
+    if (seedTurnCounts.length !== pc) seedTurnCounts = Array(pc).fill(0);
+
+    // require at least 1 emoji before moving (optional but recommended)
+    if (seedTurnCounts[seedTurnIndex] === 0) {
+      alert('Please select at least 1 emoji for this player before moving on.');
+      return;
+    }
+
+    if (seedTurnIndex < pc - 1) {
+      seedTurnIndex++;
+      updateSeedUI();
+    } else {
+      // finished
+      updateSeedUI();
+      seedPickerPanel.style.display = 'none';
+    }
+  });
+}
+
+if (btnSeedClear) {
+  btnSeedClear.addEventListener('click', () => {
+    seedTokens = [];
+    seedTurnIndex = 0;
+    seedTurnCounts = [];
+    updateSeedUI();
+  });
+}
+
+// when player count changes, reset seed session (clean and deterministic)
+playerCount?.addEventListener('change', () => {
+  seedTokens = [];
+  seedTurnIndex = 0;
+  seedTurnCounts = [];
+  updateSeedUI();
+});
+
+// initial draw
+renderSeedPicker();
+updateSeedUI();
+
+ // ---------------- PWA Install (Android/Chrome) ----------------
+let deferredPrompt = null;
+const btnInstall = document.getElementById('btnInstall');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Chrome이 자동 미니바를 띄우는 걸 막고, 우리가 버튼으로 유도
+  e.preventDefault();
+  deferredPrompt = e;
+
+  if (btnInstall) btnInstall.style.display = '';
+});
+
+if (btnInstall) {
+  btnInstall.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+
+    // 사용자가 설치/취소를 선택했든, 이벤트는 1회성이므로 비움
+    deferredPrompt = null;
+    btnInstall.style.display = 'none';
+  });
+}
+
+// 설치 완료 후 버튼 숨김(이미 설치된 상태면 설치 버튼 불필요)
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  if (btnInstall) btnInstall.style.display = 'none';
+});
+
+// ---------------- iOS install hint ----------------
+const iosInstallHint = document.getElementById('iosInstallHint');
+
+const isIOS = () => {
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  const iOSDevice = /iPad|iPhone|iPod/.test(ua);
+  const iPadOS13Plus = (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return iOSDevice || iPadOS13Plus;
+};
+
+const isInStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+if (iosInstallHint) {
+  // iOS + Safari(대부분)에서만 힌트 표시, 이미 설치(standalone)면 숨김
+  if (isIOS() && !isInStandalone()) {
+    iosInstallHint.style.display = '';
+  } else {
+    iosInstallHint.style.display = 'none';
+  }
+}
+
+// ---------------- PWA Install (Android/Chrome) ----------------
+// ---------------- Install (PWA) ----------------
+const installBtnEl = document.getElementById('btnInstall');
+let installPromptEvent = null;
+
+// Fired only when the site meets PWA installability criteria AND not already installed
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPromptEvent = e;
+  if (installBtnEl) installBtnEl.style.display = '';
+});
+
+if (installBtnEl) {
+  installBtnEl.addEventListener('click', async () => {
+    if (!installPromptEvent) return;
+    installPromptEvent.prompt();
+    await installPromptEvent.userChoice;
+    installPromptEvent = null;
+    installBtnEl.style.display = 'none';
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  installPromptEvent = null;
+  if (installBtnEl) installBtnEl.style.display = 'none';
+});
+
+
+  
+  // events
+  playerCount.addEventListener('change', renderNamesInputs);
+
+  btnStart.addEventListener('click', () => startParty());
+  btnResume.addEventListener('click', () => {
+    const obj = loadState();
+    if(obj) startParty(obj);
+  });
+
+  btnReset.addEventListener('click', () => {
+    if(confirm('Reset party state?')){
+      clearState();
+      state = null;
+      btnResume.style.display = 'none';
+      showSetup();
+      track('party_reset', { page:'partymode' });
+    }
+  });
+
+  btnClearPick.addEventListener('click', clearSelection);
+  btnGenerate.addEventListener('click', generatePick);
+  btnLock.addEventListener('click', lockIn);
+
+  btnNext.addEventListener('click', nextPlayer);
+  btnNextRound.addEventListener('click', nextRound);
+  btnFinish.addEventListener('click', finishParty);
+
+  btnRoundBoard.addEventListener('click', () => renderBoard());
+
+  btnBackToPlay.addEventListener('click', () => {
+    showPlay();
+    renderTurn();
+  });
+
+  btnShare.addEventListener('click', async () => {
+    const text = buildShareText();
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('Results copied!');
+    } catch(e) {
+      window.prompt('Copy results:', text);
+    }
+    track('party_share', { page:'partymode' });
+  });
+
+  // initial view tracking
+  track('view_partymode', { page:'partymode' });
+
+})();
+</script>
+</body>
+</html>
