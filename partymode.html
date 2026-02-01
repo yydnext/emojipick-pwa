@@ -968,17 +968,32 @@ btnConfirmPick?.addEventListener('click', () => {
     const { r, i, player, g } = cur();
     const rd = getCurRoundData(player);
 
-    if(!rd.emojis || rd.emojis.length !== 5){
-      alert('Please pick exactly 5 emojis.');
-      return;
-    }
+    const generatePick = () => {
+  const g = getG();
+  const { player } = cur();
+  const rd = getCurRoundData(player);
+  ensureRoundPickFields(rd);
 
-    rd.pick = genPickFromEmojis(state.gameCode, r, i, rd.emojis);
+  if (rd.selMain.length !== g.mainCount) {
+    alert(`Pick exactly ${g.mainCount} main numbers.`);
+    return;
+  }
+  if (g.bonusMax && g.bonusMax > 0 && (rd.selBonus == null)) {
+    alert(`Pick 1 bonus number.`);
+    return;
+  }
 
-    // render generated
-    genPills.innerHTML = '';
-    (rd.pick.main_numbers || []).forEach(n => genPills.appendChild(pill(n)));
-    genPills.appendChild(pill(`${g.bonusLabel} ${rd.pick.bonus_number}`, 'bonus'));
+  rd.pick = {
+    main_numbers: rd.selMain.slice().sort((a,b)=>a-b),
+    bonus_number: (g.bonusMax && g.bonusMax > 0) ? rd.selBonus : null
+  };
+
+  genBox.style.display = '';
+  btnLock.disabled = false;
+  saveState();
+  renderTurn(); // 화면 갱신
+};
+
 
     genBox.style.display = '';
     btnLock.disabled = false;
