@@ -704,9 +704,8 @@ btnConfirmPick?.addEventListener('click', () => {
     gameMeta.textContent = `${g.label} • Main 1-${g.mainMax}, Bonus 1-${g.bonusMax}`;
 
     // selection
-    const rd = getCurRoundData(player);
-    selEmojis.innerHTML = '';
-    (rd.emojis || []).forEach(e => selEmojis.appendChild(pill(e)));
+   renderPickNumbersUI();
+
 
     // sync button states for emoji grid
     [...emojiGrid.querySelectorAll('.emojiBtn')].forEach(btn => {
