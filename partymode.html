@@ -513,45 +513,182 @@ const genWinningFromGroupSeed = (gameCode, roundIndex, seedEmojis) => {
   };
 
   // ---------- Emoji selection ----------
-  const clearSelection = () => {
-    const { player } = cur();
-    const rd = getCurRoundData(player);
-    rd.emojis = [];
-    selEmojis.innerHTML = '';
-    // reset button states
-    [...emojiGrid.querySelectorAll('.emojiBtn')].forEach(x => x.classList.remove('sel'));
-    btnGenerate.disabled = false;
-    btnLock.disabled = true;
-    genBox.style.display = 'none';
-    matchBox.style.display = 'none';
-    saveState();
-  };
+ // ---------- Number selection (Option 1) ----------
+const mainGrid = document.getElementById('mainGrid');
+const bonusGrid = document.getElementById('bonusGrid');
+const selMainPills = document.getElementById('selMainPills');
+const selBonusPills = document.getElementById('selBonusPills');
+const btnConfirmPick = document.getElementById('btnConfirmPick');
+const btnClearPick = document.getElementById('btnClearPick');
+const pickWarn = document.getElementById('pickWarn');
+const mainNeedEl = document.getElementById('mainNeed');
+const bonusTitle = document.getElementById('bonusTitle');
 
-  const toggleEmoji = (emoji, btnEl) => {
-    const { player } = cur();
-    const rd = getCurRoundData(player);
+// (decorative) reuse your existing emoji pool if present; fallback:
+const DECOR_EMOJIS = (typeof EMOJIS !== 'undefined' && Array.isArray(EMOJIS) && EMOJIS.length)
+  ? EMOJIS
+  : ['🍀','✨','🔥','🌈','💎','🎯','🎁','🎉','⚡','🌙','🍎','🍋','🍇','🍑','🐶','🐱','🦊','🐼','🦁','🐸','🦄','🐢','🦋','🐬','🏆','🎲','🎮','🎸','🎬','✈️','💰','🏛️','🧲','📌','🧠','🧩','🔔','🎈','🪙','🌟'];
 
-    const arr = rd.emojis || [];
-    const idx = arr.indexOf(emoji);
+const pillNum = (t, cls='') => {
+  const s = document.createElement('span');
+  s.className = 'pill ' + cls;
+  s.textContent = t;
+  return s;
+};
 
-    if(idx >= 0){
-      arr.splice(idx, 1);
-      btnEl.classList.remove('sel');
-    } else {
-      if(arr.length >= 5) return; // max 5
-      arr.push(emoji);
-      btnEl.classList.add('sel');
+const getPickData = (player) => {
+  const rd = getCurRoundData(player);
+  if(!rd.mainNums) rd.mainNums = [];
+  if(typeof rd.bonusNum === 'undefined') rd.bonusNum = null;
+  return rd;
+};
+
+const renderSelected = (rd, g) => {
+  selMainPills.innerHTML = '';
+  selBonusPills.innerHTML = '';
+
+  const main = (rd.mainNums || []).slice().sort((a,b)=>a-b);
+  main.forEach(n => selMainPills.appendChild(pillNum(n)));
+
+  if(rd.bonusNum != null){
+    selBonusPills.appendChild(pillNum(`${g.bonusLabel} ${rd.bonusNum}`, 'bonus'));
+  }
+
+  const needMain = g.mainCount || 5;
+  const needBonus = 1;
+
+  const okMain = main.length === needMain;
+  const okBonus = rd.bonusNum != null;
+
+  pickWarn.textContent = okMain && okBonus
+    ? 'Ready. Press "Confirm pick".'
+    : `Select ${needMain} main numbers and ${needBonus} bonus number.`;
+
+  if (mainNeedEl) mainNeedEl.textContent = String(needMain);
+  if (bonusTitle) bonusTitle.textContent = g.bonusLabel || 'Bonus';
+
+  // enable confirm only when complete
+  btnConfirmPick.disabled = !(okMain && okBonus);
+};
+
+const buildNumberGrid = (gridEl, maxN, selectedFn, toggleFn) => {
+  gridEl.innerHTML = '';
+  for(let n=1; n<=maxN; n++){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'emojiBtn'; // reuse existing button style
+    const deco = DECOR_EMOJIS[(n-1) % DECOR_EMOJIS.length];
+    b.textContent = `${deco} ${n}`;
+    b.style.fontSize = '14px';
+    b.style.padding = '10px 8px';
+    b.style.textAlign = 'center';
+    b.classList.toggle('sel', selectedFn(n));
+    b.addEventListener('click', () => toggleFn(n, b));
+    gridEl.appendChild(b);
+  }
+};
+
+const renderPickNumbersUI = () => {
+  const { player, g } = cur();
+  const rd = getPickData(player);
+
+  const needMain = g.mainCount || 5;
+
+  buildNumberGrid(
+    mainGrid,
+    g.mainMax,
+    (n) => (rd.mainNums || []).includes(n),
+    (n, btnEl) => {
+      const arr = rd.mainNums || [];
+      const idx = arr.indexOf(n);
+
+      if(idx >= 0){
+        arr.splice(idx, 1);
+        btnEl.classList.remove('sel');
+      } else {
+        if(arr.length >= needMain){
+          alert(`Main numbers: pick exactly ${needMain}.`);
+          return;
+        }
+        arr.push(n);
+        btnEl.classList.add('sel');
+      }
+      rd.mainNums = arr;
+      renderSelected(rd, g);
+      saveState();
     }
-    rd.emojis = arr;
+  );
 
-    selEmojis.innerHTML = '';
-    arr.forEach(e => selEmojis.appendChild(pill(e)));
+  buildNumberGrid(
+    bonusGrid,
+    g.bonusMax,
+    (n) => rd.bonusNum === n,
+    (n, btnEl) => {
+      // single select
+      rd.bonusNum = (rd.bonusNum === n) ? null : n;
 
-    btnLock.disabled = true;
-    genBox.style.display = 'none';
-    matchBox.style.display = 'none';
-    saveState();
+      // refresh grid highlight
+      [...bonusGrid.querySelectorAll('.emojiBtn')].forEach(x => x.classList.remove('sel'));
+      if(rd.bonusNum != null) btnEl.classList.add('sel');
+
+      renderSelected(rd, g);
+      saveState();
+    }
+  );
+
+  renderSelected(rd, g);
+};
+
+// clear
+const clearPickNumbers = () => {
+  const { player, g } = cur();
+  const rd = getPickData(player);
+  rd.mainNums = [];
+  rd.bonusNum = null;
+  rd.pick = null;
+  rd.match = null;
+
+  renderPickNumbersUI();
+
+  // hide generated/match boxes if you use them
+  if (typeof genBox !== 'undefined') genBox.style.display = 'none';
+  if (typeof matchBox !== 'undefined') matchBox.style.display = 'none';
+
+  saveState();
+};
+
+btnClearPick?.addEventListener('click', clearPickNumbers);
+
+// confirm -> set rd.pick directly (NO random conversion)
+btnConfirmPick?.addEventListener('click', () => {
+  const { player, g } = cur();
+  const rd = getPickData(player);
+
+  const main = (rd.mainNums || []).slice().sort((a,b)=>a-b);
+  if(main.length !== (g.mainCount || 5) || rd.bonusNum == null){
+    alert('Complete your pick first.');
+    return;
+  }
+
+  rd.pick = {
+    main_numbers: main,
+    bonus_number: rd.bonusNum
   };
+
+  // render generated pick pills using your existing UI if present
+  if (typeof genPills !== 'undefined') {
+    genPills.innerHTML = '';
+    (rd.pick.main_numbers || []).forEach(n => genPills.appendChild(pill(n)));
+    genPills.appendChild(pill(`${g.bonusLabel} ${rd.pick.bonus_number}`, 'bonus'));
+  }
+  if (typeof genBox !== 'undefined') genBox.style.display = '';
+
+  // now user can lock in
+  if (typeof btnLock !== 'undefined') btnLock.disabled = false;
+
+  saveState();
+});
+
 
   // ---------- Turn rendering ----------
   const renderTurn = () => {
