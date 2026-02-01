@@ -191,11 +191,16 @@ Install check (2)
         </div>
 
         <div style="margin-top:10px;">
-          <div style="font-weight:900;">Selected emojis <span class="hint">(5 max)</span></div>
-          <div class="pillRow" id="selEmojis"></div>
+        <div class="hint">Your pick (select 5 + 1 bonus):</div>
+        <div class="pillRow" id="selNums"></div>
         </div>
 
-        <div class="gridEmoji" id="emojiGrid"></div>
+        <div class="hint">Main numbers</div>
+        <div class="gridNums" id="mainGrid"></div>
+
+        <div class="hint" style="margin-top:8px;">Bonus number</div>
+        <div class="gridNums" id="bonusGrid"></div>
+
 
         <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btnPrimary" id="btnGenerate" type="button">Generate</button>
