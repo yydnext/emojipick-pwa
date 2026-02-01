@@ -124,20 +124,10 @@
 </div>
 
 
-  <!-- ✅ 여기(바로 이 자리)에 추가 -->
-    <div style="margin-top:8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <div class="hint" id="seedTurnLabel" style="margin:0;"></div>
-      <div class="hint" id="seedCountLabel" style="margin:0;"></div>
-
-      <button class="btn" id="btnSeedNext" type="button">Next person</button>
-      <button class="btn" id="btnSeedClear" type="button">Clear seed</button>
-    </div>
-
   <div class="hint" id="seedHint" style="margin-top:6px;">
     Tip: Each person adds 1–2 emojis, then click “Next person”.
   </div>
 </div>
-Install check (2)
       <button class="btn" type="button" id="btnInstall" style="display:none;">Install</button>
       <div class="hint" id="iosInstallHint" style="display:none; margin-top:6px;">
       On iPhone/iPad: tap <b>Share</b> (↑) → <b>Add to Home Screen</b>.
@@ -516,6 +506,8 @@ const cur = () => {
   };
 
   const buildNumberGridsIfNeeded = () => {
+  if (!state) return; // guard: page loaded before party starts
+
     if (!mainGrid || !bonusGrid) return;
     const g = GAME[state.gameCode];
     if (!g) return;
@@ -1051,7 +1043,8 @@ const cur = () => {
   }
   playerCount.value = '4';
   renderNamesInputs();
-  renderEmojiGrid();
+  // renderEmojiGrid();  // (disabled) grid is rendered after Start Party
+
 
   // show resume if saved
   const saved = loadState();
