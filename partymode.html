@@ -705,37 +705,40 @@ const cur = () => {
   };
 
   // ---------- Leaderboard ----------
-  const buildRoundRanking = (roundIndex1based) => {
+  const formatPickLine = (pick, g) => {
+  if (!pick) return '—';
+  const main = (pick.main_numbers || []).join(' ');
+  const bonus = (pick.bonus_number === null || pick.bonus_number === undefined)
+    ? ''
+    : ` + ${g.bonusLabel} ${pick.bonus_number}`;
+  return `${main}${bonus}`.trim();
+};
+
+const buildRoundRanking = (roundIndex1based) => {
   const idx = roundIndex1based - 1;
   const g = GAME[state.gameCode] || { bonusLabel: 'Bonus' };
 
   const rows = state.players.map(p => {
     const round = (p.rounds && p.rounds[idx]) ? p.rounds[idx] : {};
     const m = round.match;
-
-    // pick 표시 문자열 (예: "13 24 35 47 55 + Powerball 15")
-    const pk = round.pick;
-    const pickStr = pk
-      ? `${(pk.main_numbers || []).join(' ')} + ${g.bonusLabel} ${pk.bonus_number}`
-      : '—';
+    const pickLine = formatPickLine(round.pick, g);
 
     return {
       name: p.name,
       score: m ? m.score : 0,
-      main: m ? (m.mainMatches ? m.mainMatches.length : 0) : 0,
+      main:  m ? m.mainMatches.length : 0,
       bonus: m ? (m.bonusMatch ? 1 : 0) : 0,
-      pick: pickStr
+      pick:  pickLine,
     };
-  }).sort((a, b) => {
+  }).sort((a,b)=>{
     if (b.score !== a.score) return b.score - a.score;
-    if (b.main !== a.main) return b.main - a.main;
+    if (b.main  !== a.main)  return b.main  - a.main;
     return b.bonus - a.bonus;
   });
 
   return rows;
 };
-
-  
+ 
   const buildTotalRanking = () => {
     const rows = state.players.map(p => ({ name:p.name, score: p.totalScore || 0 }))
       .sort((a,b)=> b.score - a.score);
