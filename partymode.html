@@ -815,6 +815,7 @@ const cur = () => {
                     <td class="mono">${esc(x.score)}</td>
                     <td>${esc(x.main)}</td>
                     <td>${x.bonus? '✅':'—'}</td>
+                    <td class="pickCell">${r.pick || '—'}</td>
                   </tr>
                 `).join('')}
               </tbody>
