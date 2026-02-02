@@ -819,7 +819,7 @@ const buildRoundRanking = (roundIndex1based) => {
                     <td class="mono">${esc(x.score)}</td>
                     <td>${esc(x.main)}</td>
                     <td>${x.bonus? '✅':'—'}</td>
-                    <td class="pickCell">${r.pick || '—'}</td>
+                    <td class="pickCell">${esc(x.pick || '—')}</td>
                   </tr>
                 `).join('')}
               </tbody>
