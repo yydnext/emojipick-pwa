@@ -1,61 +1,72 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-D63MJPZ47S"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-D63MJPZ47S');
-</script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EmojiPick • About</title>
-  <link rel="stylesheet" href="styles.v11.css?v=20260116v12" />
+  <title>EmojiPick — About</title>
+  <link rel="stylesheet" href="styles.v12.css" />
+  <style>
+    .pageWrap{max-width:980px;margin:22px auto;padding:0 16px;}
+    .card{background:#fff;border:1px solid #e9eef5;border-radius:18px;padding:18px;box-shadow:0 6px 18px rgba(0,0,0,.04);margin-bottom:14px;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
+    .btn{border:1px solid #d7e0ee;border-radius:14px;padding:10px 14px;background:#fff;cursor:pointer;font-weight:700;}
+    .btn:hover{background:#f7f9fd;}
+    .muted{color:#5b677a;}
+    h1{margin:8px 0 2px 0;}
+    h2{margin:0 0 10px 0;}
+    ul{margin:8px 0 0 18px;}
+  </style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div class="brand">
-        <div class="logo" aria-hidden="true">✨</div>
-        <div>
-          <div class="brandName">EmojiPick</div>
-          <div class="brandTag">Pick emojis → Get lucky numbers → Share &amp; challenge</div>
-        </div>
-      </div>
-      <div class="topActions">
-        <a class="chip" href="./index.html">Back</a>
-      </div>
-    </header>
+  <div class="pageWrap">
 
-    <section class="card" style="margin-top:14px">
-      <h2 style="margin:0 0 10px 0">What this is</h2>
-      <p style="margin:0 0 10px 0">
-        EmojiPick is a lightweight, just-for-fun tool that turns your emoji choices into a lottery-style number set.
-        It does not predict outcomes and is not affiliated with any lottery.
+    <div class="row" style="margin-bottom:12px;">
+      <div>
+        <div style="font-weight:900;font-size:20px;">EmojiPick</div>
+        <div class="muted">Pick emojis → Get lucky numbers → Share & challenge</div>
+      </div>
+      <div class="row">
+        <button class="btn" type="button" onclick="location.href='./index.html'">Back</button>
+        <button class="btn" type="button" onclick="location.href='./partymode.html'">Party Mode</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h1>About</h1>
+      <p>
+        <b>EmojiPick</b> is a fun <b>game simulation</b>. It does <b>not</b> use real lottery results and does <b>not</b> support real-money wagering.
+        You pick emojis (or numbers in Party Mode), the app generates simulated “winning numbers,” and you compare results for entertainment.
       </p>
-      <h3 style="margin:14px 0 8px 0">Key features</h3>
-      <ul style="margin:0; padding-left:18px">
-        <li>Generate a number set from 6 emojis</li>
-        <li>Save picks on this device (localStorage)</li>
-        <li>Share a link to your pick page</li>
-        <li>Compare against winning numbers (manual input)</li>
+      <p class="muted">
+        Reminder: This app is for fun only. Always play responsibly if you buy real lottery tickets.
+      </p>
+    </div>
+
+    <div class="card">
+      <h1>How to Play</h1>
+
+      <h2>Solo (Main screen)</h2>
+      <ul>
+        <li>Select a game (Powerball / Mega Millions / TX Instant demo).</li>
+        <li>Pick the required emojis.</li>
+        <li>The app generates lucky numbers for entertainment.</li>
+        <li>Use Compare to see differences, and save/share your picks.</li>
       </ul>
-      <h3 style="margin:14px 0 8px 0">Disclaimer</h3>
-      <p style="margin:0">
-        Lottery games involve risk. Please play responsibly and follow the laws in your area.
-      </p>
-    </section>
 
-    <footer class="footer" style="margin-top:18px">
-      <div class="footerLinks">
-        <a href="./privacy.html">Privacy policy</a>
-        <a href="./terms.html">Terms and Conditions</a>
-      </div>
-      <div class="footerCopy">Build v26</div>
-    </footer>
+      <h2>Party Mode (Same device)</h2>
+      <ul>
+        <li>Open <b>Party Mode</b> and choose a game and number of players.</li>
+        <li>Enter player names (optional).</li>
+        <li>(Optional) Add a <b>Winning seed</b> so the group “creates” the winning numbers together.</li>
+        <li>Tap <b>Start Party</b>. Each player takes a turn selecting numbers, then taps <b>Confirm</b> → <b>Lock in</b>.</li>
+        <li>After all rounds finish, check the <b>Leaderboard</b> for winners, round results, and each player’s pick.</li>
+      </ul>
+
+      <p class="muted">
+        Scoring example: main matches × 10 + bonus match × 5 (per round).
+      </p>
+    </div>
+
   </div>
 </body>
 </html>
