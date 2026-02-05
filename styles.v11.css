@@ -414,7 +414,6 @@ body{
 }
 .logo, .brandLogo { width: 28px !important; height: 28px !important; }
 /* TEMP TEST - remove later */
-.topbar { outline: 3px solid red !important; }
 
 /* ===== Header compact (override) ===== */
 .topbar{
@@ -448,4 +447,43 @@ body{
 /* reduce any extra top whitespace if exists */
 .page{
   padding-top: 10px !important;
+}
+/* ===== Header: compact + better alignment ===== */
+.topbar{
+  padding: 6px 10px !important;
+  gap: 10px !important;
+
+  /* 핵심: 타이틀이 멀리 도망가서 공간이 커보이는 느낌을 줄임 */
+  justify-content: flex-start !important;
+  align-items: center !important;
+}
+
+/* 로고+텍스트 덩어리 */
+.brand{
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* 로고 크기 축소 */
+.logo{
+  width: 28px !important;
+  height: 28px !important;
+}
+
+/* 타이틀/태그 라인 간격 축소 */
+.brandName{
+  font-size: 18px !important;
+  line-height: 1.1 !important;
+  margin: 0 !important;
+}
+.brandTag{
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  margin-top: 2px !important;
+}
+
+/* 혹시 header에 불필요한 최소높이가 있으면 제거 */
+.topbar, .brand{
+  min-height: 0 !important;
 }
