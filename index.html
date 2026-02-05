@@ -28,68 +28,6 @@
     } catch (e) {}
   };
 </script>
-<!-- 결과 카드 영역 예시 -->
-<div id="resultCard" class="card">
-  ...
-</div>
-function yyyymmdd() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-async function copyAsTicket() {
-  const el = document.querySelector("#resultCard");
-  if (!el) {
-    alert("Ticket capture target (#resultCard) not found.");
-    return;
-  }
-
-  // 버튼이 화면에서 사라지게(캡처에 버튼이 들어가지 않도록)
-  // 필요하면 el 안의 특정 버튼 영역을 잠깐 숨겨도 됩니다.
-  const canvas = await html2canvas(el, {
-    backgroundColor: "#ffffff",
-    scale: 2,
-    useCORS: true
-  });
-
-  // 1) PNG 다운로드
-  canvas.toBlob(async (blob) => {
-    if (!blob) return;
-
-    const filename = `EmojiPick-ticket-${yyyymmdd()}.png`;
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-
-    // 2) (가능하면) 클립보드에 이미지 복사
-    // 크롬/엣지 일부 환경에서만 동작합니다.
-    try {
-      if (navigator.clipboard && window.ClipboardItem) {
-        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-        // 원하면 토스트/알림 표시
-        // alert("Ticket image copied to clipboard!");
-      }
-    } catch (e) {
-      // 클립보드 복사는 환경에 따라 실패가 정상입니다.
-      // 다운로드는 이미 완료되었으니 조용히 무시해도 됩니다.
-      console.log("Clipboard copy skipped:", e);
-    }
-  }, "image/png");
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.querySelector("#btnCopyTicket");
-  if (btn) btn.addEventListener("click", copyAsTicket);
-});
 
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
