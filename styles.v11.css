@@ -413,3 +413,5 @@ body{
   line-height:1.1;             /* ✅ 태그 줄간격 줄임 */
 }
 .logo, .brandLogo { width: 28px !important; height: 28px !important; }
+/* TEMP TEST - remove later */
+.topbar { outline: 3px solid red !important; }
