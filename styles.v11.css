@@ -415,3 +415,37 @@ body{
 .logo, .brandLogo { width: 28px !important; height: 28px !important; }
 /* TEMP TEST - remove later */
 .topbar { outline: 3px solid red !important; }
+
+/* ===== Header compact (override) ===== */
+.topbar{
+  padding: 6px 10px !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+.brand{
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.logo{
+  width: 28px !important;
+  height: 28px !important;
+  display: inline-block !important;
+}
+
+/* title block spacing */
+.brandName{
+  font-size: 18px !important;
+  line-height: 1.1 !important;
+  margin: 0 !important;
+}
+.brandTag{
+  margin-top: 2px !important;
+  line-height: 1.2 !important;
+}
+
+/* reduce any extra top whitespace if exists */
+.page{
+  padding-top: 10px !important;
+}
