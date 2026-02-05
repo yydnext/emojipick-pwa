@@ -31,7 +31,7 @@ body{
   /* 핵심: brand는 왼쪽, 버튼은 오른쪽 */
   justify-content:flex-start;
 
-  padding:8px 12px;
+  padding:6px 10px;
   margin:0 auto;
   max-width:980px;
 }
