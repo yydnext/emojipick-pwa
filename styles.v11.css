@@ -27,14 +27,15 @@ body{
   align-items:center;
   justify-content:flex-start;   /* ✅ space-between 제거 */
   gap:12px;
-  padding:6px 10px;
+  padding:8px 12px;
 }
 
 /* ✅ 브랜드(로고+텍스트) 세로정렬도 중앙으로 */
 .brand{
   display:flex;
   align-items:center;           /* flex-start -> center */
-  gap:8px;
+  gap:10px;
+  min-height:36px;  
 }
 
 /* ✅ 버튼 묶음만 오른쪽 끝으로 밀기 */
@@ -43,6 +44,15 @@ body{
 }
 
 /* .logo{width:28px;height:28px;border-radius:12px;display:grid;place-items:center;background:rgba(15,23,42,.06);box-shadow:var(--shadow)} */
+.logo{
+  width:28px;                  /* ✅ 로고 영역 고정 */
+  height:28px;
+  border-radius:8px;
+  display:grid;
+  place-items:center;
+  background:transparent !important;
+  line-height:1;
+}
 .logo { background: none !important; }
 .brandName{font-weight:800;letter-spacing:.2px;font-size:18px}
 .brandTag{color:var(--muted);font-size:11px;margin-top:1.15px}
@@ -365,6 +375,16 @@ body{
 /* Compact header (index topbar) */
 .topbar { padding: 10px 14px !important; align-items: center !important; }
 .brand { align-items: center !important; gap: 10px !important; }
-.brandName { line-height: 1.1 !important; font-size: 18px !important; margin: 0 !important; }
-.brandTag { margin-top: 2px !important; font-size: 12px !important; line-height: 1.2 !important; }
+.brandName{
+  font-weight:800;
+  letter-spacing:.2px;
+  font-size:18px;
+  line-height:1.05;            /* ✅ 제목 줄간격 줄임 */
+}
+.brandTag{
+  color:var(--muted);
+  font-size:12px;
+  margin-top:2px;
+  line-height:1.1;             /* ✅ 태그 줄간격 줄임 */
+}
 .logo, .brandLogo { width: 28px !important; height: 28px !important; }
