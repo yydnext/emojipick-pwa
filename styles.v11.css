@@ -26,30 +26,18 @@ body{
 .topbar{
   display:flex;
   align-items:center;
+  justify-content:space-between;
   gap:12px;
-
-  /* 핵심: brand는 왼쪽, 버튼은 오른쪽 */
-  justify-content:flex-start;
-
-  padding:6px 10px;
-  margin:0 auto;
-  max-width:980px;
+  padding:6px 10px;     /* ✅ 위/아래 여백 줄임 */
 }
 
-.brand{
-  display:flex;
-  align-items:center;      /* 핵심: flex-start 금지 */
-  gap:10px;
-  min-width:0;
-}
+.brand{display:flex;align-items:center;gap:10px}
 
 .logo{
-  width:32px;
-  height:32px;
-  border-radius:10px;
+  background:none !important;
+  width:28px;
+  height:28px;
   display:block;
-  flex:0 0 auto;
-  background:transparent !important;
 }
 
 .brandText{
