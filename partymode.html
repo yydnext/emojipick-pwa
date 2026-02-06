@@ -185,14 +185,6 @@
     appId: "..."
   };
 
-  // 중복 초기화 방지(안전장치)
-  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-
-  // party mode가 쓰는 전역 db 제공
-  window.db = firebase.firestore();
-  window.__FIREBASE_READY__ = true;
-</script>
-
 <!-- 3) Party mode 로직: 맨 마지막 -->
 <script src="./partymode.v1.js?v=20260205v03"></script>
 
