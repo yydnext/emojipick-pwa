@@ -12,19 +12,6 @@ if (!db) {
 //  - window.db
 // If neither exists, we show a clear error.
 
-import {
-  getFirestore,
-  doc, setDoc, getDoc, updateDoc,
-  collection, addDoc, serverTimestamp,
-  query, onSnapshot, orderBy,
-  getDocs
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-import {
-  getAuth, signInAnonymously
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-
-import { getApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 
 /* ------------------ Utilities ------------------ */
 
