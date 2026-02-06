@@ -167,21 +167,15 @@
 
    <!-- Firebase (compat) -->
 
- <script>
-  firebase.initializeApp(firebaseConfig);
-  window.db = firebase.firestore();
-</script>
-
 </script>
 
   <!-- Party mode logic -->
-
-  <!-- Firebase compat -->
+<!-- 1) Firebase compat 라이브러리: 먼저 로드 -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
+<!-- 2) firebaseConfig + initialize: 라이브러리 다음에 실행 -->
 <script>
-  // ✅ 여기에는 Firebase 콘솔에서 복사한 config를 그대로 붙여넣으세요
   const firebaseConfig = {
     apiKey: "...",
     authDomain: "...",
@@ -191,13 +185,15 @@
     appId: "..."
   };
 
-  // ✅ 핵심: DEFAULT 앱 생성 + db 전역 제공
-  firebase.initializeApp(firebaseConfig);
+  // 중복 초기화 방지(안전장치)
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+
+  // party mode가 쓰는 전역 db 제공
   window.db = firebase.firestore();
   window.__FIREBASE_READY__ = true;
 </script>
 
-<!-- Party mode logic (⚠️ module 붙이지 마세요) -->
+<!-- 3) Party mode 로직: 맨 마지막 -->
 <script src="./partymode.v1.js?v=20260205v03"></script>
 
 </body>
