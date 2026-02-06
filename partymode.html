@@ -161,7 +161,7 @@
   -->
 
   <!-- If your firebase init is in app.v11.js and it exposes window.db or similar, keep this. -->
-  <script src="./app.v11.js?v=20260205v03"></script>
+
    <!-- Firebase (compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/"></script>
@@ -173,6 +173,30 @@
 
   <!-- Party mode logic -->
   <script type="module" src="./partymode.v1.js?v=20260205v03"></script>
- 
+
+  <!-- Firebase compat -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+<script>
+  // ✅ 여기에는 Firebase 콘솔에서 복사한 config를 그대로 붙여넣으세요
+  const firebaseConfig = {
+    apiKey: "...",
+    authDomain: "...",
+    projectId: "...",
+    storageBucket: "...",
+    messagingSenderId: "...",
+    appId: "..."
+  };
+
+  // ✅ 핵심: DEFAULT 앱 생성 + db 전역 제공
+  firebase.initializeApp(firebaseConfig);
+  window.db = firebase.firestore();
+  window.__FIREBASE_READY__ = true;
+</script>
+
+<!-- Party mode logic (⚠️ module 붙이지 마세요) -->
+<script src="./partymode.v1.js?v=20260205v03"></script>
+
 </body>
 </html>
