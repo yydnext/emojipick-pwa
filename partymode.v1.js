@@ -1,3 +1,9 @@
+const db = window.db;
+if (!db) {
+  alert("Firebase not ready. Check partymode.html firebase init.");
+  throw new Error("Firebase not ready");
+}
+
 // partymode.v1.js
 // Assumption: you have Firebase initialized somewhere accessible.
 // BEST practice: create a dedicated firebase module that exports { db, auth }.
