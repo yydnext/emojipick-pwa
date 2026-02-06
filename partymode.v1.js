@@ -107,12 +107,12 @@ function renderEmojiGrid(selected, onToggle) {
 /* ------------------ Firebase Bootstrap ------------------ */
 
 function getDbAuth() {
-  // If you already initialized Firebase app elsewhere, this will work:
-  const app = getApp(); // throws if not initialized
-  const db = getFirestore(app);
-  const auth = getAuth(app);
-  return { db, auth };
+  // compat 방식: partymode.html에서 firebase.initializeApp + window.db 세팅이 끝나 있어야 함
+  const db = window.db;
+  if (!db) throw new Error("Firebase not ready: window.db is missing. Check partymode.html init order.");
+  return { db, auth: null }; // auth는 지금 안 씀
 }
+
 
 /* ------------------ Party State ------------------ */
 
