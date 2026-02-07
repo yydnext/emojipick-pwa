@@ -167,14 +167,15 @@
 
    <!-- Firebase (compat) -->
 
-</script>
-
   <!-- Party mode logic -->
 <!-- 1) Firebase compat 라이브러리: 먼저 로드 -->
+<!-- Party mode logic -->
+
+<!-- 1) Firebase compat: 딱 1번만 -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
-<!-- 2) firebaseConfig + initialize: 라이브러리 다음에 실행 -->
+<!-- 2) Firebase init: 딱 1번만 -->
 <script>
   const firebaseConfig = {
     apiKey: "...",
@@ -185,8 +186,14 @@
     appId: "..."
   };
 
-<!-- 3) Party mode 로직: 맨 마지막 -->
+  firebase.initializeApp(firebaseConfig);
+  window.db = firebase.firestore();
+  window.__FIREBASE_READY__ = true;
+</script>
+
+<!-- 3) Party mode JS: 마지막에 -->
 <script src="./partymode.v1.js?v=20260205v03"></script>
+
 
 </body>
 </html>
