@@ -1,400 +1,478 @@
-// partymode.v1.js (compat-only, no module imports)
-// Works with firebase-app-compat.js + firebase-firestore-compat.js already loaded in partymode.html
+// partymode.v1.js (compat-only)
+// Requires:
+//   https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js
+//   https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js
+//
+// This file is SELF-CONTAINED:
+// - If firebase is not initialized yet, it will initialize using global `firebaseConfig` (if present).
+// - It will expose `window.db` (Firestore) for other scripts.
+// - It logs key steps so you can verify clicks/Firestore writes in DevTools.
+//
+// Notes:
+// - This file intentionally uses ONLY Firestore "compat" API (db.collection(...)).
 
 (() => {
   'use strict';
 
   const $ = (id) => document.getElementById(id);
 
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    }[c]));
+  // ---------- Small UI helpers ----------
+  function ensureInlineErrorBox() {
+    let el = $('errEntry');
+    if (!el) {
+      // Create a small error box under the buttons if it doesn't exist.
+      const host = $('viewEntry') || document.body;
+      el = document.createElement('div');
+      el.id = 'errEntry';
+      el.style.marginTop = '10px';
+      el.style.fontSize = '12px';
+      el.style.color = '#b00020';
+      el.style.whiteSpace = 'pre-wrap';
+      el.hidden = true;
+      host.appendChild(el);
+    }
+    return el;
   }
 
-  function setYear() {
-    const el = $("year");
-    if (el) el.textContent = String(new Date().getFullYear());
+  function setEntryError(msg) {
+    const el = ensureInlineErrorBox();
+    if (!msg) {
+      el.hidden = true;
+      el.textContent = '';
+      return;
+    }
+    el.hidden = false;
+    el.textContent = String(msg);
   }
 
   function showView(name) {
-    const views = ["viewEntry", "viewLobby", "viewPick", "viewResult"];
+    const views = ['viewEntry', 'viewLobby', 'viewPick', 'viewResult'];
     for (const v of views) {
       const el = $(v);
       if (el) el.hidden = (v !== name);
     }
-    if (name === "viewPick") buildPickGrid();
   }
 
-  function normalizeCode(s) {
-    return (s || "")
-      .toUpperCase()
-      .trim()
-      .replace(/[^A-Z0-9]/g, "")
-      .slice(0, 8);
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
   }
 
   function randCode(len = 4) {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let out = "";
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let out = '';
     for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
     return out;
   }
 
-  function randId(len = 12) {
-    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-    let out = "";
-    for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
-    return out;
-  }
-
-  function setEntryError(msg) {
-    const el = $("errEntry");
-    if (!el) return;
-    el.textContent = msg || "";
-    el.hidden = !msg;
-  }
-
-  // -------------------- State --------------------
-  let db = null;
-  let roomCode = "";
-  let playerId = "";
-  let isHost = false;
-
-  let unsubRoom = null;
-  let unsubPlayers = null;
-
-  // -------------------- UI bindings --------------------
-  function bindUI() {
-    const btnCreate = $("btnCreateRoom");
-    const btnJoin = $("btnJoinRoom");
-
-    if (btnCreate) btnCreate.addEventListener("click", () => void createRoom());
-    if (btnJoin) btnJoin.addEventListener("click", () => void joinRoom());
-
-    const btnCopyInvite = $("btnCopyInvite");
-    if (btnCopyInvite) btnCopyInvite.addEventListener("click", () => void copyInviteLink());
-
-    const btnStart = $("btnStart");
-    if (btnStart) btnStart.addEventListener("click", () => void startGame());
-
-    const btnGoPick = $("btnGoPick");
-    if (btnGoPick) btnGoPick.addEventListener("click", () => showView("viewPick"));
-
-    const btnBackToLobby = $("btnBackToLobby");
-    if (btnBackToLobby) btnBackToLobby.addEventListener("click", () => showView("viewLobby"));
-
-    const btnSubmitPick = $("btnSubmitPick");
-    if (btnSubmitPick) btnSubmitPick.addEventListener("click", () => void submitPick());
-
-    const btnCopyPartyLink = $("btnCopyPartyLink");
-    if (btnCopyPartyLink) btnCopyPartyLink.addEventListener("click", () => void copyInviteLink());
-
-    const btnCopyTicketParty = $("btnCopyTicketParty");
-    if (btnCopyTicketParty) btnCopyTicketParty.addEventListener("click", () => void copyTicketText());
-
-    // If URL has ?room=XXXX, prefill entry
-    const url = new URL(location.href);
-    const code = normalizeCode(url.searchParams.get("room"));
-    if (code && $("inpRoomCode")) $("inpRoomCode").value = code;
-  }
-
-  function setRoomLabels(code) {
-    const a = $("lblRoomCode");
-    const b = $("lblRoomCode2");
-    const c = $("lblRoomCode3");
-    if (a) a.textContent = code;
-    if (b) b.textContent = code;
-    if (c) c.textContent = code;
-
-    const invite = $("inviteLink");
-    if (invite) {
-      invite.value = `${location.origin}${location.pathname}?room=${encodeURIComponent(code)}`;
-    }
-  }
-
-  function renderPlayers(docs) {
-    const el = $("playerList");
-    if (!el) return;
-    const html = docs.length
-      ? docs.map((p) => `<div class="pill">${escapeHtml(p.name || "Player")}${p.isHost ? " (Host)" : ""}</div>`).join("")
-      : `<div class="micro">No players yet.</div>`;
-    el.innerHTML = html;
-  }
-
-  function cleanupListeners() {
-    try { if (unsubRoom) unsubRoom(); } catch {}
-    try { if (unsubPlayers) unsubPlayers(); } catch {}
-    unsubRoom = null;
-    unsubPlayers = null;
-  }
-
-  function attachListeners() {
-    cleanupListeners();
-    if (!roomCode) return;
-
-    const roomRef = db.collection("rooms").doc(roomCode);
-
-    unsubRoom = roomRef.onSnapshot(
-      (snap) => {
-        const data = snap.data() || {};
-        if ($("selGame") && data.game) $("selGame").value = data.game;
-
-        // move views by status
-        if (data.status === "picking") showView("viewPick");
-        if (data.status === "result") showView("viewResult");
-
-        // Optional: show "partyNumbers" if exists
-        const pn = $("partyNumbers");
-        if (pn && data.partyNumbers) {
-          pn.textContent = Array.isArray(data.partyNumbers) ? data.partyNumbers.join(", ") : String(data.partyNumbers);
-        }
-        const pf = $("partyFortune");
-        if (pf && data.partyFortune) pf.textContent = String(data.partyFortune);
-      },
-      (err) => console.error("[PartyMode] room snapshot error:", err)
-    );
-
-    unsubPlayers = roomRef
-      .collection("players")
-      .orderBy("joinedAt")
-      .onSnapshot(
-        (qs) => {
-          const arr = [];
-          qs.forEach((d) => arr.push(d.data() || {}));
-          renderPlayers(arr);
-        },
-        (err) => console.error("[PartyMode] players snapshot error:", err)
+  // ---------- Firebase bootstrap (compat) ----------
+  function ensureFirestore() {
+    if (!window.firebase || !window.firebase.firestore) {
+      throw new Error(
+        'Firebase compat scripts are not loaded. ' +
+        'Make sure firebase-app-compat.js and firebase-firestore-compat.js are included before partymode.v1.js.'
       );
-  }
-
-  function enterLobby() {
-    setRoomLabels(roomCode);
-
-    const btnStart = $("btnStart");
-    if (btnStart) {
-      btnStart.disabled = !isHost;
-      btnStart.title = isHost ? "" : "Only the host can start.";
     }
 
-    showView("viewLobby");
-    attachListeners();
+    // Initialize app if needed (ONLY if firebaseConfig exists in global scope)
+    try {
+      const apps = window.firebase.apps || [];
+      if (apps.length === 0) {
+        // firebaseConfig might be defined in an inline <script> in the HTML
+        // (global lexical env). Access via identifier.
+        if (typeof firebaseConfig === 'undefined') {
+          throw new Error('firebaseConfig is not defined in partymode.html.');
+        }
+        window.firebase.initializeApp(firebaseConfig);
+      }
+    } catch (e) {
+      // If app already initialized, ignore duplicates
+      const msg = String(e && (e.message || e));
+      if (!/already exists|already been initialized|duplicate app/i.test(msg)) {
+        throw e;
+      }
+    }
+
+    // Ensure Firestore instance is available
+    if (!window.db) window.db = window.firebase.firestore();
+    return window.db;
   }
 
-  // -------------------- Firestore actions --------------------
-  async function createRoom() {
-    try {
-      setEntryError("");
+  // ---------- State ----------
+  const state = {
+    roomCode: null,
+    playerName: null,
+    isHost: false,
+    unsubRoom: null,
+    unsubPlayers: null,
+    selected: new Set(), // emoji picks
+    totalToPick: 6,      // default
+  };
 
-      const name = ($("inpName")?.value || "").trim() || "Host";
-      const game = $("selGame")?.value || "powerball";
+  // ---------- Rendering ----------
+  function renderPlayers(players) {
+    const box = $('playerList');
+    if (!box) return;
+    if (!players.length) {
+      box.innerHTML = '<div class="micro">No players yet.</div>';
+      return;
+    }
+    box.innerHTML = players
+      .map((p) => `<div class="chip">${escapeHtml(p.name || p.id || 'Player')}</div>`)
+      .join(' ');
+  }
 
-      // Generate unique room code (doc id = roomCode)
-      let code = "";
-      for (let i = 0; i < 30; i++) {
-        const candidate = randCode(4);
-        const snap = await db.collection("rooms").doc(candidate).get();
-        if (!snap.exists) { code = candidate; break; }
+  function setRoomCodeLabels(code) {
+    const a = $('lblRoomCode');
+    const b = $('lblRoomCode2');
+    if (a) a.textContent = code || '';
+    if (b) b.textContent = code || '';
+  }
+
+  function buildPickGrid() {
+    const grid = $('emojiGridParty');
+    if (!grid) return;
+
+    // A small, safe emoji pool (you can expand later)
+    const EMOJIS = [
+      '😀','😅','😍','😎','🤩','🤖','👻','💩','🔥','🌈','⭐','🍀',
+      '🍕','🍔','🍣','🍰','🍩','🍎','🍉','🍇','⚽','🏀','🎾','🎲',
+      '🎯','🎵','🎸','🚗','✈️','🚀','🏠','📱','💡','🧠','💰','🔑'
+    ];
+
+    grid.innerHTML = '';
+    for (const e of EMOJIS) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip';
+      btn.style.fontSize = '22px';
+      btn.style.padding = '10px';
+      btn.textContent = e;
+      btn.addEventListener('click', () => togglePick(e, btn));
+      grid.appendChild(btn);
+    }
+    updatePickedCount();
+  }
+
+  function togglePick(emoji, btn) {
+    if (state.selected.has(emoji)) {
+      state.selected.delete(emoji);
+      btn.style.outline = '';
+    } else {
+      if (state.selected.size >= state.totalToPick) return;
+      state.selected.add(emoji);
+      btn.style.outline = '2px solid rgba(124, 58, 237, 0.9)';
+    }
+    updatePickedCount();
+  }
+
+  function updatePickedCount() {
+    const el = $('pickedCount');
+    if (el) el.textContent = String(state.selected.size);
+  }
+
+  function resetPicks() {
+    state.selected.clear();
+    buildPickGrid();
+  }
+
+  // ---------- Firestore subscriptions ----------
+  async function subscribeRoom(code) {
+    const db = ensureFirestore();
+
+    // Cleanup old listeners
+    if (state.unsubRoom) { try { state.unsubRoom(); } catch {} state.unsubRoom = null; }
+    if (state.unsubPlayers) { try { state.unsubPlayers(); } catch {} state.unsubPlayers = null; }
+
+    const roomRef = db.collection('rooms').doc(code);
+
+    state.unsubRoom = roomRef.onSnapshot((snap) => {
+      if (!snap.exists) {
+        console.warn('[PartyMode] room missing:', code);
+        setEntryError('Room not found (it may have expired).');
+        showView('viewEntry');
+        return;
       }
-      if (!code) throw new Error("Could not generate a unique room code. Try again.");
+      const data = snap.data() || {};
+      // Drive views by status
+      const status = data.status || 'lobby'; // lobby | picking | result
+      if (status === 'lobby') showView('viewLobby');
+      if (status === 'picking') {
+        showView('viewPick');
+        buildPickGrid();
+      }
+      if (status === 'result') showView('viewResult');
 
-      roomCode = code;
-      playerId = randId(14);
-      isHost = true;
+      // Host can change game selection
+      const selGame = $('selGame');
+      if (selGame && data.game) selGame.value = data.game;
 
-      const roomRef = db.collection("rooms").doc(roomCode);
+      // Update result view placeholders if present
+      const partyNumbers = $('partyNumbers');
+      if (partyNumbers && data.resultText) partyNumbers.textContent = data.resultText;
 
+      console.log('[PartyMode] room snapshot:', code, { status, game: data.game });
+    }, (err) => {
+      console.error('[PartyMode] room onSnapshot error:', err);
+      alert('Room listener error: ' + (err?.message || err));
+    });
+
+    state.unsubPlayers = roomRef.collection('players').onSnapshot((qs) => {
+      const players = [];
+      qs.forEach((d) => players.push({ id: d.id, ...(d.data() || {}) }));
+      renderPlayers(players);
+
+      const submitted = players.filter(p => p.submitted).length;
+      const total = players.length;
+      const a = $('lblSubmitted'); if (a) a.textContent = String(submitted);
+      const b = $('lblTotal'); if (b) b.textContent = String(total);
+
+      console.log('[PartyMode] players snapshot:', players.length, 'submitted', submitted);
+    }, (err) => {
+      console.error('[PartyMode] players onSnapshot error:', err);
+      alert('Players listener error: ' + (err?.message || err));
+    });
+  }
+
+  // ---------- Actions ----------
+  async function createRoom() {
+    setEntryError('');
+    console.log('[PartyMode] createRoom() clicked');
+
+    const name = ($('inpName')?.value || '').trim();
+    if (!name) {
+      setEntryError('Please enter your name first.');
+      $('inpName')?.focus();
+      return;
+    }
+
+    const db = ensureFirestore();
+
+    // Generate room code, try a few times if collision
+    let code = null;
+    for (let i = 0; i < 10; i++) {
+      const c = randCode(4);
+      const ref = db.collection('rooms').doc(c);
+      const snap = await ref.get();
+      if (!snap.exists) { code = c; break; }
+    }
+    if (!code) throw new Error('Could not generate a unique room code. Try again.');
+
+    state.roomCode = code;
+    state.playerName = name;
+    state.isHost = true;
+    setRoomCodeLabels(code);
+
+    const roomRef = db.collection('rooms').doc(code);
+    const now = window.firebase.firestore.FieldValue.serverTimestamp();
+
+    try {
       await roomRef.set({
-        code: roomCode,
-        game,
-        status: "lobby",
-        createdAt: Date.now(),
-        hostPlayerId: playerId,
-      });
+        createdAt: now,
+        host: name,
+        status: 'lobby',
+        game: 'pb',
+      }, { merge: true });
 
-      await roomRef.collection("players").doc(playerId).set({
-        playerId,
+      await roomRef.collection('players').doc(name).set({
         name,
         isHost: true,
-        joinedAt: Date.now(),
-      });
+        joinedAt: now,
+        submitted: false,
+      }, { merge: true });
 
-      console.log("[PartyMode] Room created:", roomCode);
-      enterLobby();
+      console.log('[PartyMode] room created:', code);
+      showView('viewLobby');
+      await subscribeRoom(code);
+
     } catch (err) {
-      console.error("[PartyMode] createRoom error:", err);
+      console.error('[PartyMode] createRoom error:', err);
       setEntryError(err?.message || String(err));
+      alert('Create room failed: ' + (err?.message || err));
     }
   }
 
   async function joinRoom() {
+    setEntryError('');
+    console.log('[PartyMode] joinRoom() clicked');
+
+    const code = ($('inpRoomCode')?.value || '').trim().toUpperCase();
+    const name = ($('inpName')?.value || '').trim();
+    if (!code) { setEntryError('Please enter a room code.'); $('inpRoomCode')?.focus(); return; }
+    if (!name) { setEntryError('Please enter your name.'); $('inpName')?.focus(); return; }
+
+    const db = ensureFirestore();
+    const roomRef = db.collection('rooms').doc(code);
+
     try {
-      setEntryError("");
-
-      const code = normalizeCode($("inpRoomCode")?.value);
-      if (!code) throw new Error("Enter a room code.");
-      const name = ($("inpName")?.value || "").trim() || "Guest";
-
-      const roomRef = db.collection("rooms").doc(code);
       const snap = await roomRef.get();
-      if (!snap.exists) throw new Error("Room not found. Check the code.");
+      if (!snap.exists) {
+        setEntryError('Room not found. Check the code and try again.');
+        return;
+      }
 
-      const data = snap.data() || {};
+      state.roomCode = code;
+      state.playerName = name;
+      state.isHost = false;
+      setRoomCodeLabels(code);
 
-      roomCode = code;
-      playerId = randId(14);
-      isHost = false;
-
-      await roomRef.collection("players").doc(playerId).set({
-        playerId,
+      const now = window.firebase.firestore.FieldValue.serverTimestamp();
+      await roomRef.collection('players').doc(name).set({
         name,
         isHost: false,
-        joinedAt: Date.now(),
-      });
+        joinedAt: now,
+        submitted: false,
+      }, { merge: true });
 
-      console.log("[PartyMode] Joined room:", roomCode);
-      enterLobby();
+      console.log('[PartyMode] joined room:', code, 'as', name);
+      showView('viewLobby');
+      await subscribeRoom(code);
 
-      // If already started, follow status
-      if (data.status === "picking") showView("viewPick");
-      if (data.status === "result") showView("viewResult");
     } catch (err) {
-      console.error("[PartyMode] joinRoom error:", err);
+      console.error('[PartyMode] joinRoom error:', err);
       setEntryError(err?.message || String(err));
+      alert('Join room failed: ' + (err?.message || err));
     }
   }
 
   async function startGame() {
-    if (!isHost || !roomCode) return;
+    console.log('[PartyMode] startGame() clicked');
+    if (!state.roomCode) return;
+    if (!state.isHost) { alert('Only the host can start the game.'); return; }
+
+    const db = ensureFirestore();
+    const roomRef = db.collection('rooms').doc(state.roomCode);
+    const game = $('selGame')?.value || 'pb';
+
     try {
-      const game = $("selGame")?.value || "powerball";
-      await db.collection("rooms").doc(roomCode).update({
-        game,
-        status: "picking",
-        startedAt: Date.now(),
-      });
-      console.log("[PartyMode] Game started:", roomCode, game);
+      await roomRef.set({ status: 'picking', game }, { merge: true });
+      console.log('[PartyMode] game started:', game);
     } catch (err) {
-      console.error("[PartyMode] startGame error:", err);
-      alert("Start failed: " + (err?.message || String(err)));
+      console.error('[PartyMode] startGame error:', err);
+      alert('Start failed: ' + (err?.message || err));
     }
-  }
-
-  // -------------------- Picking (simple) --------------------
-  const pickState = { selected: new Set(), max: 6, maxNumber: 69 };
-
-  function getGameSpec() {
-    const game = $("selGame")?.value || "powerball";
-    if (game === "mega") return { maxNumber: 70, maxPick: 6 };
-    return { maxNumber: 69, maxPick: 6 };
-  }
-
-  function buildPickGrid() {
-    const grid = $("pickGrid");
-    if (!grid) return;
-
-    const spec = getGameSpec();
-    pickState.max = spec.maxPick;
-    pickState.maxNumber = spec.maxNumber;
-    pickState.selected.clear();
-
-    grid.innerHTML = "";
-    for (let i = 1; i <= spec.maxNumber; i++) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "num";
-      b.textContent = String(i);
-      b.addEventListener("click", () => togglePick(i, b));
-      grid.appendChild(b);
-    }
-    updatePickInstr();
-  }
-
-  function togglePick(n, btn) {
-    if (pickState.selected.has(n)) {
-      pickState.selected.delete(n);
-      btn.classList.remove("on");
-    } else {
-      if (pickState.selected.size >= pickState.max) return;
-      pickState.selected.add(n);
-      btn.classList.add("on");
-    }
-    updatePickInstr();
-  }
-
-  function updatePickInstr() {
-    const el = $("pickInstr");
-    if (el) el.textContent = `Pick ${pickState.max} numbers (${pickState.selected.size}/${pickState.max}).`;
-    const btn = $("btnSubmitPick");
-    if (btn) btn.disabled = (pickState.selected.size !== pickState.max);
   }
 
   async function submitPick() {
-    if (!roomCode || !playerId) return;
-    if (pickState.selected.size !== pickState.max) return;
+    console.log('[PartyMode] submitPick() clicked');
+    if (!state.roomCode) return;
 
-    try {
-      const pick = Array.from(pickState.selected).sort((a, b) => a - b);
-      await db.collection("rooms").doc(roomCode).collection("players").doc(playerId).update({
-        pick,
-        pickedAt: Date.now(),
-      });
-      alert("Pick submitted!");
-      showView("viewLobby");
-    } catch (err) {
-      console.error("[PartyMode] submitPick error:", err);
-      alert("Submit failed: " + (err?.message || String(err)));
-    }
-  }
-
-  // -------------------- Clipboard helpers --------------------
-  async function copyText(text, fallbackEl) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      // fallback
-      if (fallbackEl && fallbackEl.select) {
-        fallbackEl.focus();
-        fallbackEl.select();
-        document.execCommand("copy");
-        return true;
-      }
-      return false;
-    }
-  }
-
-  async function copyInviteLink() {
-    const linkEl = $("inviteLink");
-    const link = linkEl?.value || `${location.origin}${location.pathname}?room=${encodeURIComponent(roomCode || "")}`;
-    const ok = await copyText(link, linkEl);
-    if (ok) alert("Invite link copied!");
-  }
-
-  async function copyTicketText() {
-    const text = $("ticketTextParty")?.textContent || "";
-    if (!text) return;
-    const ok = await copyText(text, null);
-    if (ok) alert("Ticket text copied!");
-  }
-
-  // -------------------- Boot --------------------
-  document.addEventListener("DOMContentLoaded", () => {
-    setYear();
-
-    db = window.db;
-    if (!db) {
-      console.error("[PartyMode] window.db is missing. Check Firebase init order in partymode.html.");
-      setEntryError("Firebase not ready. Check initialization order.");
+    if (state.selected.size !== state.totalToPick) {
+      alert(`Pick exactly ${state.totalToPick} emojis before submitting.`);
       return;
     }
 
-    console.log("[PartyMode] Firebase OK. window.db =", db);
+    const db = ensureFirestore();
+    const roomRef = db.collection('rooms').doc(state.roomCode);
+
+    try {
+      await roomRef.collection('players').doc(state.playerName).set({
+        submitted: true,
+        picks: Array.from(state.selected),
+        submittedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+      alert('Submitted!');
+      console.log('[PartyMode] submitted picks:', Array.from(state.selected));
+    } catch (err) {
+      console.error('[PartyMode] submitPick error:', err);
+      alert('Submit failed: ' + (err?.message || err));
+    }
+  }
+
+  async function revealResult() {
+    console.log('[PartyMode] revealResult() clicked');
+    if (!state.isHost) { alert('Only the host can reveal results.'); return; }
+    if (!state.roomCode) return;
+
+    const db = ensureFirestore();
+    const roomRef = db.collection('rooms').doc(state.roomCode);
+
+    try {
+      // Simple deterministic "result" for now: just show joined players count.
+      // You can later compute based on submitted emojis.
+      const ps = await roomRef.collection('players').get();
+      const total = ps.size;
+
+      await roomRef.set({
+        status: 'result',
+        resultText: `Players: ${total} (demo result)`,
+        revealedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+      console.log('[PartyMode] result revealed');
+    } catch (err) {
+      console.error('[PartyMode] revealResult error:', err);
+      alert('Reveal failed: ' + (err?.message || err));
+    }
+  }
+
+  function copyInvite() {
+    if (!state.roomCode) return;
+    const url = `${location.origin}${location.pathname}?room=${encodeURIComponent(state.roomCode)}`;
+    navigator.clipboard?.writeText(url).then(
+      () => alert('Invite link copied.'),
+      () => alert('Copy failed. You can manually copy: ' + url)
+    );
+  }
+
+  function applyRoomFromURL() {
+    const u = new URL(location.href);
+    const code = (u.searchParams.get('room') || '').trim().toUpperCase();
+    if (code && $('inpRoomCode')) $('inpRoomCode').value = code;
+  }
+
+  // ---------- Bind UI ----------
+  function bindUI() {
+    console.log('[PartyMode] bindUI()');
+
+    const btnCreate = $('btnCreateRoom');
+    const btnJoin = $('btnJoinRoom');
+
+    if (!btnCreate || !btnJoin) {
+      console.error('[PartyMode] Missing entry buttons. btnCreateRoom/btnJoinRoom not found.');
+      alert('PartyMode UI mismatch: missing buttons. Check partymode.html IDs.');
+      return;
+    }
+
+    btnCreate.addEventListener('click', (e) => { e.preventDefault(); createRoom(); });
+    btnJoin.addEventListener('click', (e) => { e.preventDefault(); joinRoom(); });
+
+    $('btnCopyInvite')?.addEventListener('click', (e) => { e.preventDefault(); copyInvite(); });
+    $('btnStart')?.addEventListener('click', (e) => { e.preventDefault(); startGame(); });
+
+    $('btnResetParty')?.addEventListener('click', (e) => { e.preventDefault(); resetPicks(); });
+    $('btnSubmitParty')?.addEventListener('click', (e) => { e.preventDefault(); submitPick(); });
+
+    $('btnReveal')?.addEventListener('click', (e) => { e.preventDefault(); revealResult(); });
+
+    // Optional copy buttons in result view (if you later implement)
+    $('btnCopyPartyLink')?.addEventListener('click', (e) => { e.preventDefault(); copyInvite(); });
+
+    // Init defaults
+    showView('viewEntry');
+    applyRoomFromURL();
+
+    console.log('[PartyMode] UI ready ✅');
+  }
+
+  // ---------- Boot ----------
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('[PartyMode] script loaded at', new Date().toISOString());
+
+    try {
+      // Only to verify Firebase availability early
+      const db = ensureFirestore();
+      console.log('[PartyMode] Firebase OK. window.db =', db);
+    } catch (err) {
+      console.error('[PartyMode] Firebase bootstrap error:', err);
+      setEntryError(err?.message || String(err));
+      alert('Firebase is not ready: ' + (err?.message || err));
+      // Still bind UI so clicks can show errors
+    }
+
     bindUI();
-    showView("viewEntry");
   });
+
 })();
