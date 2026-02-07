@@ -1,503 +1,582 @@
-/* =========================================================
-   EmojiPick - Party Mode (Compat Firestore version)
-   - Requires: partymode.html loads firebase-app-compat + firestore-compat
-   - And runs: firebase.initializeApp(firebaseConfig); window.db = firebase.firestore();
-   ========================================================= */
+// partymode.v1.js
+// Assumption: you have Firebase initialized somewhere accessible.
+// BEST practice: create a dedicated firebase module that exports { db, auth }.
+// For now, we expect one of the following to exist:
+//  - window.EMOJIPICK_DB (recommended)
+//  - window.db
+// If neither exists, we show a clear error.
 
-(() => {
-  "use strict";
 
-  // ---------- DOM helpers ----------
-  const $ = (id) => document.getElementById(id);
-  const show = (id) => { const el = $(id); if (el) el.classList.remove("hidden"); };
-  const hide = (id) => { const el = $(id); if (el) el.classList.add("hidden"); };
-  const setText = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
-  const setHTML = (id, html) => { const el = $(id); if (el) el.innerHTML = html; };
+/* ------------------ Utilities ------------------ */
 
-  // ---------- Safety: Firebase/Firestore presence ----------
-  function getDbOrThrow() {
-    const db = window.db;
-    if (!db) {
-      console.error("[PartyMode] window.db is missing. Check partymode.html Firebase init order.");
-      throw new Error("Firebase not ready: window.db is missing.");
-    }
-    return db;
-  }
+const $ = (id) => document.getElementById(id);
 
-  // ---------- Footer year ----------
+function setYear() { $("year").textContent = new Date().getFullYear(); }
+
+function showView(name) {
+  const views = ["viewEntry","viewLobby","viewPick","viewResult"];
+  for (const v of views) $(v).hidden = (v !== name);
+}
+
+function randCode(len = 4) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "";
+  for (let i=0;i<len;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+function getParam(name) {
+  const url = new URL(location.href);
+  return (url.searchParams.get(name) || "").trim();
+}
+
+function inviteLink(code) {
+  const url = new URL(location.href);
+  url.searchParams.set("room", code);
+  return url.toString();
+}
+
+async function copyText(text) {
   try {
-    const y = $("year");
-    if (y) y.textContent = String(new Date().getFullYear());
-  } catch (_) {}
+    await navigator.clipboard.writeText(text);
+    alert("Copied!");
+  } catch {
+    prompt("Copy this:", text);
+  }
+}
 
-  // ---------- State ----------
-  const EMOJIS = [
-    "✨","🍀","🌈","🔥","💎","🧲","🎯","🦄","🌟","💰",
-    "🐉","🐯","🦊","🐼","🌿","🌸","🌊","🌙","☀️","⭐",
-    "🎁","🎉","🏆","🚀","🧠","⚡","🪙","🧿","🧩","🕊️",
-    "🍯","🍎","🍇","🍓","🥑","🌮","🍣","☕","🧋","🎵"
-  ];
-  const MAX_PICK = 6;
+function normalizeName(s) {
+  return (s || "").trim().slice(0, 20);
+}
 
-  let db = null;
+/* ------------------ Fortune (v1: table-based) ------------------ */
 
-  let roomId = null;
-  let roomCode = null;
-  let playerId = null;
-  let playerName = null;
-  let isHost = false;
+const FORTUNES = [
+  "Small steps today lead to big wins tomorrow.",
+  "Your luck grows when you share it.",
+  "A good surprise is closer than you think.",
+  "Be kind to yourself—your timing is perfect.",
+  "Your next choice opens a better path."
+];
 
-  let unsubRoom = null;
-  let unsubPlayers = null;
+function pickFortune(seedStr) {
+  // simple deterministic hash
+  let h = 0;
+  for (let i=0;i<seedStr.length;i++) h = (h*31 + seedStr.charCodeAt(i)) >>> 0;
+  return FORTUNES[h % FORTUNES.length];
+}
 
-  let picked = []; // emojis
-  let game = "pb"; // pb | mm  (default)
+/* ------------------ Emoji pool (simple v1) ------------------ */
 
-  // ---------- IDs from HTML ----------
-  // viewEntry, viewLobby, viewPick, viewResult
-  // btnCreateRoom, btnJoinRoom, btnLeave, btnStart, btnSubmit, btnReveal
-  // inRoomCode, inPlayerName, outRoomCode, outHostHint, playersList
-  // emojiGrid, pickedRow, resultBox
+const EMOJIS = ["✨","🍀","🌈","🔥","💎","🧲","🎯","🦄","🌟","🍯","🧧","💰","🐉","🐯","🦊","🐼","🌿","🌸","🌊","🌙"];
 
-  // ---------- Utilities ----------
-  function genRoomCode() {
-    // 4 chars, no confusing ones
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let out = "";
-    for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
-    return out;
+function renderEmojiGrid(selected, onToggle) {
+  const grid = $("emojiGridParty");
+  grid.innerHTML = "";
+  for (const e of EMOJIS) {
+    const btn = document.createElement("button");
+    btn.className = "emojiBtn"; // uses existing css if any
+    btn.type = "button";
+    btn.textContent = e;
+    btn.setAttribute("aria-pressed", selected.has(e) ? "true" : "false");
+    if (selected.has(e)) btn.classList.add("picked");
+    btn.addEventListener("click", () => onToggle(e));
+    grid.appendChild(btn);
+  }
+}
+
+/* ------------------ Firebase Bootstrap ------------------ */
+
+function getDbAuth() {
+  const db = window.db;
+  if (!db) throw new Error("Firebase not ready: window.db is missing. Check partymode.html init order.");
+  return { db, auth: null };
+}
+
+/* ------------------ Party State ------------------ */
+/**
+ * This file uses "modular-like" helper functions (doc/collection/query/etc.)
+ * but the page loads Firebase **compat** SDKs. The helpers below adapt calls
+ * to the compat Firestore instance exposed as window.db in partymode.html.
+ */
+function serverTimestamp() {
+  return firebase.firestore.FieldValue.serverTimestamp();
+}
+
+function _isDbLike(x) { return x && typeof x.collection === "function"; }
+function collection(root, ...segments) {
+  if (!_isDbLike(root)) throw new Error("collection(): invalid root");
+  let ref = root;
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (i % 2 === 0) ref = ref.collection(seg);
+    else ref = ref.doc(seg);
+  }
+  return ref;
+}
+function doc(root, ...segments) {
+  if (!_isDbLike(root)) throw new Error("doc(): invalid root");
+  let ref = root;
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (i % 2 === 0) ref = ref.collection(seg);
+    else ref = ref.doc(seg);
+  }
+  return ref;
+}
+async function addDoc(colRef, data) {
+  return await colRef.add(data);
+}
+async function setDoc(docRef, data, options) {
+  return await docRef.set(data, options);
+}
+async function updateDoc(docRef, data) {
+  return await docRef.update(data);
+}
+async function getDoc(docRef) {
+  return await docRef.get();
+}
+async function getDocs(q) {
+  return await q.get();
+}
+function onSnapshot(ref, cb) {
+  return ref.onSnapshot(cb);
+}
+function where(field, op, value) {
+  return { t: "where", field, op, value };
+}
+function orderBy(field, direction = "asc") {
+  return { t: "orderBy", field, direction };
+}
+function limit(n) {
+  return { t: "limit", n };
+}
+function query(base, ...ops) {
+  let q = base;
+  for (const op of ops) {
+    if (!op) continue;
+    if (op.t === "where") q = q.where(op.field, op.op, op.value);
+    else if (op.t === "orderBy") q = q.orderBy(op.field, op.direction);
+    else if (op.t === "limit") q = q.limit(op.n);
+  }
+  return q;
+}
+
+let db, auth;
+let roomCode = "";
+let roomId = "";
+let playerId = "";
+let isHost = false;
+
+let unsubRoom = null;
+let unsubPlayers = null;
+
+function cleanupListeners() {
+  if (unsubRoom) { unsubRoom(); unsubRoom = null; }
+  if (unsubPlayers) { unsubPlayers(); unsubPlayers = null; }
+}
+
+/* ------------------ Firestore Paths ------------------ */
+
+function roomRefById(id) { return doc(db, "rooms", id); }
+function playersCol(roomId) { return collection(db, "rooms", roomId, "players"); }
+
+/* ------------------ Core Actions ------------------ */
+
+function _getOrCreateUid() {
+  const key = "__pm_uid__";
+  let uid = localStorage.getItem(key);
+  if (!uid) {
+    uid = (crypto?.randomUUID?.() || ("uid-" + Math.random().toString(36).slice(2))) ;
+    localStorage.setItem(key, uid);
+  }
+  return uid;
+}
+
+async function ensureAnonAuth() {
+  // We intentionally avoid Firebase Auth to keep the demo simple.
+  // Firestore rules in "test mode" allow access without authentication.
+  return { uid: _getOrCreateUid() };
+}
+
+async function createRoom() {
+  const user = await ensureAnonAuth();
+
+  const code = randCode(4);
+  const roomDoc = await addDoc(collection(db, "rooms"), {
+    roomCode: code,
+    hostUid: user.uid,
+    status: "lobby",
+    game: "pb",
+    round: 1,
+    seed: `${code}-${new Date().toISOString().slice(0,10)}`,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+
+  roomId = roomDoc.id;
+  roomCode = code;
+  isHost = true;
+
+  // Host becomes a player too
+  const name = normalizeName(prompt("Host name?", "Host")) || "Host";
+  const pRef = await addDoc(playersCol(roomId), {
+    uid: user.uid,
+    name,
+    isHost: true,
+    joinedAt: serverTimestamp(),
+    pickedEmojis: [],
+    submittedAt: null,
+    matches: 0,
+    score: 0
+  });
+  playerId = pRef.id;
+
+  enterLobbyUI();
+  attachRoomListeners();
+}
+
+async function findRoomByCode(code) {
+  // rooms 컬렉션에서 roomCode == code 검색 (간단하게 전체 scan은 비추)
+  // v1에서는 인덱스 쿼리를 쓰는 게 맞지만, CDN 모듈만으로는 where import 필요
+  // 여기선 where를 포함해서 정석으로 갑니다:
+  const roomsQ = query(collection(db, "rooms"), where("roomCode", "==", code));
+  const snap = await getDocs(roomsQ);
+  if (snap.empty) return null;
+  const d = snap.docs[0];
+  return { id: d.id, data: d.data() };
+}
+
+async function joinRoom() {
+  const code = $("inpRoomCode").value.trim().toUpperCase();
+  const name = normalizeName($("inpName").value);
+  if (!code || code.length < 4) { alert("Enter a valid room code."); return; }
+  if (!name) { alert("Enter your name."); return; }
+
+  const user = await ensureAnonAuth();
+
+  const found = await findRoomByCode(code);
+  if (!found) { alert("Room not found."); return; }
+
+  roomId = found.id;
+  roomCode = code;
+  isHost = false;
+
+  const pRef = await addDoc(playersCol(roomId), {
+    uid: user.uid,
+    name,
+    isHost: false,
+    joinedAt: serverTimestamp(),
+    pickedEmojis: [],
+    submittedAt: null,
+    matches: 0,
+    score: 0
+  });
+  playerId = pRef.id;
+
+  enterLobbyUI();
+  attachRoomListeners();
+}
+
+async function setGame(game) {
+  if (!isHost) return;
+  await updateDoc(roomRefById(roomId), {
+    game,
+    updatedAt: serverTimestamp()
+  });
+}
+
+async function startGame() {
+  if (!isHost) return;
+  await updateDoc(roomRefById(roomId), {
+    status: "playing",
+    updatedAt: serverTimestamp()
+  });
+}
+
+async function submitPick(pickedArr) {
+  // store on player doc
+  const pDoc = doc(db, "rooms", roomId, "players", playerId);
+  await updateDoc(pDoc, {
+    pickedEmojis: pickedArr,
+    submittedAt: serverTimestamp()
+  });
+}
+
+function computeNumbers(seedStr, game) {
+  // v1: deterministic pseudo-random
+  let h = 0;
+  for (let i=0;i<seedStr.length;i++) h = (h*33 + seedStr.charCodeAt(i)) >>> 0;
+
+  function nextInt(max) {
+    h = (h * 1664525 + 1013904223) >>> 0;
+    return h % max;
   }
 
-  function genId(prefix = "p") {
-    return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(2)}`;
+  if (game === "pb") {
+    // 5 numbers 1-69 + PB 1-26
+    const set = new Set();
+    while (set.size < 5) set.add(1 + nextInt(69));
+    const main = Array.from(set).sort((a,b)=>a-b);
+    const pb = 1 + nextInt(26);
+    return [...main, pb];
+  } else {
+    // mm: 5 numbers 1-70 + MB 1-25
+    const set = new Set();
+    while (set.size < 5) set.add(1 + nextInt(70));
+    const main = Array.from(set).sort((a,b)=>a-b);
+    const mb = 1 + nextInt(25);
+    return [...main, mb];
   }
+}
 
-  function persistPlayerId() {
-    // per-device stable id
-    const key = "party_player_id";
-    const saved = localStorage.getItem(key);
-    if (saved) return saved;
-    const id = genId("player");
-    localStorage.setItem(key, id);
-    return id;
-  }
+async function revealResults(currentRoom) {
+  if (!isHost) return;
 
-  function serverTimestamp() {
-    // compat FieldValue
-    return firebase.firestore.FieldValue.serverTimestamp();
-  }
+  const seedStr = currentRoom.seed || `${roomCode}-${new Date().toISOString().slice(0,10)}`;
+  const game = currentRoom.game || "pb";
+  const numbers = computeNumbers(seedStr, game);
 
-  function hashToRange(str, min, max) {
-    // stable number from emoji string
-    let h = 2166136261;
-    for (let i = 0; i < str.length; i++) {
-      h ^= str.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    const span = (max - min + 1);
-    const n = (Math.abs(h) % span) + min;
-    return n;
-  }
+  // Save into room doc
+  await updateDoc(roomRefById(roomId), {
+    status: "revealed",
+    resultNumbers: numbers,
+    revealAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
 
-  function uniqueSorted(arr) {
-    return Array.from(new Set(arr)).sort((a, b) => a - b);
-  }
+  // After reveal: score players (simple: count intersection between player's derived numbers and room result)
+  // For v1, player's "score" is based on their emojis -> personal numbers generation with same seed + their emojis.
+  await scoreAllPlayers(currentRoom, numbers);
+}
 
-  function randomUniqueNumbers(count, min, max) {
-    const s = new Set();
-    while (s.size < count) {
-      s.add(Math.floor(Math.random() * (max - min + 1)) + min);
-    }
-    return Array.from(s).sort((a, b) => a - b);
-  }
+function numbersFromEmojis(seedStr, emojis, game) {
+  const base = `${seedStr}|${(emojis||[]).join("")}|${game}`;
+  return computeNumbers(base, game);
+}
 
-  function mapEmojisToNumbers(emojis, gameType) {
-    // For party fun: deterministic map emoji -> numbers
-    // first 5 => white balls, last 1 => special ball
-    const whites = emojis.slice(0, 5).map(e => {
-      if (gameType === "mm") return hashToRange(e, 1, 70);
-      return hashToRange(e, 1, 69); // pb
-    });
-    const specialEmoji = emojis[5] || "✨";
-    const special = (gameType === "mm")
-      ? hashToRange(specialEmoji, 1, 25)
-      : hashToRange(specialEmoji, 1, 26);
-    return { whites: uniqueSorted(whites).slice(0, 5), special };
-  }
+async function scoreAllPlayers(currentRoom, roomNumbers) {
+  const game = currentRoom.game || "pb";
+  const seedStr = currentRoom.seed || "";
+  const pSnap = await getDocs(playersCol(roomId));
 
-  function scoreEntry(playerNums, winningNums) {
-    const wSet = new Set(winningNums.whites);
-    let matchWhite = 0;
-    for (const n of playerNums.whites) if (wSet.has(n)) matchWhite++;
-    const matchSpecial = (playerNums.special === winningNums.special);
-    const score = matchWhite * 10 + (matchSpecial ? 5 : 0);
-    return { matchWhite, matchSpecial, score };
-  }
+  const updates = [];
+  pSnap.forEach((p) => {
+    const data = p.data();
+    const myNums = numbersFromEmojis(seedStr, data.pickedEmojis || [], game);
 
-  function switchView(name) {
-    hide("viewEntry"); hide("viewLobby"); hide("viewPick"); hide("viewResult");
-    show(name);
-  }
+    // match count (first 5 with first 5, and bonus ball match separately)
+    const mainRoom = roomNumbers.slice(0,5);
+    const bonusRoom = roomNumbers[5];
 
-  function cleanupSubs() {
-    if (typeof unsubRoom === "function") unsubRoom();
-    if (typeof unsubPlayers === "function") unsubPlayers();
-    unsubRoom = null;
-    unsubPlayers = null;
-  }
+    const mainMine = myNums.slice(0,5);
+    const bonusMine = myNums[5];
 
-  // ---------- Render ----------
-  function renderPlayers(players) {
-    if (!$("playersList")) return;
-    if (!players.length) {
-      setHTML("playersList", `<div class="muted">No players yet.</div>`);
-      return;
-    }
+    const mainMatches = mainMine.filter(n => mainRoom.includes(n)).length;
+    const bonusMatch = (bonusMine === bonusRoom) ? 1 : 0;
+    const matches = mainMatches + bonusMatch;
 
-    const rows = players.map(p => {
-      const hostBadge = p.isHost ? " <span class='badge'>HOST</span>" : "";
-      const readyBadge = p.submitted ? " <span class='badge ok'>READY</span>" : "";
-      return `<div class="playerRow">
-        <span>${escapeHtml(p.name || "Player")}${hostBadge}${readyBadge}</span>
-      </div>`;
-    }).join("");
+    // simple score weighting
+    const score = mainMatches * 10 + bonusMatch * 15;
 
-    setHTML("playersList", rows);
-  }
+    updates.push(updateDoc(doc(db, "rooms", roomId, "players", p.id), {
+      matches,
+      score
+    }));
+  });
 
-  function renderEmojiGrid() {
-    const grid = $("emojiGrid");
-    if (!grid) return;
+  await Promise.all(updates);
+}
 
-    grid.innerHTML = "";
-    for (const e of EMOJIS) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "emojiBtn";
-      btn.textContent = e;
+/* ------------------ Listeners & UI updates ------------------ */
 
-      btn.addEventListener("click", () => onPickEmoji(e));
-      grid.appendChild(btn);
-    }
-    renderPickedRow();
-  }
+function enterLobbyUI() {
+  $("lblRoomCode").textContent = roomCode;
+  $("lblRoomCode2").textContent = roomCode;
+  showView("viewLobby");
 
-  function renderPickedRow() {
-    const row = $("pickedRow");
-    if (!row) return;
+  $("btnStart").hidden = !isHost;
+  $("selGame").disabled = !isHost;
+}
 
-    const chips = picked.map((e, idx) =>
-      `<span class="chip" title="remove" data-idx="${idx}">${e}</span>`
-    ).join("");
+function enterPickUI() {
+  showView("viewPick");
+}
 
-    row.innerHTML = chips || `<span class="muted">Pick ${MAX_PICK} emojis…</span>`;
+function enterResultUI() {
+  showView("viewResult");
+}
 
-    row.querySelectorAll(".chip").forEach(ch => {
-      ch.addEventListener("click", () => {
-        const idx = Number(ch.getAttribute("data-idx"));
-        picked.splice(idx, 1);
-        renderPickedRow();
-      });
-    });
+function renderPlayers(list) {
+  // list: array of {id, ...}
+  const wrap = $("playerList");
+  wrap.innerHTML = "";
+  list.forEach((p) => {
+    const row = document.createElement("div");
+    row.className = "row between";
+    row.style.padding = "8px 10px";
+    row.style.border = "1px solid #e6e8f0";
+    row.style.borderRadius = "12px";
+    row.style.marginBottom = "8px";
 
-    const btnSubmit = $("btnSubmit");
-    if (btnSubmit) btnSubmit.disabled = (picked.length !== MAX_PICK);
-  }
+    const left = document.createElement("div");
+    left.innerHTML = `<b>${p.name}</b> ${p.isHost ? '<span class="badge">Host</span>' : ""}`;
 
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (m) => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-    }[m]));
-  }
+    const right = document.createElement("div");
+    const submitted = p.submittedAt ? "✅" : "—";
+    right.innerHTML = `<span class="muted">submitted</span> ${submitted}`;
 
-  // ---------- Firestore refs ----------
-  function roomsRef() { return db.collection("rooms"); }
-  function roomRef(id) { return roomsRef().doc(id); }
-  function playersRef(rid) { return roomRef(rid).collection("players"); }
-  function playerRef(rid, pid) { return playersRef(rid).doc(pid); }
+    row.appendChild(left);
+    row.appendChild(right);
+    wrap.appendChild(row);
+  });
+}
 
-  // ---------- Entry actions ----------
-  async function createRoom() {
-    try {
-      db = getDbOrThrow();
-      playerId = persistPlayerId();
-      playerName = ($("inPlayerName")?.value || "").trim() || "Host";
+function renderRanking(list) {
+  const wrap = $("rankingList");
+  wrap.innerHTML = "";
+  const sorted = [...list].sort((a,b) => (b.score||0) - (a.score||0));
 
-      roomCode = genRoomCode();
-      roomId = genId("room");
-      isHost = true;
-      game = "pb"; // default; you can make a selector later
+  sorted.forEach((p, idx) => {
+    const row = document.createElement("div");
+    row.className = "row between";
+    row.style.padding = "8px 10px";
+    row.style.border = "1px solid #e6e8f0";
+    row.style.borderRadius = "12px";
+    row.style.marginBottom = "8px";
 
-      await roomRef(roomId).set({
-        roomCode,
-        game,
-        status: "lobby", // lobby -> picking -> revealed
-        createdAt: serverTimestamp(),
-        hostPlayerId: playerId
-      });
-
-      await playerRef(roomId, playerId).set({
-        name: playerName,
-        isHost: true,
-        joinedAt: serverTimestamp(),
-        submitted: false,
-        picked: []
-      });
-
-      enterRoomUI();
-      subscribeRoom();
-      subscribePlayers();
-
-    } catch (e) {
-      alert(e.message || String(e));
-      console.error(e);
-    }
-  }
-
-  async function joinRoom() {
-    try {
-      db = getDbOrThrow();
-      playerId = persistPlayerId();
-
-      const code = ($("inRoomCode")?.value || "").trim().toUpperCase();
-      playerName = ($("inPlayerName")?.value || "").trim() || "Player";
-      if (!code) return alert("Enter room code.");
-
-      // find room by code (simple scan - OK for small demo)
-      const snap = await roomsRef().where("roomCode", "==", code).limit(1).get();
-      if (snap.empty) return alert("Room not found.");
-
-      const doc = snap.docs[0];
-      roomId = doc.id;
-      roomCode = code;
-
-      const room = doc.data();
-      isHost = (room.hostPlayerId === playerId);
-
-      // upsert player
-      await playerRef(roomId, playerId).set({
-        name: playerName,
-        isHost,
-        joinedAt: serverTimestamp(),
-        submitted: false,
-        picked: []
-      }, { merge: true });
-
-      enterRoomUI();
-      subscribeRoom();
-      subscribePlayers();
-
-    } catch (e) {
-      alert(e.message || String(e));
-      console.error(e);
-    }
-  }
-
-  function enterRoomUI() {
-    setText("outRoomCode", roomCode || "");
-    setText("outHostHint", isHost ? "You are HOST" : "You joined as PLAYER");
-    switchView("viewLobby");
-
-    // helpful: show sharable URL
-    try {
-      const url = new URL(location.href);
-      url.searchParams.set("room", roomCode);
-      // if you want, you can show this somewhere in the lobby later
-      console.log("[Invite]", url.toString());
-    } catch (_) {}
-  }
-
-  async function leaveRoom() {
-    cleanupSubs();
-    roomId = null;
-    roomCode = null;
-    isHost = false;
-    picked = [];
-    switchView("viewEntry");
-  }
-
-  // ---------- Lobby actions ----------
-  async function startPicking() {
-    if (!isHost) return alert("Only host can start.");
-    try {
-      await roomRef(roomId).set({ status: "picking" }, { merge: true });
-    } catch (e) {
-      alert(e.message || String(e));
-    }
-  }
-
-  // ---------- Pick actions ----------
-  function onPickEmoji(e) {
-    if (picked.includes(e)) return; // no duplicates in UI pick
-    if (picked.length >= MAX_PICK) return;
-    picked.push(e);
-    renderPickedRow();
-  }
-
-  async function submitPick() {
-    if (picked.length !== MAX_PICK) return alert(`Pick exactly ${MAX_PICK} emojis.`);
-    try {
-      await playerRef(roomId, playerId).set({
-        picked: picked.slice(),
-        submitted: true,
-        submittedAt: serverTimestamp()
-      }, { merge: true });
-
-      alert("Submitted!");
-    } catch (e) {
-      alert(e.message || String(e));
-    }
-  }
-
-  // ---------- Reveal / Result ----------
-  async function reveal() {
-    if (!isHost) return alert("Only host can reveal.");
-    try {
-      // generate winning numbers (party random)
-      const winning =
-        (game === "mm")
-          ? { whites: randomUniqueNumbers(5, 1, 70), special: Math.floor(Math.random() * 25) + 1 }
-          : { whites: randomUniqueNumbers(5, 1, 69), special: Math.floor(Math.random() * 26) + 1 };
-
-      await roomRef(roomId).set({
-        status: "revealed",
-        winningNumbers: winning,
-        revealedAt: serverTimestamp()
-      }, { merge: true });
-
-    } catch (e) {
-      alert(e.message || String(e));
-    }
-  }
-
-  function renderResults(players, winning) {
-    // players: [{id,name,picked,submitted,isHost}]
-    const entries = [];
-    for (const p of players) {
-      if (!p.submitted || !Array.isArray(p.picked) || p.picked.length < MAX_PICK) continue;
-      const nums = mapEmojisToNumbers(p.picked, game);
-      const s = scoreEntry(nums, winning);
-      entries.push({
-        name: p.name || "Player",
-        isHost: !!p.isHost,
-        picked: p.picked,
-        nums,
-        ...s
-      });
-    }
-
-    entries.sort((a, b) => b.score - a.score);
-
-    const winLabel = (game === "mm") ? "Mega" : "Power";
-    const winHtml = `
-      <div class="resultWin">
-        <div><b>Winning (${winLabel})</b></div>
-        <div>Whites: <b>${winning.whites.join(", ")}</b></div>
-        <div>Special: <b>${winning.special}</b></div>
-      </div>
-      <hr/>
+    row.innerHTML = `
+      <div><b>#${idx+1}</b> ${p.name} ${p.isHost ? '<span class="badge">Host</span>' : ""}</div>
+      <div class="muted">score ${p.score||0} / matches ${p.matches||0}</div>
     `;
+    wrap.appendChild(row);
+  });
+}
 
-    const listHtml = entries.length
-      ? entries.map((e, idx) => `
-          <div class="resultRow">
-            <div><b>#${idx + 1}</b> ${escapeHtml(e.name)}${e.isHost ? " <span class='badge'>HOST</span>" : ""}</div>
-            <div class="muted">Pick: ${e.picked.join(" ")}</div>
-            <div class="muted">Nums: ${e.nums.whites.join(", ")} + ${e.nums.special}</div>
-            <div><b>Match</b>: ${e.matchWhite} white${e.matchSpecial ? " + special" : ""} / <b>Score</b>: ${e.score}</div>
-          </div>
-        `).join("")
-      : `<div class="muted">No submitted picks yet.</div>`;
+function attachRoomListeners() {
+  cleanupListeners();
 
-    setHTML("resultBox", winHtml + listHtml);
-  }
+  // Room listener
+  unsubRoom = onSnapshot(roomRefById(roomId), (snap) => {
+    if (!snap.exists) return;
+    const room = snap.data();
 
-  // ---------- Subscriptions ----------
-  function subscribeRoom() {
-    cleanupSubs();
+    // keep room code labels
+    $("lblRoomCode").textContent = room.roomCode || roomCode;
+    $("lblRoomCode2").textContent = room.roomCode || roomCode;
 
-    unsubRoom = roomRef(roomId).onSnapshot((snap) => {
-      if (!snap.exists) return;
-      const r = snap.data() || {};
-      game = r.game || "pb";
+    // sync game selection UI
+    $("selGame").value = room.game || "pb";
 
-      const status = r.status || "lobby";
-      if (status === "lobby") {
-        switchView("viewLobby");
-      } else if (status === "picking") {
-        switchView("viewPick");
-        renderEmojiGrid();
-      } else if (status === "revealed") {
-        switchView("viewResult");
-        // results require players list -> handled in subscribePlayers
-      }
-
-    }, (err) => console.error("[RoomSub]", err));
-  }
-
-  function subscribePlayers() {
-    unsubPlayers = playersRef(roomId).onSnapshot((snap) => {
-      const players = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
-      renderPlayers(players);
-
-      // Enable host buttons depending on status and readiness
-      const btnStart = $("btnStart");
-      const btnReveal = $("btnReveal");
-      if (btnStart) btnStart.disabled = !isHost;
-      if (btnReveal) btnReveal.disabled = !isHost;
-
-      // If room revealed, render results
-      roomRef(roomId).get().then((rSnap) => {
-        const r = rSnap.data() || {};
-        const status = r.status || "lobby";
-        if (status === "revealed" && r.winningNumbers) {
-          renderResults(players, r.winningNumbers);
-        }
-
-        // Optional: auto-enable reveal only if all submitted (host)
-        if (isHost && status === "picking") {
-          const anyPlayers = players.length > 0;
-          const allSubmitted = anyPlayers && players.every(p => p.submitted);
-          if (btnReveal) btnReveal.disabled = !allSubmitted;
-        }
-      }).catch(() => {});
-    }, (err) => console.error("[PlayersSub]", err));
-  }
-
-  // ---------- Wire buttons ----------
-  function wireUI() {
-    $("btnCreateRoom")?.addEventListener("click", createRoom);
-    $("btnJoinRoom")?.addEventListener("click", joinRoom);
-    $("btnLeave")?.addEventListener("click", leaveRoom);
-
-    $("btnStart")?.addEventListener("click", startPicking);
-    $("btnSubmit")?.addEventListener("click", submitPick);
-    $("btnReveal")?.addEventListener("click", reveal);
-  }
-
-  // ---------- Auto-fill room from URL ----------
-  function hydrateFromUrl() {
-    try {
-      const u = new URL(location.href);
-      const code = (u.searchParams.get("room") || "").trim().toUpperCase();
-      if (code && $("inRoomCode")) $("inRoomCode").value = code;
-    } catch (_) {}
-  }
-
-  // ---------- Init ----------
-  function init() {
-    wireUI();
-    hydrateFromUrl();
-    switchView("viewEntry");
-
-    // Small sanity log
-    try {
-      db = getDbOrThrow();
-      console.log("[PartyMode] Firebase OK. window.db =", db);
-    } catch (e) {
-      console.warn("[PartyMode] Firebase not ready yet.");
+    if (room.status === "lobby") {
+      enterLobbyUI();
+    } else if (room.status === "playing") {
+      enterPickUI();
+    } else if (room.status === "revealed") {
+      enterResultUI();
+      const nums = room.resultNumbers || [];
+      $("partyNumbers").textContent = nums.length ? nums.join("  ") : "—";
+      $("partyFortune").textContent = pickFortune(`${room.seed||""}|${room.roomCode||""}|${room.round||1}`);
     }
+  });
+
+  // Players listener
+  const playersQ = query(playersCol(roomId), orderBy("joinedAt", "asc"));
+  unsubPlayers = onSnapshot(playersQ, (snap) => {
+    const players = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderPlayers(players);
+
+    // submitted stats
+    const total = players.length;
+    const submitted = players.filter(p => p.submittedAt).length;
+    $("lblTotal").textContent = String(total);
+    $("lblSubmitted").textContent = String(submitted);
+
+    // host reveal button: show if host + at least 1 submitted (or all submitted - choose policy)
+    if (isHost) {
+      $("btnReveal").hidden = false;
+      // stricter policy example:
+      // $("btnReveal").disabled = (submitted === 0);
+      $("btnReveal").disabled = (submitted < total); // reveal only when all submitted
+    }
+
+    // ranking (after revealed)
+    // safe to render anytime (scores might be 0)
+    renderRanking(players);
+  });
+}
+
+/* ------------------ UI Wiring ------------------ */
+
+function initUI() {
+  setYear();
+
+  $("btnCreateRoom").addEventListener("click", createRoom);
+  $("btnJoinRoom").addEventListener("click", joinRoom);
+
+  $("btnCopyInvite").addEventListener("click", () => copyText(inviteLink(roomCode)));
+  $("btnCopyPartyLink").addEventListener("click", () => copyText(inviteLink(roomCode)));
+
+  $("selGame").addEventListener("change", (e) => setGame(e.target.value));
+
+  $("btnStart").addEventListener("click", startGame);
+
+  // Pick UI
+  const selected = new Set();
+
+  function syncPickUI() {
+    $("pickedCount").textContent = String(selected.size);
+    $("btnSubmitParty").disabled = (selected.size !== 6);
+    renderEmojiGrid(selected, (emoji) => {
+      if (selected.has(emoji)) selected.delete(emoji);
+      else {
+        if (selected.size >= 6) return;
+        selected.add(emoji);
+      }
+      syncPickUI();
+    });
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  $("btnResetParty").addEventListener("click", () => {
+    selected.clear();
+    syncPickUI();
+  });
+
+  $("btnSubmitParty").addEventListener("click", async () => {
+    const arr = Array.from(selected);
+    await submitPick(arr);
+    alert("Submitted!");
+  });
+
+  $("btnReveal").addEventListener("click", async () => {
+    const snap = await getDoc(roomRefById(roomId));
+    if (!snap.exists) return;
+    await revealResults(snap.data());
+  });
+
+  // Result button placeholder
+  $("btnCopyTicketParty").addEventListener("click", () => {
+    alert("Copy-as-ticket will be implemented next (after Party v1 stabilizes).");
+  });
+
+  // Auto-fill room code from URL
+  const roomFromUrl = getParam("room");
+  if (roomFromUrl) {
+    $("inpRoomCode").value = roomFromUrl.toUpperCase();
+  }
+
+  showView("viewEntry");
+}
+
+/* ------------------ Boot ------------------ */
+
+(async function boot() {
+  try {
+    // Firebase must already be initialized (same config as your app)
+    ({ db, auth } = getDbAuth());
+    initUI();
+  } catch (e) {
+    console.error(e);
+    alert("Firebase app not initialized on this page.\n\nFix: ensure partymode.html loads the same Firebase init as index.html (e.g., app.v11.js or firebase.ts module).");
+  }
 })();
