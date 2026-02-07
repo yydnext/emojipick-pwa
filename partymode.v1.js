@@ -200,40 +200,75 @@ async function ensureAnonAuth() {
 }
 
 async function createRoom() {
-  const user = await ensureAnonAuth();
+  console.log("[PartyMode] createRoom() clicked");
 
-  const code = randCode(4);
-  const roomDoc = await addDoc(collection(db, "rooms"), {
-    roomCode: code,
-    hostUid: user.uid,
-    status: "lobby",
-    game: "pb",
-    round: 1,
-    seed: `${code}-${new Date().toISOString().slice(0,10)}`,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  });
+  // 1) basic DOM sanity
+  const btn = document.getElementById("btnCreateRoom");
+  if (btn) btn.disabled = true;
 
-  roomId = roomDoc.id;
-  roomCode = code;
-  isHost = true;
+  try {
+    // 2) Ask name first so user sees immediate response
+    const hostName = (prompt("Your name (host)?", "") || "").trim();
+    if (!hostName) {
+      alert("Please enter your name.");
+      return;
+    }
 
-  // Host becomes a player too
-  const name = normalizeName(prompt("Host name?", "Host")) || "Host";
-  const pRef = await addDoc(playersCol(roomId), {
-    uid: user.uid,
-    name,
-    isHost: true,
-    joinedAt: serverTimestamp(),
-    pickedEmojis: [],
-    submittedAt: null,
-    matches: 0,
-    score: 0
-  });
-  playerId = pRef.id;
+    // 3) Ensure Firestore is ready
+    const { db } = getDbAuth(); // auth is optional in this build
+    console.log("[PartyMode] Firestore OK. window.db =", db);
 
-  enterLobbyUI();
-  attachRoomListeners();
+    // 4) Create room document
+    const roomDoc = await addDoc(collection(db, "rooms"), {
+      createdAt: serverTimestamp(),
+      status: "open",
+      hostName,
+    });
+
+    const roomId = roomDoc.id;
+    const roomCode = makeRoomCode(roomId);
+
+    // Save host player
+    const playerId = makePlayerId();
+    await setDoc(doc(db, "rooms", roomId, "players", playerId), {
+      name: hostName,
+      isHost: true,
+      joinedAt: serverTimestamp(),
+    });
+
+    // Save room code so joiners can resolve it
+    await setDoc(doc(db, "roomCodes", roomCode), {
+      roomId,
+      createdAt: serverTimestamp(),
+    });
+
+    // UI: show code + link
+    roomCodeEl.textContent = roomCode;
+    roomLinkEl.value = makeRoomLink(roomCode);
+    hostPanel.style.display = "block";
+    joinPanel.style.display = "none";
+
+    // Keep state
+    isHost = true;
+    window.__PARTY_ROOM__ = { roomId, roomCode, playerId, isHost };
+
+    console.log("[PartyMode] Room created:", { roomId, roomCode, playerId });
+  } catch (err) {
+    console.error("[PartyMode] createRoom failed:", err);
+    // Show friendly message
+    const msg = (err && err.message) ? err.message : String(err);
+    alert(
+      "Create room failed.
+
+" +
+      msg +
+      "
+
+If you see 'Missing or insufficient permissions', check Firestore rules (test mode) or enable Auth."
+    );
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function findRoomByCode(code) {
