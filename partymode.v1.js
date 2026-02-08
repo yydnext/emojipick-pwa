@@ -1,59 +1,64 @@
-// partymode.v1.js (compat + resilient IDs + clearer errors)
-// Requires in partymode.html BEFORE this file:
-//   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-//   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-// Optional (only if you want anonymous auth instead of open rules):
-//   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+// partymode.v1.js (universal, compat-first)
+// - Works with firebase-app-compat.js + firebase-firestore-compat.js
+// - Tolerates different element IDs by searching common IDs + placeholders
+// - Gives clear UI feedback on errors (permission denied / offline / missing db)
+
 (() => {
   'use strict';
 
-  const $ = (id) => document.getElementById(id);
+  const log = (...a) => console.log('[PartyMode]', ...a);
+  const warn = (...a) => console.warn('[PartyMode]', ...a);
+  const err  = (...a) => console.error('[PartyMode]', ...a);
 
-  function pickEl(ids) {
+  const $id = (id) => document.getElementById(id);
+
+  function pickById(ids) {
     for (const id of ids) {
-      const el = $(id);
+      const el = $id(id);
       if (el) return el;
     }
     return null;
   }
 
-  const EL = {
-    btnCreate: () => pickEl(['btnCreateRoom', 'createRoomBtn', 'btnHostCreate']),
-    btnJoin:   () => pickEl(['btnJoin', 'joinBtn', 'btnJoinRoom']),
-    inpName:   () => pickEl(['inpName', 'playerName', 'name', 'yourName']),
-    inpCode:   () => pickEl(['inpRoomCode', 'roomCode', 'code', 'inpCode']),
-    entryErr:  () => pickEl(['entryError', 'errEntry', 'entryMsg']),
-    // optional labels:
-    lblRoom:   () => pickEl(['lblRoomCode', 'roomCodeLabel', 'txtRoomCode', 'roomCodeText']),
-  };
-
-  const state = {
-    roomCode: '',
-    playerName: '',
-    isHost: false,
-    unsubRoom: null,
-    unsubPlayers: null,
-  };
-
-  function setEntryError(msg) {
-    const el = EL.entryErr();
-    if (el) {
-      el.textContent = msg || '';
-      el.style.color = msg ? '#b00020' : '';
+  function pickInputByPlaceholder(substring) {
+    const inputs = Array.from(document.querySelectorAll('input'));
+    const low = substring.toLowerCase();
+    for (const el of inputs) {
+      const ph = (el.getAttribute('placeholder') || '').toLowerCase();
+      if (ph.includes(low)) return el;
     }
+    return null;
+  }
+
+  function ensureMsgArea() {
+    // Prefer explicit ids; else create one under entry panel
+    let el = pickById(['msgEntry', 'msg', 'entryMsg', 'statusMsg', 'errorMsg']);
+    if (el) return el;
+
+    const entry = pickById(['viewEntry', 'entry', 'panelEntry']) || document.body;
+    const micro = entry.querySelector('.micro') || entry;
+    el = document.createElement('div');
+    el.id = 'msgEntry';
+    el.style.marginTop = '10px';
+    el.style.color = '#b00020';
+    micro.appendChild(el);
+    return el;
+  }
+
+  const msgEl = ensureMsgArea();
+
+  function setMsg(message, isError = true) {
+    if (!msgEl) return;
+    msgEl.textContent = message || '';
+    msgEl.style.color = isError ? '#b00020' : '#006400';
   }
 
   function showView(name) {
-    const views = ['viewEntry','viewLobby','viewPick','viewResult'];
-    for (const v of views) {
-      const el = $(v);
-      if (el) el.hidden = (v !== name);
+    const ids = ['viewEntry', 'viewLobby', 'viewPick', 'viewResult'];
+    for (const id of ids) {
+      const el = $id(id);
+      if (el) el.hidden = (id !== name);
     }
-  }
-
-  function setRoomCodeLabels(code) {
-    const el = EL.lblRoom();
-    if (el) el.textContent = code;
   }
 
   function randCode(len = 4) {
@@ -63,240 +68,178 @@
     return s;
   }
 
-  function ensureFirestore() {
-    // Prefer window.db (if your main app exposes it), else build from firebase global.
-    if (window.db) return window.db;
-    if (!window.firebase || !window.firebase.firestore) {
-      throw new Error('Firebase Firestore is not loaded. Check partymode.html script tags (firebase-app-compat + firebase-firestore-compat).');
+  function getDb() {
+    // Priority: window.db (set by your existing app), then window.EMOJIPICK_DB, then firebase.firestore()
+    const w = window;
+    if (w.EMOJIPICK_DB) return w.EMOJIPICK_DB;
+    if (w.db) return w.db;
+    if (w.firebase && typeof w.firebase.firestore === 'function') {
+      try {
+        const db = w.firebase.firestore();
+        w.db = db;
+        return db;
+      } catch (e) {
+        err('firebase.firestore() failed', e);
+      }
     }
-    // If app not initialized, try to use existing default app; otherwise user must init.
-    if (!window.firebase.apps || window.firebase.apps.length === 0) {
-      throw new Error('Firebase app is not initialized. You must call firebase.initializeApp(firebaseConfig) in partymode.html before loading partymode.v1.js.');
-    }
-    return window.firebase.firestore();
+    return null;
   }
 
-  async function ensureAnonymousAuthIfAvailable() {
-    // This is OPTIONAL. If firebase-auth-compat isn't loaded, we just skip.
-    try {
-      if (!window.firebase || !window.firebase.auth) return;
-      const auth = window.firebase.auth();
-      if (auth.currentUser) return;
-      await auth.signInAnonymously();
-      console.log('[PartyMode] signed in anonymously');
-    } catch (e) {
-      console.warn('[PartyMode] anonymous auth skipped/failed:', e);
-    }
+  function isOfflineLike(e) {
+    const m = String((e && e.message) || e || '').toLowerCase();
+    return m.includes('offline') || m.includes('failed to get document because the client is offline') || m.includes('could not reach cloud firestore backend');
   }
 
-  async function subscribeRoom(code) {
-    const db = ensureFirestore();
-    cleanupListeners();
-
-    const roomRef = db.collection('rooms').doc(code);
-    state.unsubRoom = roomRef.onSnapshot((snap) => {
-      if (!snap.exists) return;
-      // If you have lobby UI elements, update here.
-      // console.log('[PartyMode] room snapshot', snap.data());
-    }, (err) => {
-      console.error('[PartyMode] room listener error:', err);
-      setEntryError(humanFirebaseError(err));
-    });
-
-    state.unsubPlayers = roomRef.collection('players').onSnapshot((qs) => {
-      // If you have a player list UI, render here.
-      // console.log('[PartyMode] players', qs.docs.map(d => d.id));
-    }, (err) => {
-      console.error('[PartyMode] players listener error:', err);
-      setEntryError(humanFirebaseError(err));
-    });
-  }
-
-  function cleanupListeners() {
-    if (state.unsubRoom) { state.unsubRoom(); state.unsubRoom = null; }
-    if (state.unsubPlayers) { state.unsubPlayers(); state.unsubPlayers = null; }
-  }
-
-  function humanFirebaseError(err) {
-    const msg = err?.message || String(err);
-    if (String(err?.code || '').includes('permission-denied') || msg.includes('permission')) {
-      return 'Firestore permission denied. Fix Firestore Rules (test mode) OR enable Auth (anonymous) before using Party Mode.';
-    }
-    if (msg.toLowerCase().includes('offline') || msg.toLowerCase().includes('unavailable')) {
-      return 'Firestore appears offline/unreachable. Check network, adblockers, and that Firestore is enabled for this project.';
-    }
-    return msg;
+  function isPermissionDenied(e) {
+    const code = e && (e.code || (e.name === 'FirebaseError' && e.code));
+    if (code === 'permission-denied') return true;
+    const m = String((e && e.message) || e || '').toLowerCase();
+    return m.includes('permission-denied') || m.includes('permission denied');
   }
 
   async function createRoom() {
-    setEntryError('');
-    console.log('[PartyMode] createRoom() clicked');
+    log('createRoom() clicked');
+    setMsg('');
 
-    const nameEl = EL.inpName();
-    if (!nameEl) {
-      setEntryError('Name input not found. Check partymode.html input id (expected inpName).');
-      console.error('[PartyMode] inpName element missing');
-      return;
-    }
-    const name = (nameEl.value || '').trim();
-    if (!name) {
-      setEntryError('Please enter your name first.');
-      nameEl.focus();
+    const db = getDb();
+    if (!db || typeof db.collection !== 'function') {
+      setMsg('Firebase Firestore(db)가 준비되지 않았습니다. partymode.html에서 firebase.initializeApp(...) 후 window.db = firebase.firestore() 가 되었는지 확인하세요.');
       return;
     }
 
-    await ensureAnonymousAuthIfAvailable();
+    const nameInput = pickById(['inpName', 'yourName', 'joinName', 'playerName', 'inpUserName', 'inpYourName']) || pickInputByPlaceholder('your name');
+    const hostName = (nameInput && nameInput.value ? nameInput.value.trim() : '');
 
-    const db = ensureFirestore();
-
-    // Generate room code, try a few times if collision
-    let code = null;
-    for (let i = 0; i < 10; i++) {
-      const c = randCode(4);
-      const ref = db.collection('rooms').doc(c);
-      const snap = await ref.get();
-      if (!snap.exists) { code = c; break; }
-    }
-    if (!code) {
-      const m = 'Could not generate a unique room code. Try again.';
-      setEntryError(m);
-      throw new Error(m);
+    if (!hostName) {
+      setMsg('Please enter your name first.');
+      if (nameInput) nameInput.focus();
+      return;
     }
 
-    state.roomCode = code;
-    state.playerName = name;
-    state.isHost = true;
-    setRoomCodeLabels(code);
-
-    const roomRef = db.collection('rooms').doc(code);
-    const now = window.firebase?.firestore?.FieldValue?.serverTimestamp
-      ? window.firebase.firestore.FieldValue.serverTimestamp()
-      : new Date();
+    const roomCode = randCode(4);
 
     try {
-      await roomRef.set({
-        createdAt: now,
-        host: name,
+      // Deterministic doc id = roomCode (easier to join)
+      await db.collection('rooms').doc(roomCode).set({
+        code: roomCode,
+        hostName,
+        createdAt: (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue)
+          ? window.firebase.firestore.FieldValue.serverTimestamp()
+          : new Date(),
         status: 'lobby',
-        game: 'pb',
+        members: 1
       }, { merge: true });
 
-      await roomRef.collection('players').doc(name).set({
-        name,
-        isHost: true,
-        joinedAt: now,
-        submitted: false,
-      }, { merge: true });
+      setMsg(`Room created: ${roomCode}`, false);
 
-      console.log('[PartyMode] room created:', code);
-      // optional: reflect in URL for sharing
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.set('room', code);
-        window.history.replaceState({}, '', url.toString());
-      } catch {}
+      // Best-effort UI update
+      const codeInput = pickById(['inpCode', 'inpRoomCode', 'roomCode', 'joinCode', 'inpRoom', 'inpRoomId']) || pickInputByPlaceholder('room code');
+      if (codeInput) codeInput.value = roomCode;
+
+      // If lobby view exists and has placeholders, fill them
+      const lblRoom = pickById(['lblRoomCode', 'txtRoomCode', 'roomCodeText', 'roomCodeLabel']);
+      if (lblRoom) lblRoom.textContent = roomCode;
+
       showView('viewLobby');
-      await subscribeRoom(code);
+      alert(`Room created!\n\nRoom code: ${roomCode}\n\nShare link:\n${location.origin}${location.pathname}?room=${roomCode}`);
+    } catch (e) {
+      err('createRoom failed', e);
 
-      // If no lobby UI exists, at least show the code:
-      alert('Room created! Code: ' + code + '\nShare: partymode.html?room=' + code);
-
-    } catch (err) {
-      console.error('[PartyMode] createRoom error:', err);
-      const m = humanFirebaseError(err);
-      setEntryError(m);
-      alert('Create room failed: ' + m);
+      if (isPermissionDenied(e)) {
+        setMsg('Firestore 권한( rules ) 때문에 방을 만들 수 없습니다. Firestore Rules에서 rooms 컬렉션 write를 임시로 허용하거나(테스트용), 인증(예: 익명 로그인)을 맞춰야 합니다.');
+        return;
+      }
+      if (isOfflineLike(e)) {
+        setMsg('Firestore에 연결하지 못했습니다(offline처럼 동작). 브라우저에서 googleapis/gstatic 차단(확장프로그램/보안SW) 여부와 네트워크를 확인하세요.');
+        return;
+      }
+      setMsg(`Create room failed: ${e && e.message ? e.message : e}`);
     }
   }
 
   async function joinRoom() {
-    setEntryError('');
-    console.log('[PartyMode] joinRoom() clicked');
+    log('joinRoom() clicked');
+    setMsg('');
 
-    const codeEl = EL.inpCode();
-    const nameEl = EL.inpName();
-    if (!codeEl) { setEntryError('Room code input not found (expected inpRoomCode).'); return; }
-    if (!nameEl) { setEntryError('Name input not found (expected inpName).'); return; }
+    const db = getDb();
+    if (!db || typeof db.collection !== 'function') {
+      setMsg('Firebase Firestore(db)가 준비되지 않았습니다. partymode.html에서 firebase.initializeApp(...) 후 window.db = firebase.firestore() 가 되었는지 확인하세요.');
+      return;
+    }
 
-    const code = (codeEl.value || '').trim().toUpperCase();
-    const name = (nameEl.value || '').trim();
-    if (!code) { setEntryError('Please enter a room code.'); codeEl.focus(); return; }
-    if (!name) { setEntryError('Please enter your name.'); nameEl.focus(); return; }
+    const codeInput = pickById(['inpCode', 'inpRoomCode', 'roomCode', 'joinCode', 'inpRoom', 'inpRoomId']) || pickInputByPlaceholder('room code');
+    const nameInput = pickById(['inpName', 'yourName', 'joinName', 'playerName', 'inpUserName', 'inpYourName']) || pickInputByPlaceholder('your name');
 
-    await ensureAnonymousAuthIfAvailable();
+    const roomCode = (codeInput && codeInput.value ? codeInput.value.trim().toUpperCase() : '');
+    const yourName = (nameInput && nameInput.value ? nameInput.value.trim() : '');
 
-    const db = ensureFirestore();
-    const roomRef = db.collection('rooms').doc(code);
+    if (!yourName) {
+      setMsg('Please enter your name first.');
+      if (nameInput) nameInput.focus();
+      return;
+    }
+    if (!roomCode) {
+      setMsg('Please enter a room code.');
+      if (codeInput) codeInput.focus();
+      return;
+    }
 
     try {
-      const snap = await roomRef.get();
-      if (!snap.exists) { setEntryError('Room not found. Check the code and try again.'); return; }
+      const snap = await db.collection('rooms').doc(roomCode).get();
+      if (!snap.exists) {
+        setMsg('Room not found. Check the room code.');
+        return;
+      }
 
-      state.roomCode = code;
-      state.playerName = name;
-      state.isHost = false;
-      setRoomCodeLabels(code);
-
-      const now = window.firebase?.firestore?.FieldValue?.serverTimestamp
-        ? window.firebase.firestore.FieldValue.serverTimestamp()
-        : new Date();
-
-      await roomRef.collection('players').doc(name).set({
-        name,
-        isHost: false,
-        joinedAt: now,
-        submitted: false,
+      // optional: add member
+      await db.collection('rooms').doc(roomCode).collection('players').doc(yourName).set({
+        name: yourName,
+        joinedAt: (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue)
+          ? window.firebase.firestore.FieldValue.serverTimestamp()
+          : new Date()
       }, { merge: true });
 
-      console.log('[PartyMode] joined room:', code);
+      setMsg(`Joined room: ${roomCode}`, false);
       showView('viewLobby');
-      await subscribeRoom(code);
+    } catch (e) {
+      err('joinRoom failed', e);
 
-    } catch (err) {
-      console.error('[PartyMode] joinRoom error:', err);
-      const m = humanFirebaseError(err);
-      setEntryError(m);
-      alert('Join room failed: ' + m);
+      if (isPermissionDenied(e)) {
+        setMsg('Firestore 권한( rules ) 때문에 방에 들어갈 수 없습니다. Firestore Rules에서 rooms/players read/write를 임시로 허용하거나 인증을 맞춰야 합니다.');
+        return;
+      }
+      if (isOfflineLike(e)) {
+        setMsg('Firestore에 연결하지 못했습니다(offline처럼 동작). 브라우저에서 googleapis/gstatic 차단(확장프로그램/보안SW) 여부와 네트워크를 확인하세요.');
+        return;
+      }
+      setMsg(`Join room failed: ${e && e.message ? e.message : e}`);
     }
   }
 
   function bindUI() {
-    const bCreate = EL.btnCreate();
-    const bJoin = EL.btnJoin();
+    const btnCreate = pickById(['btnCreateRoom', 'btnCreate', 'createRoomBtn']);
+    const btnJoin   = pickById(['btnJoin', 'btnJoinRoom', 'joinBtn']);
 
-    if (bCreate) bCreate.addEventListener('click', () => createRoom());
-    else console.warn('[PartyMode] btnCreateRoom not found');
+    if (btnCreate) btnCreate.addEventListener('click', createRoom);
+    else warn('Create button not found');
 
-    if (bJoin) bJoin.addEventListener('click', () => joinRoom());
-    else console.warn('[PartyMode] btnJoin not found');
+    if (btnJoin) btnJoin.addEventListener('click', joinRoom);
+    else warn('Join button not found');
 
-    // If URL has ?room=XXXX, prefill + auto focus
-    try {
-      const url = new URL(window.location.href);
-      const code = (url.searchParams.get('room') || '').trim().toUpperCase();
-      if (code && EL.inpCode()) EL.inpCode().value = code;
-    } catch {}
+    // year footer if present
+    const y = $id('year');
+    if (y) y.textContent = String(new Date().getFullYear());
+
+    log('UI ready');
   }
 
-  function boot() {
-    console.log('[PartyMode] script loaded at', new Date().toISOString());
-
-    // sanity logs
-    try {
-      if (window.firebase?.apps?.length) {
-        console.log('[PartyMode] firebase projectId =', window.firebase.app().options.projectId);
-      } else {
-        console.warn('[PartyMode] firebase app not initialized yet');
-      }
-      if (window.db) console.log('[PartyMode] window.db exists');
-    } catch (e) {
-      console.warn('[PartyMode] firebase probe failed', e);
-    }
-
+  // Run after DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindUI);
+  } else {
     bindUI();
-    showView('viewEntry');
-    console.log('[PartyMode] UI ready ✅');
   }
 
-  document.addEventListener('DOMContentLoaded', boot);
+  // expose for manual testing
+  window.__PartyMode__ = { createRoom, joinRoom, getDb };
 })();
