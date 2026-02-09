@@ -227,23 +227,27 @@
     }
   }
 
-  function bindUI() {
-    setYear();
-    setMsg('');
+ function bindUI() {
+  setYear();
+  setMsg('');
 
-    const btnCreate = $('btnCreateRoom') || document.querySelector('button#btnCreateRoom, button[data-action="createRoom"]');
-    const btnJoin = $('btnJoin') || document.querySelector('button#btnJoin, button[data-action="joinRoom"]');
+  // ✅ URL에 ?room=XXXX가 있으면 Room code input에 자동 주입
+  const params = new URLSearchParams(location.search);
+  const preRoom = (params.get('room') || '').trim().toUpperCase();
+  const roomInput =
+    pickById(['inpRoom', 'roomCode', 'inpCode', 'joinCode']) ||
+    document.querySelector('input[placeholder*="Room code"], input[placeholder*="room code"]');
 
-   if (btnCreate) btnCreate.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); createRoom(); });
-  if (btnJoin)   btnJoin.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); joinRoom(); });
-
-
-    log('UI ready');
+  if (preRoom && roomInput && !roomInput.value) {
+    roomInput.value = preRoom;
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindUI);
-  } else {
-    bindUI();
-  }
-})();
+  const btnCreate = $('btnCreateRoom') || document.querySelector('button#btnCreateRoom, button[data-action="createRoom"]');
+  const btnJoin = $('btnJoin') || document.querySelector('button#btnJoin, button[data-action="joinRoom"]');
+
+  if (btnCreate) btnCreate.addEventListener('click', createRoom);
+  if (btnJoin) btnJoin.addEventListener('click', joinRoom);
+
+  log('UI ready');
+}
+
