@@ -99,13 +99,16 @@
       // 1) any input that already has a non-empty value (often the one the user actually typed in)
       // 2) common ids
       // 3) placeholder match (contains "name")
-      const allInputs = Array.from(document.querySelectorAll('input'));
-      const typedInput = allInputs.find(i => (i.value || '').trim().length > 0);
+      // ✅ IME(한글) 입력 중이면 값이 늦게 들어가는 경우가 있어 blur로 확정
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 
+      // ✅ "이름" input을 우선으로 정확히 잡기
       const nameInput =
-        typedInput ||
-        pickById(['inpName','yourName','joinName','playerName','inpUserName','inpYourName','name','userName','username']) ||
-        allInputs.find(i => ((i.placeholder || '').toLowerCase().includes('name')));
+      pickById(['inpName','yourName','joinName','playerName','inpUserName','inpYourName','name','userName','username']) ||
+      document.querySelector('input#inpName') ||
+      document.querySelector('input[placeholder^="Your name"], input[placeholder*="Your name"], input[placeholder*="your name"]') ||
+      document.querySelector('input[placeholder*="name"], input[placeholder*="Name"]');
+
 
       const hostName = (nameInput && nameInput.value ? nameInput.value.trim() : '');
       log('createRoom() using name input:', { id: nameInput && nameInput.id, placeholder: nameInput && nameInput.placeholder, value: hostName });
