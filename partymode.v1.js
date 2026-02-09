@@ -213,8 +213,9 @@
     const btnCreate = $('btnCreateRoom') || document.querySelector('button#btnCreateRoom, button[data-action="createRoom"]');
     const btnJoin = $('btnJoin') || document.querySelector('button#btnJoin, button[data-action="joinRoom"]');
 
-    if (btnCreate) btnCreate.addEventListener('click', createRoom);
-    if (btnJoin) btnJoin.addEventListener('click', joinRoom);
+   if (btnCreate) btnCreate.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); createRoom(); });
+  if (btnJoin)   btnJoin.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); joinRoom(); });
+
 
     log('UI ready');
   }
