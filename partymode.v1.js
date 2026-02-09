@@ -216,7 +216,14 @@
         setMsg('Room not found. Check the code.');
         return;
       }
+    // ✅ 참가자 등록(서브컬렉션)
+    // rooms/{roomCode}/players/{autoId} 로 추가
+    await db.collection('rooms').doc(roomCode).collection('players').add({
+      name: userName,
+      joinedAt: Date.now()
+    });
 
+      
       alert(`Joined room: ${roomCode} as ${userName}`);
       showView('viewLobby');
 
