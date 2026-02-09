@@ -85,77 +85,98 @@
   }
 
   async function createRoom() {
-    log('createRoom() clicked');
+  // ✅ prevent double-click / multi-click
+  if (window.__PM_CREATING__) {
+    log('createRoom() ignored: already in progress');
+    return;
+  }
+  window.__PM_CREATING__ = true;
 
-    try {
-      const db = getDb();
-      if (!db) {
-        setMsg('Firebase db not ready. Check window.db / window.EMOJIPICK_DB.');
-        console.error('[PartyMode] db not found. window.db:', window.db, 'window.EMOJIPICK_DB:', window.EMOJIPICK_DB);
-        return;
-      }
+  // ✅ lock the create button while working
+  const btn = $('btnCreate') || pickById(['btnCreateRoom', 'createRoomBtn']);
+  const oldText = btn ? btn.textContent : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+  }
 
-      // Pick the most reliable "name" input:
-      // 1) any input that already has a non-empty value (often the one the user actually typed in)
-      // 2) common ids
-      // 3) placeholder match (contains "name")
-      // ✅ IME(한글) 입력 중이면 값이 늦게 들어가는 경우가 있어 blur로 확정
-      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  try {
+    const db = getDb();
+    if (!db) {
+      setMsg('Firebase db not ready. Check window.db / window.EMOJIPICK_DB.');
+      console.error('[PartyMode] db not found. window.db:', window.db, 'window.EMOJIPICK_DB:', window.EMOJIPICK_DB);
+      return;
+    }
 
-      // ✅ "이름" input을 우선으로 정확히 잡기
-      const nameInput =
+    // Pick the most reliable "name" input:
+    const allInputs = Array.from(document.querySelectorAll('input'));
+    const typedInput = allInputs.find(i => (i.value || '').trim().length > 0);
+
+    const nameInput =
+      typedInput ||
       pickById(['inpName','yourName','joinName','playerName','inpUserName','inpYourName','name','userName','username']) ||
-      document.querySelector('input#inpName') ||
-      document.querySelector('input[placeholder^="Your name"], input[placeholder*="Your name"], input[placeholder*="your name"]') ||
-      document.querySelector('input[placeholder*="name"], input[placeholder*="Name"]');
+      allInputs.find(i => ((i.placeholder || '').toLowerCase().includes('name')));
 
+    const hostName = (nameInput && nameInput.value ? nameInput.value.trim() : '');
+    log('createRoom() using name input:', { id: nameInput && nameInput.id, placeholder: nameInput && nameInput.placeholder, value: hostName });
 
-      const hostName = (nameInput && nameInput.value ? nameInput.value.trim() : '');
-      log('createRoom() using name input:', { id: nameInput && nameInput.id, placeholder: nameInput && nameInput.placeholder, value: hostName });
+    if (!hostName) {
+      setMsg('Please enter your name first.');
+      if (nameInput) nameInput.focus();
+      return;
+    }
 
-      if (!hostName) {
-        setMsg('Please enter your name first.');
-        if (nameInput) nameInput.focus();
-        return;
-      }
+    setMsg('Creating room...');
 
-      setMsg(''); // clear error
+    const roomCode = randCode(4);
+    const now = Date.now();
 
-      const roomCode = randCode(4);
-      const now = Date.now();
+    log('createRoom() writing room doc', roomCode);
+    await db.collection('rooms').doc(roomCode).set({
+      createdAt: now,
+      hostName,
+      status: 'lobby',
+      picks: {},
+    });
 
-      log('createRoom() writing room doc', roomCode);
-      await db.collection('rooms').doc(roomCode).set({
-        createdAt: now,
-        hostName,
-        status: 'lobby',
-        picks: {},
-      });
+    log('createRoom() success, room created', roomCode);
 
-      log('createRoom() success, room created', roomCode);
+    // ✅ update URL so you can just copy/share the address bar
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', roomCode);
+      history.replaceState(null, '', url.toString());
+    } catch (_) {}
 
-      // reflect on UI if there is a lobby view (optional)
-      const lobby = $('viewLobby');
-      if (lobby) {
-        lobby.innerHTML = `
-          <div class="h2">Room Created</div>
-          <div class="muted" style="margin-top:6px;">Share this code:</div>
-          <div style="font-size:28px; font-weight:900; letter-spacing:2px; margin-top:6px;">${escapeHtml(roomCode)}</div>
-          <div class="divider"></div>
-          <div class="muted">Tip: Open on another phone:</div>
-          <div style="margin-top:6px;"><code>partymode.html?room=${escapeHtml(roomCode)}</code></div>
-        `;
-      }
+    // reflect on UI
+    const lobby = $('viewLobby');
+    if (lobby) {
+      lobby.innerHTML = `
+        <div class="h2">Room Created</div>
+        <div class="muted" style="margin-top:6px;">Share this code:</div>
+        <div style="font-size:28px; font-weight:900; letter-spacing:2px; margin-top:6px;">${escapeHtml(roomCode)}</div>
+        <div class="divider"></div>
+        <div class="muted">Tip: Open on another phone:</div>
+        <div style="margin-top:6px;"><code>partymode.html?room=${escapeHtml(roomCode)}</code></div>
+      `;
+    }
 
-      alert(`Room created: ${roomCode}`);
-      showView('viewLobby');
+    setMsg('');
+    showView('viewLobby');
 
-    } catch (err) {
-      console.error('[PartyMode] createRoom error:', err);
-      setMsg(String(err && err.message ? err.message : err));
-      alert('Create room failed: ' + (err && err.message ? err.message : err));
+  } catch (err) {
+    console.error('[PartyMode] createRoom error:', err);
+    const msg = (err && err.message) ? err.message : String(err);
+    setMsg('Create room failed: ' + msg);
+  } finally {
+    window.__PM_CREATING__ = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = oldText || 'Create room (Host)';
     }
   }
+}
+
 
   async function joinRoom() {
     log('joinRoom() clicked');
