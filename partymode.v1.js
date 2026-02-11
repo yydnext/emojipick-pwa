@@ -240,33 +240,44 @@ if (!exists) {
   setYear();
   setMsg('');
 
-  let btnCreate = $('btnCreateRoom') || document.querySelector('button#btnCreateRoom, button[data-action="createRoom"]');
-  let btnJoin   = $('btnJoin')      || document.querySelector('button#btnJoin, button[data-action="joinRoom"]');
+  // 1) id / data-action 우선
+  let btnCreate =
+    $('btnCreateRoom') ||
+    document.querySelector('button#btnCreateRoom, button[data-action="createRoom"]');
 
-  // ✅ fallback: 버튼 id가 없을 때 "Join" 텍스트로 찾기
-  if (!btnJoin) {
-    btnJoin = [...document.querySelectorAll('button')].find(b => /^\s*join\s*$/i.test(b.textContent || ''));
-  }
+  let btnJoin =
+    $('btnJoin') ||
+    document.querySelector('button#btnJoin, button[data-action="joinRoom"]');
+
+  // 2) 없으면 "버튼 텍스트"로 찾기 (id가 없는 경우 대비)
+  const buttons = Array.from(document.querySelectorAll('button'));
   if (!btnCreate) {
-    btnCreate = [...document.querySelectorAll('button')].find(b => /create\s*room/i.test(b.textContent || ''));
+    btnCreate = buttons.find(b => (b.textContent || '').toLowerCase().includes('create room'));
+  }
+  if (!btnJoin) {
+    btnJoin = buttons.find(b => (b.textContent || '').trim().toLowerCase() === 'join');
   }
 
+  // 3) 클릭 연결
   if (btnCreate) btnCreate.addEventListener('click', createRoom);
-  else console.warn('[PartyMode] Create button not found');
-
   if (btnJoin) btnJoin.addEventListener('click', joinRoom);
-  else console.warn('[PartyMode] Join button not found (add id="btnJoin" recommended)');
 
-  log('UI ready');
-}
+  log('UI ready', { hasCreate: !!btnCreate, hasJoin: !!btnJoin });
 
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindUI);
-  } else {
-    bindUI();
+  // 4) URL의 ?room=XXXX 를 첫 칸에 자동 세팅 (실패해도 앱이 죽지 않게 try)
+  try {
+    const roomFromUrl = new URLSearchParams(location.search).get('room');
+    if (roomFromUrl) {
+      const roomInput =
+        document.querySelector('input[placeholder^="Room code"]') ||
+        $('roomCode') ||
+        $('inputRoomCode');
+      if (roomInput) roomInput.value = String(roomFromUrl).toUpperCase();
+      setMsg('Enter your name and press Join.');
+    }
+  } catch (e) {
+    console.warn('[PartyMode] roomFromUrl parse failed', e);
   }
-  const roomFromUrl = new URLSearchParams(location.search).get('room');
-if (roomFromUrl) inputRoomCode.value = roomFromUrl.toUpperCase();
+}
 
 })();
