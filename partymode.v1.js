@@ -236,18 +236,30 @@ if (!exists) {
     }
   }
 
-   function bindUI() {
-    setYear();
-    setMsg('');
+  function bindUI() {
+  setYear();
+  setMsg('');
 
-    const btnCreate = $('btnCreateRoom') || document.querySelector('button#btnCreateRoom, button[data-action="createRoom"]');
-    const btnJoin   = $('btnJoin')       || document.querySelector('button#btnJoin, button[data-action="joinRoom"]');
+  let btnCreate = $('btnCreateRoom') || document.querySelector('button#btnCreateRoom, button[data-action="createRoom"]');
+  let btnJoin   = $('btnJoin')      || document.querySelector('button#btnJoin, button[data-action="joinRoom"]');
 
-    if (btnCreate) btnCreate.addEventListener('click', createRoom);
-    if (btnJoin)   btnJoin.addEventListener('click', joinRoom);
-
-    log('UI ready');
+  // ✅ fallback: 버튼 id가 없을 때 "Join" 텍스트로 찾기
+  if (!btnJoin) {
+    btnJoin = [...document.querySelectorAll('button')].find(b => /^\s*join\s*$/i.test(b.textContent || ''));
   }
+  if (!btnCreate) {
+    btnCreate = [...document.querySelectorAll('button')].find(b => /create\s*room/i.test(b.textContent || ''));
+  }
+
+  if (btnCreate) btnCreate.addEventListener('click', createRoom);
+  else console.warn('[PartyMode] Create button not found');
+
+  if (btnJoin) btnJoin.addEventListener('click', joinRoom);
+  else console.warn('[PartyMode] Join button not found (add id="btnJoin" recommended)');
+
+  log('UI ready');
+}
+
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', bindUI);
