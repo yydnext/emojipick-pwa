@@ -254,4 +254,7 @@ if (!exists) {
   } else {
     bindUI();
   }
+  const roomFromUrl = new URLSearchParams(location.search).get('room');
+if (roomFromUrl) inputRoomCode.value = roomFromUrl.toUpperCase();
+
 })();
