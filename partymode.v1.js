@@ -212,10 +212,12 @@
       setMsg('');
 
       const snap = await db.collection('rooms').doc(roomCode).get();
-      if (!snap.exists) {
-        setMsg('Room not found. Check the code.');
-        return;
-      }
+     const exists = (typeof snap.exists === 'function') ? snap.exists() : !!snap.exists;
+if (!exists) {
+  setMsg('Room not found. Check the code.');
+  return;
+}
+
     // ✅ 참가자 등록(서브컬렉션)
     // rooms/{roomCode}/players/{autoId} 로 추가
     await db.collection('rooms').doc(roomCode).collection('players').add({
