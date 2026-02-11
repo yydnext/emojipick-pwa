@@ -1,106 +1,84 @@
-// partymode.v1.js (universal)
-// Works with firebase-app-compat.js + firebase-firestore-compat.js loaded in partymode.html
-
+/* Party Mode v1 - stable (host/join) */
 (() => {
-  'use strict';
+  const log  = (...a) => console.log('[PartyMode]', ...a);
+  const warn = (...a) => console.warn('[PartyMode]', ...a);
 
-  const $ = (id) => document.getElementById(id);
-
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    }[c]));
-  }
+  const $id = (id) => document.getElementById(id);
 
   function setYear() {
-    const el = $('year');
-    if (el) el.textContent = String(new Date().getFullYear());
+    const y = $id('year');
+    if (y) y.textContent = String(new Date().getFullYear());
   }
 
-  function showView(name) {
-    const views = ['viewEntry', 'viewLobby', 'viewPick', 'viewResult'];
-    for (const v of views) {
-      const el = $(v);
-      if (el) el.hidden = (v !== name);
-    }
-  }
-
-  function randCode(len = 4) {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let s = '';
-    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
-    return s;
-  }
-
-  function log(...args) {
-    console.log('[PartyMode]', ...args);
-  }
-
-  function ensureMsgArea() {
-    // try to reuse existing "micro" div in viewEntry, otherwise create one
-    const entry = $('viewEntry') || document.body;
-    let micro = entry.querySelector('.micro');
-    if (!micro) {
-      micro = document.createElement('div');
-      micro.className = 'micro';
-      micro.style.marginTop = '10px';
-      entry.appendChild(micro);
-    }
-    return micro;
-  }
-
-  const msgEl = ensureMsgArea();
-
-  function setMsg(text, isError = true) {
-    if (!msgEl) return;
-    msgEl.innerHTML = text ? `<span style="color:${isError ? 'crimson' : 'inherit'}">${escapeHtml(text)}</span>` : '';
-  }
-
-  function getDb() {
-    // Prefer explicitly exposed db
-    if (window.EMOJIPICK_DB) return window.EMOJIPICK_DB;
-    if (window.db) return window.db;
-
-    // If only firebase compat exists, try to create firestore
-    if (window.firebase && window.firebase.firestore) {
-      try {
-        return window.firebase.firestore();
-      } catch (e) {
-        console.error('[PartyMode] firebase.firestore() failed:', e);
-      }
-    }
-    return null;
+  function setMsg(txt) {
+    const msg =
+      $id('msg') ||
+      document.querySelector('#msg,[data-role="msg"],.msg,.message');
+    if (msg) msg.textContent = txt || '';
   }
 
   function pickById(ids) {
     for (const id of ids) {
-      const el = document.getElementById(id);
+      const el = $id(id);
       if (el) return el;
     }
     return null;
   }
 
+  // pick the most reliable input:
+  // 1) non-empty value (what user actually typed)
+  // 2) common ids
+  // 3) placeholder contains token
+  function pickInput({ ids = [], placeholderToken = '' }) {
+    const inputs = Array.from(document.querySelectorAll('input'));
+
+    // 1) already typed
+    for (const el of inputs) {
+      if (el && typeof el.value === 'string' && el.value.trim().length > 0) {
+        // if placeholderToken provided, prefer matching one
+        if (!placeholderToken) return el;
+        const ph = (el.getAttribute('placeholder') || '').toLowerCase();
+        if (ph.includes(placeholderToken.toLowerCase())) return el;
+      }
+    }
+
+    // 2) ids
+    const byId = pickById(ids);
+    if (byId) return byId;
+
+    // 3) placeholder
+    if (placeholderToken) {
+      const token = placeholderToken.toLowerCase();
+      for (const el of inputs) {
+        const ph = (el.getAttribute('placeholder') || '').toLowerCase();
+        if (ph.includes(token)) return el;
+      }
+    }
+
+    return null;
+  }
+
+  function getDb() {
+    // prefer explicitly exposed db
+    if (window.db) return window.db;
+    if (window.EMOJIPICK_DB) return window.EMOJIPICK_DB;
+    // firebase v9 compat: window.firebase.firestore()
+    try {
+      if (window.firebase?.firestore) return window.firebase.firestore();
+    } catch (e) {}
+    return null;
+  }
+
+  function makeRoomCode() {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 4; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+    return code;
+  }
+
   async function createRoom() {
-  // ✅ prevent double-click / multi-click
-  if (window.__PM_CREATING__) {
-    log('createRoom() ignored: already in progress');
-    return;
-  }
-  window.__PM_CREATING__ = true;
+    log('createRoom() clicked');
 
-  // ✅ lock the create button while working
-  const btn = $('btnCreate') || pickById(['btnCreateRoom', 'createRoomBtn']);
-  const oldText = btn ? btn.textContent : '';
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Creating...';
-  }
-
-  try {
     const db = getDb();
     if (!db) {
       setMsg('Firebase db not ready. Check window.db / window.EMOJIPICK_DB.');
@@ -108,176 +86,157 @@
       return;
     }
 
-    // Pick the most reliable "name" input:
-    const allInputs = Array.from(document.querySelectorAll('input'));
-    const typedInput = allInputs.find(i => (i.value || '').trim().length > 0);
+    // name input
+    const inpName = pickInput({
+      ids: ['name', 'playerName', 'hostName', 'inputName', 'yourName'],
+      placeholderToken: 'your name'
+    });
 
-    const nameInput =
-      typedInput ||
-      pickById(['inpName','yourName','joinName','playerName','inpUserName','inpYourName','name','userName','username']) ||
-      allInputs.find(i => ((i.placeholder || '').toLowerCase().includes('name')));
+    // IME(한글) 입력 지연 대비: blur 한번
+    if (inpName) inpName.blur();
 
-    const hostName = (nameInput && nameInput.value ? nameInput.value.trim() : '');
-    log('createRoom() using name input:', { id: nameInput && nameInput.id, placeholder: nameInput && nameInput.placeholder, value: hostName });
-
+    const hostName = (inpName?.value || '').trim();
     if (!hostName) {
       setMsg('Please enter your name first.');
-      if (nameInput) nameInput.focus();
       return;
     }
 
+    const room = makeRoomCode();
     setMsg('Creating room...');
 
-    const roomCode = randCode(4);
-    const now = Date.now();
-
-    log('createRoom() writing room doc', roomCode);
-    await db.collection('rooms').doc(roomCode).set({
-      createdAt: now,
-      hostName,
-      status: 'lobby',
-      picks: {},
-    });
-
-    log('createRoom() success, room created', roomCode);
-
-    // ✅ update URL so you can just copy/share the address bar
     try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('room', roomCode);
-      history.replaceState(null, '', url.toString());
-    } catch (_) {}
+      log('createRoom() writing room doc', room);
+      await db.collection('rooms').doc(room).set({
+        createdAt: Date.now(),
+        hostName,
+        status: 'lobby',
+        picks: {}
+      });
+      log('createRoom() success, room created', room);
 
-    // reflect on UI
-    const lobby = $('viewLobby');
-    if (lobby) {
-      lobby.innerHTML = `
-        <div class="h2">Room Created</div>
-        <div class="muted" style="margin-top:6px;">Share this code:</div>
-        <div style="font-size:28px; font-weight:900; letter-spacing:2px; margin-top:6px;">${escapeHtml(roomCode)}</div>
-        <div class="divider"></div>
-        <div class="muted">Tip: Open on another phone:</div>
-        <div style="margin-top:6px;"><code>partymode.html?room=${escapeHtml(roomCode)}</code></div>
-      `;
-    }
+      // update UI if the page has "room created" area
+      const roomCodeEl =
+        $id('roomCodeDisplay') ||
+        $id('roomCode') ||
+        document.querySelector('[data-role="roomCode"], .roomCode, #roomCodeText');
+      if (roomCodeEl) roomCodeEl.textContent = room;
 
-    setMsg('');
-    showView('viewLobby');
+      const tipEl =
+        $id('roomLink') ||
+        document.querySelector('[data-role="roomLink"], .roomLink');
+      if (tipEl) tipEl.textContent = `partymode.html?room=${room}`;
 
-  } catch (err) {
-    console.error('[PartyMode] createRoom error:', err);
-    const msg = (err && err.message) ? err.message : String(err);
-    setMsg('Create room failed: ' + msg);
-  } finally {
-    window.__PM_CREATING__ = false;
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = oldText || 'Create room (Host)';
+      // if the page shows a "Room Created" view, try to show it
+      const viewCreated = $id('viewRoomCreated') || document.querySelector('#viewRoomCreated,.viewRoomCreated');
+      const viewMain    = $id('viewMain') || document.querySelector('#viewMain,.viewMain');
+      if (viewCreated) viewCreated.style.display = '';
+      if (viewMain) viewMain.style.display = 'none';
+
+      alert(`Room created: ${room}`);
+      setMsg(`Room created: ${room}`);
+    } catch (e) {
+      console.error(e);
+      setMsg('Failed to create room. See console.');
     }
   }
-}
-
 
   async function joinRoom() {
     log('joinRoom() clicked');
 
-    try {
-      const db = getDb();
-      if (!db) {
-        setMsg('Firebase db not ready. Check window.db / window.EMOJIPICK_DB.');
-        console.error('[PartyMode] db not found. window.db:', window.db, 'window.EMOJIPICK_DB:', window.EMOJIPICK_DB);
-        return;
-      }
+    const db = getDb();
+    if (!db) {
+      setMsg('Firebase db not ready.');
+      return;
+    }
 
-      const roomInput = pickById(['inpRoom', 'roomCode', 'inpCode', 'joinCode']) || document.querySelector('input[placeholder*="Room code"], input[placeholder*="room code"]');
-      const nameInput =
-        Array.from(document.querySelectorAll('input')).find(i => (i.value || '').trim().length > 0) ||
-        pickById(['inpName','yourName','joinName','playerName','inpUserName','inpYourName','name','userName','username']) ||
-        document.querySelector('input[placeholder*="Your name"], input[placeholder*="your name"], input[placeholder*="name"]');
-
-      const roomCode = (roomInput && roomInput.value ? roomInput.value.trim().toUpperCase() : '');
-      const userName = (nameInput && nameInput.value ? nameInput.value.trim() : '');
-
-      if (!userName) {
-        setMsg('Please enter your name first.');
-        if (nameInput) nameInput.focus();
-        return;
-      }
-      if (!roomCode) {
-        setMsg('Please enter a room code.');
-        if (roomInput) roomInput.focus();
-        return;
-      }
-
-      setMsg('');
-
-      const snap = await db.collection('rooms').doc(roomCode).get();
-     const exists = (typeof snap.exists === 'function') ? snap.exists() : !!snap.exists;
-if (!exists) {
-  setMsg('Room not found. Check the code.');
-  return;
-}
-
-    // ✅ 참가자 등록(서브컬렉션)
-    // rooms/{roomCode}/players/{autoId} 로 추가
-    await db.collection('rooms').doc(roomCode).collection('players').add({
-      name: userName,
-      joinedAt: Date.now()
+    const inpRoom = pickInput({
+      ids: ['room', 'roomCode', 'inputRoom', 'inputRoomCode'],
+      placeholderToken: 'room code'
+    });
+    const inpName = pickInput({
+      ids: ['name', 'playerName', 'guestName', 'inputName', 'yourName'],
+      placeholderToken: 'your name'
     });
 
-      
-      alert(`Joined room: ${roomCode} as ${userName}`);
-      showView('viewLobby');
+    if (inpName) inpName.blur();
 
-    } catch (err) {
-      console.error('[PartyMode] joinRoom error:', err);
-      setMsg(String(err && err.message ? err.message : err));
-      alert('Join room failed: ' + (err && err.message ? err.message : err));
+    const room = (inpRoom?.value || '').trim().toUpperCase();
+    const name = (inpName?.value || '').trim();
+
+    if (!room) { setMsg('Please enter room code.'); return; }
+    if (!name) { setMsg('Please enter your name first.'); return; }
+
+    setMsg('Joining room...');
+
+    try {
+      const ref = db.collection('rooms').doc(room);
+      const snap = await ref.get();
+
+      if (!snap.exists) {
+        setMsg('Room not found. Check the code.');
+        return;
+      }
+
+      // store join info (simple)
+      await ref.set({
+        players: { [name]: { joinedAt: Date.now() } }
+      }, { merge: true });
+
+      setMsg(`Joined room ${room} as ${name}.`);
+      log('joinRoom() success', { room, name });
+
+      alert(`Joined room ${room} as ${name}`);
+    } catch (e) {
+      console.error(e);
+      setMsg('Failed to join room. See console.');
     }
   }
 
   function bindUI() {
-  setYear();
-  setMsg('');
+    setYear();
+    setMsg('');
 
-  // 1) id / data-action 우선
-  let btnCreate =
-    $('btnCreateRoom') ||
-    document.querySelector('button#btnCreateRoom, button[data-action="createRoom"]');
+    const btnCreate =
+      pickById(['btnCreateRoom', 'btnCreate', 'createRoomBtn']) ||
+      document.querySelector('button#btnCreateRoom, button[data-action="createRoom"]');
+    const btnJoin =
+      pickById(['btnJoin', 'btnJoinRoom', 'joinBtn']) ||
+      document.querySelector('button#btnJoin, button[data-action="joinRoom"]');
 
-  let btnJoin =
-    $('btnJoin') ||
-    document.querySelector('button#btnJoin, button[data-action="joinRoom"]');
+    if (btnCreate) btnCreate.addEventListener('click', createRoom);
+    else warn('Create button not found');
 
-  // 2) 없으면 "버튼 텍스트"로 찾기 (id가 없는 경우 대비)
-  const buttons = Array.from(document.querySelectorAll('button'));
-  if (!btnCreate) {
-    btnCreate = buttons.find(b => (b.textContent || '').toLowerCase().includes('create room'));
-  }
-  if (!btnJoin) {
-    btnJoin = buttons.find(b => (b.textContent || '').trim().toLowerCase() === 'join');
-  }
+    if (btnJoin) btnJoin.addEventListener('click', joinRoom);
+    else warn('Join button not found');
 
-  // 3) 클릭 연결
-  if (btnCreate) btnCreate.addEventListener('click', createRoom);
-  if (btnJoin) btnJoin.addEventListener('click', joinRoom);
-
-  log('UI ready', { hasCreate: !!btnCreate, hasJoin: !!btnJoin });
-
-  // 4) URL의 ?room=XXXX 를 첫 칸에 자동 세팅 (실패해도 앱이 죽지 않게 try)
-  try {
+    // if opened with ?room=XXXX, prefill and disable create (avoid confusion)
     const roomFromUrl = new URLSearchParams(location.search).get('room');
     if (roomFromUrl) {
-      const roomInput =
-        document.querySelector('input[placeholder^="Room code"]') ||
-        $('roomCode') ||
-        $('inputRoomCode');
-      if (roomInput) roomInput.value = String(roomFromUrl).toUpperCase();
-      setMsg('Enter your name and press Join.');
-    }
-  } catch (e) {
-    console.warn('[PartyMode] roomFromUrl parse failed', e);
-  }
-}
+      const inpRoom = pickInput({
+        ids: ['room', 'roomCode', 'inputRoom', 'inputRoomCode'],
+        placeholderToken: 'room code'
+      });
+      if (inpRoom) inpRoom.value = roomFromUrl.toUpperCase();
 
+      if (btnCreate) {
+        btnCreate.disabled = true;
+        btnCreate.style.opacity = '0.5';
+        btnCreate.style.cursor = 'not-allowed';
+      }
+      setMsg('Enter your name, then press Join.');
+    }
+
+    log('UI ready');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindUI);
+  } else {
+    bindUI();
+  }
+
+  // expose for testing
+  window.__PartyMode__ = { createRoom, joinRoom, getDb };
+  window.createRoom = createRoom;
+  window.joinRoom = joinRoom;
 })();
