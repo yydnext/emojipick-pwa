@@ -132,8 +132,10 @@
       if (viewCreated) viewCreated.style.display = '';
       if (viewMain) viewMain.style.display = 'none';
 
-      alert(`Room created: ${room}`);
-      setMsg(`Room created: ${room}`);
+     alert(`Room created: ${roomCode}`);
+location.href = `partymode.html?room=${roomCode}&host=1`;
+return;
+
     } catch (e) {
       console.error(e);
       setMsg('Failed to create room. See console.');
