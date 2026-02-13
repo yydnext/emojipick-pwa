@@ -135,7 +135,7 @@
      alert(`Room created: ${room}`);
        // (선택) 아예 그 주소로 이동시키고 싶으면:
      location.href = `partymode.html?room=${room}&host=1`;
-       // return;
+         return;
 
     } catch (e) {
       console.error(e);
