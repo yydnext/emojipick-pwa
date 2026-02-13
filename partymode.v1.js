@@ -226,6 +226,8 @@
         btnCreate.style.opacity = '0.5';
         btnCreate.style.cursor = 'not-allowed';
       }
+      if (btnCreate) btnCreate.style.display = 'none';
+
       setMsg('Enter your name, then press Join.');
     }
 
