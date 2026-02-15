@@ -69,37 +69,73 @@
     return null;
   }
 
-  function getRoomCodeInput() {
-    // Prefer explicit IDs, else detect by placeholder mentioning room code.
-    return (
-      pickInputById(['roomCode', 'inputRoomCode', 'txtRoomCode', 'code', 'room']) ||
-      pickInputByPlaceholder((ph) => ph.includes('room code') || ph.includes('room') && ph.includes('code')) ||
-      // Fallback: first text input on the page.
-      Array.from(document.querySelectorAll('input, textarea')).filter(isTextInput)[0] ||
-      null
-    );
-  }
-
-  function getNameInput() {
-    // Prefer explicit IDs, else detect by placeholder mentioning name.
-    const byId = pickInputById(['inputName', 'playerName', 'hostName', 'name', 'txtName', 'yourName']);
-    if (byId) return byId;
-
-    const byPlaceholder =
-      pickInputByPlaceholder((ph) => ph.includes('your name') || ph.includes('name'));
-    if (byPlaceholder) return byPlaceholder;
-
-    // Fallback: choose the text input closest to the Join button.
-    const btnJoin = document.querySelector('#btnJoin, button#btnJoin, button[data-action="joinRoom"], button[data-action="join"]');
-    if (btnJoin) {
-      const row = btnJoin.closest('div, form, section') || document.body;
-      const candidates = Array.from(row.querySelectorAll('input, textarea')).filter(isTextInput);
-      if (candidates.length) return candidates[candidates.length - 1];
+    function getJoinScope() {
+    const btnJoin = $id('btnJoin') || document.querySelector('[data-action="joinRoom"], button#btnJoin');
+    if (!btnJoin) return document;
+    // Walk up until we find a container that holds BOTH inputs (room code + name) and the Join button.
+    let el = btnJoin;
+    while (el && el !== document.body) {
+      const inputs = Array.from(el.querySelectorAll('input,textarea')).filter(isTextInput);
+      if (inputs.length >= 2) return el;
+      el = el.parentElement;
     }
-
-    const inputs = Array.from(document.querySelectorAll('input, textarea')).filter(isTextInput);
-    return inputs.length >= 2 ? inputs[1] : inputs[0] || null;
+    return document;
   }
+
+  function getRoomCodeInput() {
+    const scope = getJoinScope();
+    const byId = $id('roomCode') || $id('room') || $id('code') || $id('inputRoomCode') ||
+      scope.querySelector('input#roomCode, input#room, input#code, input#inputRoomCode');
+    if (byId && isTextInput(byId)) return byId;
+
+    const inputs = Array.from(scope.querySelectorAll('input,textarea')).filter(isTextInput);
+    if (!inputs.length) return null;
+
+    // Prefer placeholder/id/name hints
+    const scored = inputs.map((el) => {
+      const id = (el.id || '').toLowerCase();
+      const nm = (el.getAttribute('name') || '').toLowerCase();
+      const ph = ((el.getAttribute('placeholder') || '') + ' ' + (el.getAttribute('aria-label') || '')).toLowerCase();
+      let score = 0;
+      if (id.includes('room') || id.includes('code') || nm.includes('room') || nm.includes('code')) score += 5;
+      if (ph.includes('room') || ph.includes('code')) score += 5;
+      const ml = Number(el.getAttribute('maxlength') || 0);
+      if (ml && ml <= 6) score += 2;
+      return { el, score };
+    }).sort((a,b) => b.score - a.score);
+
+    return scored[0].el;
+  }
+
+
+    function getNameInput() {
+    const scope = getJoinScope();
+    const byId = $id('hostName') || $id('playerName') || $id('name') || $id('inputName') ||
+      scope.querySelector('input#hostName, input#playerName, input#name, input#inputName');
+    if (byId && isTextInput(byId)) return byId;
+
+    const inputs = Array.from(scope.querySelectorAll('input,textarea')).filter(isTextInput);
+    if (!inputs.length) return null;
+
+    const roomEl = getRoomCodeInput();
+    const candidates = inputs.filter((el) => el !== roomEl);
+    if (!candidates.length) return inputs.length >= 2 ? inputs[1] : inputs[0];
+
+    // Prefer placeholder/id/name hints, and avoid the invite-link input if it exists in the same scope.
+    const scored = candidates.map((el) => {
+      const id = (el.id || '').toLowerCase();
+      const nm = (el.getAttribute('name') || '').toLowerCase();
+      const ph = ((el.getAttribute('placeholder') || '') + ' ' + (el.getAttribute('aria-label') || '')).toLowerCase();
+      let score = 0;
+      if (id.includes('name') || nm.includes('name')) score += 5;
+      if (ph.includes('name')) score += 5;
+      if (id.includes('invitelink') || nm.includes('invitelink')) score -= 10;
+      return { el, score };
+    }).sort((a,b) => b.score - a.score);
+
+    return scored[0].el;
+  }
+
 
   function setMsg(msg) {
     const el =
@@ -551,7 +587,8 @@
       document.querySelector('button#btnJoin, button[data-action="joinRoom"]');
 
     if (btnCreate) btnCreate.addEventListener('click', createRoom);
-    if (btnJoin) btnJoin.addEventListener('click', () => joinRoom(false));
+    if (btnJoin) if (btnJoin.tagName === 'BUTTON') btnJoin.type = 'button';
+    btnJoin.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); joinRoom(false); });
 
     // inputs
     const inputRoomCode = getRoomCodeInput();
