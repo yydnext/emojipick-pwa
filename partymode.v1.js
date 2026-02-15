@@ -1,333 +1,406 @@
-/* EmojiPick Party Mode (Firestore) - stable UI + realtime lobby
- * Host: enter name -> Create room (auto-joins host)
- * Guest: open invite link (room prefilled) -> enter name -> Join
- * Both: Lobby shows realtime players list
+/* EmojiPick Party Mode (Multi-phone)
+ * Host: enter name -> Create room
+ * Guest: open invite link/QR -> enter name -> Join
  *
- * Requires partymode.html includes firebase-app-compat.js + firebase-firestore-compat.js
- * and sets: window.db = firebase.firestore();
+ * Wires UI by id OR data-action and injects Lobby UI if missing.
+ * Requires Firebase compat + window.db (firebase.firestore()) set in HTML.
  */
+
 (function () {
   'use strict';
 
-  function log() {
-    try {
-      var args = Array.prototype.slice.call(arguments);
-      args.unshift('[PartyMode]');
-      console.log.apply(console, args);
-    } catch (_) {}
-  }
-  function $(id) { return document.getElementById(id); }
-  function qs(sel, root) { return (root || document).querySelector(sel); }
-  function qsa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
-  function safeText(el, text) { if (el) el.textContent = text; }
-
-  function setMsg(msg) {
-    var el = $('msg') || qs('[data-role="msg"]') || qs('.msg');
-    if (el) el.textContent = msg || '';
-    if (msg) log(msg);
-  }
+  // ---------- helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const qs = (sel) => document.querySelector(sel);
+  const upperRoom = (s) => (s || '').trim().toUpperCase();
+  const cleanName = (s) => (s || '').trim();
+  const now = () => Date.now();
 
   function getDb() {
-    if (window.db && typeof window.db.collection === 'function') return window.db;
-    if (window.firebase && window.firebase.firestore) return window.firebase.firestore();
+    if (window.db) return window.db;
+    if (window.firebase && typeof window.firebase.firestore === 'function') return window.firebase.firestore();
     return null;
   }
 
-  function upperRoom(s) {
-    return (s || '').toString().trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  function setMsg(msg) {
+    const el = $('msg') || qs('[data-role="msg"]') || qs('.msg');
+    if (el) el.textContent = msg || '';
   }
-  function now() { return Date.now(); }
 
-  function genRoomCode(len) {
-    len = len || 4;
-    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no O/0, I/1
-    var out = '';
-    for (var i = 0; i < len; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+  function getParam(k) {
+    try { return new URLSearchParams(location.search).get(k); }
+    catch { return null; }
+  }
+
+  function setParam(k, v) {
+    try {
+      const u = new URL(location.href);
+      if (v === null || v === undefined || v === '') u.searchParams.delete(k);
+      else u.searchParams.set(k, String(v));
+      history.replaceState({}, '', u.toString());
+    } catch {}
+  }
+
+  function localGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
+  function localSet(key, val) { try { localStorage.setItem(key, val); } catch {} }
+
+  function getInputs() {
+    const room =
+      $('roomCode') ||
+      qs('input[name="roomCode"]') ||
+      qs('[data-role="roomCode"]') ||
+      qs('input[placeholder*="Room"]');
+
+    const name =
+      $('name') ||
+      qs('input[name="name"]') ||
+      qs('[data-role="name"]') ||
+      qs('input[placeholder*="name" i]');
+
+    return { room, name };
+  }
+
+  function getButtons() {
+    const btnCreate =
+      $('btnCreateRoom') ||
+      qs('button#btnCreateRoom') ||
+      qs('button[data-action="createRoom"]');
+
+    const btnJoin =
+      $('btnJoin') ||
+      qs('button#btnJoin') ||
+      qs('button[data-action="joinRoom"]');
+
+    return { btnCreate, btnJoin };
+  }
+
+  function genRoomCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I,O,1,0
+    let out = '';
+    for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
     return out;
   }
 
-  function pickInput(opts) {
-    opts = opts || {};
-    var ids = opts.ids || [];
-    for (var i = 0; i < ids.length; i++) {
-      var el = $(ids[i]);
-      if (el && el.tagName === 'INPUT') return el;
-    }
-    if (opts.placeholderToken) {
-      var token = opts.placeholderToken.toLowerCase();
-      var inputs = qsa('input');
-      for (var j = 0; j < inputs.length; j++) {
-        var ph = (inputs[j].getAttribute('placeholder') || '').toLowerCase();
-        if (ph.indexOf(token) >= 0) return inputs[j];
-      }
-    }
-    return null;
-  }
-
-  var inpRoom = null, inpName = null, btnCreate = null, btnJoin = null;
-  var lobbyBox = null, unsubRoom = null;
-
-  function getInputs() {
-    inpRoom = pickInput({ ids: ['room', 'roomCode', 'inputRoom', 'inputRoomCode'], placeholderToken: 'room code' })
-          || pickInput({ placeholderToken: 'room' })
-          || qs('input[placeholder*="Room"]') || qs('input[placeholder*="room"]');
-
-    inpName = pickInput({ ids: ['name', 'hostName', 'playerName', 'inputName', 'inputHostName', 'inputPlayerName'], placeholderToken: 'your name' })
-          || pickInput({ placeholderToken: 'name' })
-          || qs('input[placeholder*="Your name"]') || qs('input[placeholder*="name"]');
-
-    btnCreate = $('btnCreateRoom') || qs('button#btnCreateRoom, button[data-action="createRoom"], button[data-role="create-room"]');
-    btnJoin   = $('btnJoin')       || qs('button#btnJoin, button[data-action="joinRoom"], button[data-role="join-room"]');
-  }
-
+  // ---------- Lobby UI ----------
   function ensureLobbyBox() {
-    if (lobbyBox) return lobbyBox;
-    lobbyBox = $('lobbyBox') || qs('#lobbyBox') || qs('[data-role="lobbyBox"]');
-    if (!lobbyBox) {
-      lobbyBox = document.createElement('div');
-      lobbyBox.id = 'lobbyBox';
-      lobbyBox.style.marginTop = '24px';
-      lobbyBox.style.border = '1px solid #eee';
-      lobbyBox.style.borderRadius = '16px';
-      lobbyBox.style.padding = '18px';
-      lobbyBox.style.maxWidth = '900px';
-      lobbyBox.style.background = '#fff';
+    let box = $('lobbyBox') || qs('#lobbyBox');
+    if (box) return box;
 
-      var anchor = qs('.card, .panel, .container') || document.body;
-      if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(lobbyBox, anchor.nextSibling);
-      else document.body.appendChild(lobbyBox);
+    const anchor = qs('.card') || qs('main') || document.body;
+
+    box = document.createElement('div');
+    box.id = 'lobbyBox';
+    box.style.marginTop = '18px';
+    box.innerHTML = `
+      <div style="border:1px solid #e5e7eb;border-radius:14px;padding:18px;background:#fff;max-width:980px;margin:0 auto;">
+        <div style="font-size:28px;font-weight:800;margin-bottom:8px;">Lobby</div>
+
+        <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
+          <div style="flex:1;min-width:360px;">
+            <div style="font-size:16px;margin-bottom:6px;"><b>Room:</b> <span id="lobbyRoomCode"></span></div>
+
+            <div style="font-size:14px;color:#374151;margin:10px 0 6px;"><b>Invite link:</b></div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <input id="inviteLink" type="text" readonly style="flex:1;min-width:260px;padding:10px;border:1px solid #d1d5db;border-radius:10px;" />
+              <button id="btnCopyInvite" type="button" style="padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;">Copy</button>
+              <button id="btnShareInvite" type="button" style="padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;">Share</button>
+            </div>
+            <div style="font-size:12px;color:#6b7280;margin-top:6px;">
+              Tip: Use <b>Share</b> for SMS/WhatsApp, or <b>Copy</b> to paste anywhere.
+            </div>
+
+            <div style="margin-top:12px;">
+              <button id="btnToggleQR" type="button" style="padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;">QR code</button>
+            </div>
+          </div>
+
+          <div style="min-width:220px;display:none;" id="qrWrap">
+            <div style="font-size:14px;color:#374151;margin-bottom:6px;"><b>Scan to open invite link</b></div>
+            <img id="qrImg" alt="QR code" style="width:200px;height:200px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;" />
+          </div>
+        </div>
+
+        <div style="margin-top:18px;">
+          <div style="font-size:14px;color:#374151;margin-bottom:8px;"><b>Players</b></div>
+          <ul id="playersList" style="margin:0;padding-left:18px;line-height:1.7;"></ul>
+          <div id="lobbyStatus" style="margin-top:8px;font-size:12px;color:#6b7280;"></div>
+        </div>
+      </div>
+    `;
+    if (anchor && anchor !== document.body) {
+      anchor.parentNode.insertBefore(box, anchor.nextSibling);
+    } else {
+      document.body.appendChild(box);
     }
-    return lobbyBox;
+    return box;
   }
 
-  function setLobbyVisible(show) {
-    var box = ensureLobbyBox();
-    box.style.display = show ? '' : 'none';
+  function qrUrlFor(text) {
+    const data = encodeURIComponent(text);
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${data}`;
   }
 
-  function fallbackCopy(text) {
-    var tmp = document.createElement('textarea');
-    tmp.value = text;
-    tmp.style.position = 'fixed';
-    tmp.style.left = '-9999px';
-    document.body.appendChild(tmp);
-    tmp.select();
-    try { document.execCommand('copy'); setMsg('Invite link copied.'); }
-    catch (_) { setMsg('Copy failed. Please copy manually.'); }
-    document.body.removeChild(tmp);
+  async function fallbackCopy(text) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
-  function renderLobbySkeleton(roomCode, inviteUrl) {
-    var box = ensureLobbyBox();
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {}
+    return await fallbackCopy(text);
+  }
 
-    box.innerHTML = ''
-      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">'
-      + '  <div style="min-width:260px;flex:1;">'
-      + '    <div style="font-size:22px;font-weight:700;margin-bottom:6px;">Lobby</div>'
-      + '    <div style="margin:6px 0 2px 0;"><b>Room:</b> <span id="lobbyRoomCode"></span></div>'
-      + '    <div style="margin:10px 0 6px 0;"><b>Invite link:</b></div>'
-      + '    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
-      + '      <input id="inviteLink" style="flex:1;min-width:260px;padding:10px 12px;border:1px solid #ddd;border-radius:10px;" readonly />'
-      + '      <button id="btnCopyInvite" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;background:#fff;cursor:pointer;">Copy</button>'
-      + '      <button id="btnShareInvite" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;background:#fff;cursor:pointer;">Share</button>'
-      + '    </div>'
-      + '    <div style="color:#666;font-size:12px;margin-top:6px;">Tip: Tap “Share” to send via SMS/WhatsApp, or “Copy” to paste anywhere.</div>'
-      + '  </div>'
-      + '  <div style="min-width:220px;">'
-      + '    <div style="font-weight:600;margin-bottom:6px;">Scan to open invite link</div>'
-      + '    <img id="qrImg" alt="QR" style="width:200px;height:200px;border:1px solid #eee;border-radius:12px;" />'
-      + '  </div>'
-      + '</div>'
-      + '<div style="margin-top:16px;">'
-      + '  <div style="font-size:16px;font-weight:700;margin-bottom:6px;">Players</div>'
-      + '  <ul id="playersList" style="margin:0;padding-left:18px;"></ul>'
-      + '  <div id="lobbyStatus" style="margin-top:10px;color:#666;font-size:12px;"></div>'
-      + '</div>';
+  async function doShare(url) {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'EmojiPick Party Mode', text: 'Join my EmojiPick room!', url });
+        return true;
+      }
+    } catch {}
+    return false;
+  }
 
-    safeText($('lobbyRoomCode'), roomCode);
+  function wireLobbyButtons() {
+    const btnCopy = $('btnCopyInvite');
+    const btnShare = $('btnShareInvite');
+    const btnQR = $('btnToggleQR');
+    const invite = $('inviteLink');
+    const qrWrap = $('qrWrap');
 
-    var inviteInput = $('inviteLink');
-    if (inviteInput) inviteInput.value = inviteUrl;
+    if (btnCopy && invite && !btnCopy.__wired) {
+      btnCopy.__wired = true;
+      btnCopy.addEventListener('click', async () => {
+        const ok = await copyText(invite.value || '');
+        setMsg(ok ? 'Invite link copied.' : 'Copy failed. Select and copy manually.');
+        if (!ok && invite) { invite.focus(); invite.select?.(); }
+      });
+    }
 
-    var qr = $('qrImg');
-    if (qr) qr.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(inviteUrl);
-
-    var btnCopy = $('btnCopyInvite');
-    if (btnCopy) btnCopy.onclick = function () {
-      var text = inviteUrl;
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).then(function () { setMsg('Invite link copied.'); })
-            .catch(function () { fallbackCopy(text); });
+    if (btnShare && invite && !btnShare.__wired) {
+      btnShare.__wired = true;
+      btnShare.addEventListener('click', async () => {
+        const url = invite.value || '';
+        const ok = await doShare(url);
+        if (!ok) {
+          const copied = await copyText(url);
+          setMsg(copied ? 'Sharing not available — copied instead.' : 'Sharing not available — copy manually.');
         } else {
-          fallbackCopy(text);
+          setMsg('Invite shared.');
         }
-      } catch (_) { fallbackCopy(text); }
-    };
+      });
+    }
 
-    var btnShare = $('btnShareInvite');
-    if (btnShare) btnShare.onclick = function () {
-      try {
-        if (navigator.share) {
-          navigator.share({ title: 'EmojiPick Party Mode', text: 'Join my room: ' + roomCode, url: inviteUrl })
-            .catch(function () {});
-        } else {
-          setMsg('Share not supported here. Use Copy instead.');
-        }
-      } catch (e) { log(e); }
-    };
+    if (btnQR && qrWrap && !btnQR.__wired) {
+      btnQR.__wired = true;
+      btnQR.addEventListener('click', () => {
+        const show = qrWrap.style.display === 'none' || !qrWrap.style.display;
+        qrWrap.style.display = show ? 'block' : 'none';
+      });
+    }
   }
 
-  function updatePlayersList(playersObj, hostName) {
-    var ul = $('playersList');
+  function renderPlayers(playersObj, hostName) {
+    const ul = $('playersList');
     if (!ul) return;
     ul.innerHTML = '';
 
-    var names = Object.keys(playersObj || {});
-    names.sort(function (a, b) { return a.localeCompare(b); });
-
-    for (var i = 0; i < names.length; i++) {
-      var name = names[i];
-      var li = document.createElement('li');
-      li.textContent = name + (hostName && name === hostName ? ' (host)' : '');
+    const names = Object.keys(playersObj || {}).sort((a, b) => a.localeCompare(b));
+    names.forEach((name) => {
+      const li = document.createElement('li');
+      li.textContent = (hostName && name === hostName) ? `${name} (host)` : name;
       ul.appendChild(li);
-    }
+    });
 
-    var status = $('lobbyStatus');
-    if (status) status.textContent = 'Status: ' + ((window.__roomStatus || 'lobby')) + ' · Players: ' + names.length;
+    const status = $('lobbyStatus');
+    if (status) status.textContent = `Status: lobby · Players: ${names.length}`;
   }
 
-  function inviteUrlFor(roomCode) {
-    var base = location.origin + location.pathname;
-    return base + '?room=' + encodeURIComponent(roomCode);
-  }
+  function showLobby(roomCode, hostName) {
+    ensureLobbyBox();
+    wireLobbyButtons();
 
-  function setUrlParams(params) {
-    try {
-      var u = new URL(location.href);
-      Object.keys(params || {}).forEach(function (k) {
-        if (params[k] === null || params[k] === undefined || params[k] === '') u.searchParams.delete(k);
-        else u.searchParams.set(k, params[k]);
-      });
-      history.replaceState({}, '', u.toString());
-    } catch (_) {}
-  }
+    const roomEl = $('lobbyRoomCode');
+    if (roomEl) roomEl.textContent = roomCode;
 
-  function listenRoom(roomCode) {
-    var db = getDb();
+    const invite = $('inviteLink');
+    const inviteUrl = `${location.origin}${location.pathname}?room=${encodeURIComponent(roomCode)}`;
+    if (invite) invite.value = inviteUrl;
+
+    const qr = $('qrImg');
+    if (qr) qr.src = qrUrlFor(inviteUrl);
+
+    const qrWrap = $('qrWrap');
+    if (qrWrap) qrWrap.style.display = 'none'; // show only when user taps QR button
+
+    // live players list
+    const db = getDb();
     if (!db) return;
 
-    if (unsubRoom) { try { unsubRoom(); } catch (_) {} unsubRoom = null; }
-
-    var roomRef = db.collection('rooms').doc(roomCode);
-    unsubRoom = roomRef.onSnapshot(function (snap) {
-      if (!snap || !snap.exists) { setMsg('Room not found (yet).'); return; }
-      var data = snap.data() || {};
-      window.__roomStatus = data.status || 'lobby';
-      updatePlayersList(data.players || {}, data.hostName || '');
-    }, function (err) { log('onSnapshot error', err); });
+    if (window.__unsubRoom) { try { window.__unsubRoom(); } catch {} }
+    window.__unsubRoom = db.collection('rooms').doc(roomCode).onSnapshot((snap) => {
+      if (!snap.exists) return;
+      const data = snap.data() || {};
+      renderPlayers(data.players || {}, data.hostName || hostName || '');
+    }, (err) => console.error('[PartyMode] onSnapshot error', err));
   }
 
-  function showLobby(roomCode) {
-    var url = inviteUrlFor(roomCode);
-    renderLobbySkeleton(roomCode, url);
-    setLobbyVisible(true);
-    listenRoom(roomCode);
-  }
-
+  // ---------- core actions ----------
   async function createRoom() {
-    try {
-      getInputs();
-      var db = getDb();
-      if (!db) { setMsg('Firebase db not ready.'); return; }
+    const { room, name } = getInputs();
+    const hostName = cleanName(name?.value);
 
-      var hostName = (inpName && inpName.value ? inpName.value : '').trim();
-      if (!hostName) { alert('Please enter your name first.'); if (inpName) inpName.focus(); return; }
-
-      var roomCode = '';
-      for (var i = 0; i < 6; i++) {
-        var candidate = genRoomCode(4);
-        // eslint-disable-next-line no-await-in-loop
-        var exists = await db.collection('rooms').doc(candidate).get();
-        if (!exists.exists) { roomCode = candidate; break; }
-      }
-      if (!roomCode) { setMsg('Could not generate room code.'); return; }
-
-      var roomRef = db.collection('rooms').doc(roomCode);
-      var payload = { createdAt: now(), hostName: hostName, status: 'lobby', picks: {}, players: {} };
-      payload.players[hostName] = { joinedAt: now() };
-
-      await roomRef.set(payload, { merge: false });
-
-      if (inpRoom) inpRoom.value = roomCode;
-      if (inpName) inpName.value = hostName;
-
-      setUrlParams({ room: roomCode, host: '1' });
-
-      showLobby(roomCode);
-      setMsg('Room created: ' + roomCode);
-      log('createRoom success', roomCode);
-    } catch (e) {
-      log('createRoom error', e);
-      setMsg('Failed to create room. See console.');
+    if (!hostName) {
+      alert('Please enter your name first.');
+      name?.focus?.();
+      return;
     }
+
+    const db = getDb();
+    if (!db) {
+      alert('Firebase not ready yet. Please refresh the page.');
+      return;
+    }
+
+    localSet('party_name', hostName);
+
+    // Try a few codes in case of collision
+    let roomCode = '';
+    for (let i = 0; i < 5; i++) {
+      const code = genRoomCode();
+      const ref = db.collection('rooms').doc(code);
+      const existing = await ref.get();
+      if (!existing.exists) { roomCode = code; break; }
+    }
+    if (!roomCode) {
+      alert('Could not create a room (code collision). Try again.');
+      return;
+    }
+
+    const roomRef = db.collection('rooms').doc(roomCode);
+    await roomRef.set({
+      createdAt: now(),
+      hostName,
+      status: 'lobby',
+      picks: {},
+      players: { [hostName]: { joinedAt: now() } }
+    }, { merge: true });
+
+    if (room) room.value = roomCode;
+    setParam('room', roomCode);
+    setParam('host', '1');
+
+    setMsg(`Room created: ${roomCode}`);
+    showLobby(roomCode, hostName);
   }
 
   async function joinRoom() {
-    try {
-      getInputs();
-      var db = getDb();
-      if (!db) { setMsg('Firebase db not ready.'); return; }
+    const { room, name } = getInputs();
+    const roomCode = upperRoom(room?.value) || upperRoom(getParam('room'));
+    const playerName = cleanName(name?.value);
 
-      var roomCode = upperRoom(inpRoom && inpRoom.value);
-      var name = (inpName && inpName.value ? inpName.value : '').trim();
+    if (!roomCode) {
+      alert('Please enter a room code first.');
+      room?.focus?.();
+      return;
+    }
+    if (!playerName) {
+      alert('Please enter your name first.');
+      name?.focus?.();
+      return;
+    }
 
-      if (!roomCode) { alert('Please enter a room code.'); if (inpRoom) inpRoom.focus(); return; }
-      if (!name) { alert('Please enter your name first.'); if (inpName) inpName.focus(); return; }
+    const db = getDb();
+    if (!db) {
+      alert('Firebase not ready yet. Please refresh the page.');
+      return;
+    }
 
-      var roomRef = db.collection('rooms').doc(roomCode);
-      var snap = await roomRef.get();
-      if (!snap.exists) { setMsg('Room not found: ' + roomCode); return; }
+    localSet('party_name', playerName);
 
-      var joinPayload = { players: {} };
-      joinPayload.players[name] = { joinedAt: now() };
-      await roomRef.set(joinPayload, { merge: true });
+    const roomRef = db.collection('rooms').doc(roomCode);
+    const snap = await roomRef.get();
+    if (!snap.exists) {
+      alert(`Room not found: ${roomCode}`);
+      return;
+    }
 
-      setUrlParams({ room: roomCode });
+    // Add player (merge keeps existing players)
+    await roomRef.set({
+      players: { [playerName]: { joinedAt: now() } }
+    }, { merge: true });
 
-      showLobby(roomCode);
-      setMsg('Joined room ' + roomCode + ' as ' + name);
-      log('joinRoom success', roomCode, name);
-    } catch (e) {
-      log('joinRoom error', e);
-      setMsg('Failed to join room. See console.');
+    if (room) room.value = roomCode;
+    setParam('room', roomCode);
+    setParam('host', ''); // guest
+
+    setMsg(`Joined room ${roomCode} as ${playerName}`);
+    showLobby(roomCode, snap.data()?.hostName || '');
+  }
+
+  // ---------- boot ----------
+  function boot() {
+    const { room, name } = getInputs();
+    const { btnCreate, btnJoin } = getButtons();
+
+    // Prefill name from storage
+    const savedName = localGet('party_name');
+    if (name && savedName && !name.value) name.value = savedName;
+
+    // Prefill room code from URL if present
+    const roomFromUrl = upperRoom(getParam('room'));
+    if (room && roomFromUrl && !room.value) room.value = roomFromUrl;
+
+    if (btnCreate && !btnCreate.__wired) {
+      btnCreate.__wired = true;
+      btnCreate.addEventListener('click', () => createRoom().catch((e) => {
+        console.error('[PartyMode] createRoom error', e);
+        alert('Failed to create room. See console for details.');
+      }));
+    }
+
+    if (btnJoin && !btnJoin.__wired) {
+      btnJoin.__wired = true;
+      btnJoin.addEventListener('click', () => joinRoom().catch((e) => {
+        console.error('[PartyMode] joinRoom error', e);
+        alert('Failed to join room. See console for details.');
+      }));
+    }
+
+    // If page opened with ?room=XXXX, show hint message
+    if (roomFromUrl && !isHostFromUrl()) {
+      setMsg(`Invited to room ${roomFromUrl}. Enter your name and press Join.`);
+    }
+
+    // If already host/guest and room exists, show lobby immediately
+    if (roomFromUrl) {
+      // Don't auto-join guests (they need to pick a name), but do show lobby once they join.
+      // For host refresh, show lobby using stored name.
+      if (isHostFromUrl() && savedName) {
+        showLobby(roomFromUrl, savedName);
+      }
     }
   }
 
-  function bindUI() {
-    getInputs();
+  function isHostFromUrl() { return getParam('host') === '1'; }
 
-    if (btnCreate) btnCreate.addEventListener('click', function (e) { e.preventDefault(); createRoom(); });
-    if (btnJoin) btnJoin.addEventListener('click', function (e) { e.preventDefault(); joinRoom(); });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 
-    try {
-      var sp = new URLSearchParams(location.search);
-      var roomFromUrl = sp.get('room');
-      var nameFromUrl = sp.get('name');
-
-      if (roomFromUrl && inpRoom) inpRoom.value = upperRoom(roomFromUrl);
-      if (nameFromUrl && inpName) inpName.value = (nameFromUrl || '').trim();
-
-      // Always show lobby preview when room is present (helps user confirm they opened the right room).
-      if (roomFromUrl) showLobby(upperRoom(roomFromUrl));
-    } catch (_) {}
-
-    window.createRoom = createRoom;
-    window.joinRoom = joinRoom;
-
-    log('UI ready');
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindUI);
-  else bindUI();
 })();
