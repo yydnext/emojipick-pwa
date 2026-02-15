@@ -43,6 +43,64 @@
     return null;
   }
 
+
+  function isTextInput(el) {
+    return (
+      el &&
+      (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') &&
+      (el.type === undefined || el.type === '' || el.type === 'text' || el.type === 'search' || el.type === 'tel' || el.type === 'url' || el.type === 'email' || el.type === 'number')
+    );
+  }
+
+  function pickInputById(ids) {
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (isTextInput(el)) return el;
+    }
+    return null;
+  }
+
+  function pickInputByPlaceholder(matchFn) {
+    const inputs = Array.from(document.querySelectorAll('input, textarea')).filter(isTextInput);
+    for (const el of inputs) {
+      const ph = (el.getAttribute('placeholder') || '').toLowerCase();
+      if (matchFn(ph, el)) return el;
+    }
+    return null;
+  }
+
+  function getRoomCodeInput() {
+    // Prefer explicit IDs, else detect by placeholder mentioning room code.
+    return (
+      pickInputById(['roomCode', 'inputRoomCode', 'txtRoomCode', 'code', 'room']) ||
+      pickInputByPlaceholder((ph) => ph.includes('room code') || ph.includes('room') && ph.includes('code')) ||
+      // Fallback: first text input on the page.
+      Array.from(document.querySelectorAll('input, textarea')).filter(isTextInput)[0] ||
+      null
+    );
+  }
+
+  function getNameInput() {
+    // Prefer explicit IDs, else detect by placeholder mentioning name.
+    const byId = pickInputById(['inputName', 'playerName', 'hostName', 'name', 'txtName', 'yourName']);
+    if (byId) return byId;
+
+    const byPlaceholder =
+      pickInputByPlaceholder((ph) => ph.includes('your name') || ph.includes('name'));
+    if (byPlaceholder) return byPlaceholder;
+
+    // Fallback: choose the text input closest to the Join button.
+    const btnJoin = document.querySelector('#btnJoin, button#btnJoin, button[data-action="joinRoom"], button[data-action="join"]');
+    if (btnJoin) {
+      const row = btnJoin.closest('div, form, section') || document.body;
+      const candidates = Array.from(row.querySelectorAll('input, textarea')).filter(isTextInput);
+      if (candidates.length) return candidates[candidates.length - 1];
+    }
+
+    const inputs = Array.from(document.querySelectorAll('input, textarea')).filter(isTextInput);
+    return inputs.length >= 2 ? inputs[1] : inputs[0] || null;
+  }
+
   function setMsg(msg) {
     const el =
       $id('msg') ||
@@ -50,6 +108,39 @@
       document.querySelector('[data-role="msg"]') ||
       document.querySelector('.msg');
     if (el) el.textContent = msg || '';
+  }
+
+
+  function beep() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = 880;
+      g.gain.value = 0.02;
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start();
+      setTimeout(() => {
+        try { o.stop(); ctx.close(); } catch (e) {}
+      }, 120);
+    } catch (e) {}
+  }
+
+  async function maybeNotify(title, body) {
+    try {
+      if (!('Notification' in window)) return;
+      if (Notification.permission === 'default') {
+        // Don't spam prompts; only request on explicit user gesture elsewhere.
+        return;
+      }
+      if (Notification.permission === 'granted') {
+        new Notification(title, { body });
+      }
+    } catch (e) {}
   }
 
   function normalizeName(raw) {
@@ -137,6 +228,13 @@
           <button id="pmShareLink" type="button" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:10px;background:#fff;cursor:pointer;">Share</button>
         </div>
         <div id="pmCopyHint" style="margin-top:6px;color:#6b7280;font-size:12px;"></div>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button id="pmShowQr" type="button" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:10px;background:#fff;cursor:pointer;">QR code</button>
+          <div id="pmQrWrap" style="display:none;padding:10px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:6px;">Scan to open invite link</div>
+            <img id="pmQrImg" alt="Invite QR" style="width:180px;height:180px;image-rendering:auto;">
+          </div>
+        </div>
       </div>
 
       <div style="margin-bottom:8px;"><strong>Players</strong></div>
@@ -163,6 +261,9 @@
     const shareBtn = $id('pmShareLink');
     const statusEl = $id('pmStatus');
     const hintEl = $id('pmCopyHint');
+    const qrBtn = $id('pmShowQr');
+    const qrWrap = $id('pmQrWrap');
+    const qrImg = $id('pmQrImg');
 
     const link = buildInviteLink(room);
     if (roomLabel) roomLabel.textContent = room;
@@ -199,6 +300,25 @@
       };
     }
 
+    if (qrBtn && qrWrap && qrImg) {
+      qrWrap.style.display = 'none';
+      qrImg.removeAttribute('src');
+      qrBtn.onclick = () => {
+        const isHidden = qrWrap.style.display === 'none' || qrWrap.style.display === '';
+        if (isHidden) {
+          // Lightweight QR generation via public endpoint (no dependencies)
+          const qrUrl =
+            'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' +
+            encodeURIComponent(link);
+          qrImg.src = qrUrl;
+          qrWrap.style.display = 'block';
+        } else {
+          qrWrap.style.display = 'none';
+        }
+      };
+    }
+
+
     if (statusEl) {
       statusEl.textContent = isHost
         ? 'Waiting for players to join…'
@@ -230,8 +350,10 @@
 
   // Track snapshot listener so we can avoid duplicates
   let currentRoomUnsub = null;
+  let lastRoomId = null;
+  let lastPlayersSeen = new Set();
 
-  function watchRoom(room) {
+  function watchRoom(room, isHost) {
     const db = getDb();
     if (!db) return;
 
@@ -241,6 +363,11 @@
       currentRoomUnsub = null;
     }
 
+
+    if (lastRoomId !== room) {
+      lastRoomId = room;
+      lastPlayersSeen = new Set();
+    }
     const ref = db.collection('rooms').doc(room);
     currentRoomUnsub = ref.onSnapshot(
       (snap) => {
@@ -251,6 +378,17 @@
         }
         const data = snap.data() || {};
         const hostName = data.hostName || '';
+        const currentPlayers = new Set(Object.keys(data.players || {}));
+        if (lastPlayersSeen.size > 0) {
+          for (const n of currentPlayers) {
+            if (!lastPlayersSeen.has(n)) {
+              // New player joined
+              beep();
+              if (isHost) maybeNotify('Player joined', `${n} joined room ${room}`);
+            }
+          }
+        }
+        lastPlayersSeen = currentPlayers;
         renderPlayers(data.players || {}, hostName);
 
         const statusEl = $id('pmStatus');
@@ -278,12 +416,13 @@
       return;
     }
 
-    const inputName = pickById(['inputName', 'name', 'playerName', 'hostName']) || document.querySelector('input[name="name"]');
-    const inputRoomCode = pickById(['inputRoomCode', 'roomCode', 'code', 'room']) || document.querySelector('input[name="room"]');
+    const inputName = getNameInput();
+    const inputRoomCode = getRoomCodeInput();
 
     const hostName = normalizeName(inputName?.value);
     if (!hostName) {
-      alert('Please enter your name first.');
+      setMsg('Please enter your name first.');
+      try { const n = getNameInput(); if (n) n.focus(); } catch(e) {}
       inputName?.focus();
       return;
     }
@@ -319,12 +458,14 @@
       // Update UI immediately + move to canonical URL for the host
       if (inputRoomCode) inputRoomCode.value = room;
 
-      // IMPORTANT: do not reference undefined variables (previous bug: roomCode)
-      alert(`Room created: ${room}`);
-
-      // Make host URL stable (so refresh keeps room)
-      // host=1 lets us keep "Create room" hidden but still treat this tab as host
-      location.href = `partymode.html?room=${encodeURIComponent(room)}&host=1`;
+      // Move into lobby without full reload (keeps inputs & feels instant)
+      setMsg('');
+      try {
+        history.replaceState(null, '', `partymode.html?room=${encodeURIComponent(room)}&host=1`);
+      } catch (e) {}
+      renderLobbyStatic({ room, isHost: true });
+      watchRoom(room, true);
+      try { ensureLobbyUI()?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
     } catch (e) {
       console.error(e);
       setMsg('Failed to create room. See console.');
@@ -341,8 +482,8 @@
       return;
     }
 
-    const inputRoomCode = pickById(['inputRoomCode', 'roomCode', 'code', 'room']) || document.querySelector('input[name="room"]');
-    const inputName = pickById(['inputName', 'name', 'playerName', 'guestName']) || document.querySelector('input[name="name"]');
+    const inputRoomCode = getRoomCodeInput();
+    const inputName = getNameInput();
 
     const room = normalizeRoom(inputRoomCode?.value);
     const name = normalizeName(inputName?.value);
@@ -353,7 +494,7 @@
       return;
     }
     if (!name) {
-      if (!auto) alert('Please enter your name.');
+      if (!auto) { setMsg('Please enter your name.'); }
       inputName?.focus();
       return;
     }
@@ -413,8 +554,8 @@
     if (btnJoin) btnJoin.addEventListener('click', () => joinRoom(false));
 
     // inputs
-    const inputRoomCode = pickById(['inputRoomCode', 'roomCode', 'code', 'room']) || document.querySelector('input[name="room"]');
-    const inputName = pickById(['inputName', 'name', 'playerName', 'guestName', 'hostName']) || document.querySelector('input[name="name"]');
+    const inputRoomCode = getRoomCodeInput();
+    const inputName = getNameInput();
 
     // preload name from localStorage
     const savedName = normalizeName(localStorage.getItem('pm_name') || '');
