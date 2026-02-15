@@ -12,6 +12,10 @@
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
   const qs = (sel) => document.querySelector(sel);
+  const findBtnByText = (re) => {
+    const els = Array.from(document.querySelectorAll('button, input[type="button"], input[type="submit"]'));
+    return els.find((el) => re.test(((el.textContent || el.value || '') + '').trim()));
+  };
   const upperRoom = (s) => (s || '').trim().toUpperCase();
   const cleanName = (s) => (s || '').trim();
   const now = () => Date.now();
@@ -61,15 +65,20 @@
   }
 
   function getButtons() {
+    // Be resilient to HTML changes (ids, attributes, or plain text buttons)
     const btnCreate =
       $('btnCreateRoom') ||
-      qs('button#btnCreateRoom') ||
-      qs('button[data-action="createRoom"]');
+      qs('#btnCreateRoom') ||
+      qs('[data-action="createRoom"]') ||
+      qs('[data-role="create"]') ||
+      findBtnByText(/create\s*room/i);
 
     const btnJoin =
       $('btnJoin') ||
-      qs('button#btnJoin') ||
-      qs('button[data-action="joinRoom"]');
+      qs('#btnJoin') ||
+      qs('[data-action="joinRoom"]') ||
+      qs('[data-role="join"]') ||
+      findBtnByText(/^join$/i);
 
     return { btnCreate, btnJoin };
   }
@@ -359,6 +368,14 @@
     const { room, name } = getInputs();
     const { btnCreate, btnJoin } = getButtons();
 
+    // Prevent accidental page reloads caused by <form> submit
+    if (!document.__partySubmitGuard) {
+      document.__partySubmitGuard = true;
+      document.addEventListener('submit', (ev) => {
+        if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+      }, true);
+    }
+
     // Prefill name from storage
     const savedName = localGet('party_name');
     if (name && savedName && !name.value) name.value = savedName;
@@ -367,20 +384,55 @@
     const roomFromUrl = upperRoom(getParam('room'));
     if (room && roomFromUrl && !room.value) room.value = roomFromUrl;
 
+    const safeCreate = () => createRoom().catch((e) => {
+      console.error('[PartyMode] createRoom error', e);
+      alert('Failed to create room. See console for details.');
+    });
+
+    const safeJoin = () => joinRoom().catch((e) => {
+      console.error('[PartyMode] joinRoom error', e);
+      alert('Failed to join room. See console for details.');
+    });
+
+    // Direct wiring (if buttons found)
     if (btnCreate && !btnCreate.__wired) {
       btnCreate.__wired = true;
-      btnCreate.addEventListener('click', () => createRoom().catch((e) => {
-        console.error('[PartyMode] createRoom error', e);
-        alert('Failed to create room. See console for details.');
-      }));
+      btnCreate.addEventListener('click', (ev) => { ev?.preventDefault?.(); safeCreate(); });
     }
 
     if (btnJoin && !btnJoin.__wired) {
       btnJoin.__wired = true;
-      btnJoin.addEventListener('click', () => joinRoom().catch((e) => {
-        console.error('[PartyMode] joinRoom error', e);
-        alert('Failed to join room. See console for details.');
-      }));
+      btnJoin.addEventListener('click', (ev) => { ev?.preventDefault?.(); safeJoin(); });
+    }
+
+    // Delegated wiring (fallback when HTML ids/attrs differ or DOM is replaced)
+    if (!document.__partyDelegatedClick) {
+      document.__partyDelegatedClick = true;
+      document.addEventListener('click', (ev) => {
+        const el = ev.target && ev.target.closest
+          ? ev.target.closest('button, input[type="button"], input[type="submit"]')
+          : null;
+        if (!el) return;
+
+        const id = (el.id || '').trim();
+        const action = (el.getAttribute('data-action') || el.dataset?.action || '').trim();
+        const role = (el.getAttribute('data-role') || el.dataset?.role || '').trim();
+        const txt = ((el.textContent || el.value || '') + '').trim().toLowerCase();
+
+        const isJoin = id === 'btnJoin' || action === 'joinRoom' || role === 'join' || txt === 'join';
+        const isCreate = id === 'btnCreateRoom' || action === 'createRoom' || role === 'create' || txt.includes('create room');
+
+        if (isJoin) { ev.preventDefault(); safeJoin(); }
+        if (isCreate) { ev.preventDefault(); safeCreate(); }
+      }, true);
+    }
+
+    // Enter key on name triggers Join (nice UX on mobile/desktop)
+    if (name && !name.__wiredEnter) {
+      name.__wiredEnter = true;
+      name.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); safeJoin(); }
+      });
     }
 
     // If page opened with ?room=XXXX, show hint message
@@ -388,10 +440,8 @@
       setMsg(`Invited to room ${roomFromUrl}. Enter your name and press Join.`);
     }
 
-    // If already host/guest and room exists, show lobby immediately
+    // If already host and room exists, show lobby immediately on refresh
     if (roomFromUrl) {
-      // Don't auto-join guests (they need to pick a name), but do show lobby once they join.
-      // For host refresh, show lobby using stored name.
       if (isHostFromUrl() && savedName) {
         showLobby(roomFromUrl, savedName);
       }
