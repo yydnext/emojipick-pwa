@@ -199,11 +199,45 @@
   }
 
   function getUrlParams() {
-    const p = new URLSearchParams(location.search);
-    return {
-      room: normalizeRoom(p.get('room') || ''),
-      host: p.get('host') === '1' || p.get('host') === 'true',
-    };
+    // Prefer standard query params (?room=XXXX), but also support hash params (#room=XXXX)
+    // and odd wrappers (intent://) via a final regex fallback.
+    let room = '';
+    let host = false;
+
+    try {
+      const url = new URL(location.href);
+
+      room = (url.searchParams.get('room') || url.searchParams.get('code') || url.searchParams.get('r') || '').trim();
+      host = (url.searchParams.get('host') === '1' || url.searchParams.get('host') === 'true');
+
+      if (!room && url.hash) {
+        const h = url.hash.replace(/^#\??/, ''); // '#room=ABCD' or '#?room=ABCD'
+        const hp = new URLSearchParams(h);
+        room = (hp.get('room') || hp.get('code') || hp.get('r') || '').trim();
+        if (!host) host = (hp.get('host') === '1' || hp.get('host') === 'true');
+      }
+
+      if (!room) {
+        const m =
+          String(location.href).match(/(?:\?|&|#)room=([A-Za-z0-9]{3,12})/i) ||
+          String(location.href).match(/(?:\?|&|#)code=([A-Za-z0-9]{3,12})/i) ||
+          String(location.href).match(/(?:\?|&|#)r=([A-Za-z0-9]{3,12})/i);
+        room = m ? String(m[1]).trim() : '';
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    room = normalizeRoom(room);
+
+    // If the URL lost its params (some PWA open flows), keep a gentle fallback.
+    if (!room) {
+      try {
+        room = normalizeRoom(localStorage.getItem('PartyMode.lastRoom') || '');
+      } catch (e) {}
+    }
+
+    return { room, host };
   }
 
   function buildInviteLink(room) {
