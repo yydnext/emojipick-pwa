@@ -149,42 +149,49 @@
     return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${data}`;
   }
 
-  async function fallbackCopy(text) {
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      return true;
-    } catch {
-      return false;
+ async function fallbackCopy(text, focusEl) {
+  // 1) 먼저 target input을 직접 select해서 복사 (가장 성공률 높음)
+  try {
+    if (focusEl && typeof focusEl.select === 'function') {
+      focusEl.focus();
+      focusEl.select();
+      const ok = document.execCommand && document.execCommand('copy');
+      try { focusEl.setSelectionRange(0, 0); } catch {}
+      if (ok) return true;
     }
-  }
+  } catch {}
 
-  async function copyText(text) {
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-    } catch {}
-    return await fallbackCopy(text);
-  }
-
-  async function doShare(url) {
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: 'EmojiPick Party Mode', text: 'Join my EmojiPick room!', url });
-        return true;
-      }
-    } catch {}
+  // 2) 그래도 안되면 textarea로 복사
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand && document.execCommand('copy');
+    document.body.removeChild(ta);
+    return !!ok;
+  } catch {
     return false;
   }
+}
+
+async function copyText(text, focusEl) {
+  // Clipboard API 우선
+  try {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {}
+
+  // Fallback
+  return await fallbackCopy(text, focusEl);
+}
+
 
   function wireLobbyButtons() {
     const btnCopy = $('btnCopyInvite');
