@@ -167,16 +167,41 @@
   }
 
   async function copyText(text) {
+    // Robust clipboard copy: try synchronous execCommand first (best for mobile/PWA),
+    // then fall back to async Clipboard API.
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      ta.style.left = '-9999px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+
+      const ok = document.execCommand && document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) return true;
+    } catch (e) {
+      // ignore and try clipboard API below
+    }
+
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
         return true;
       }
-    } catch {}
-    return await fallbackCopy(text);
+    } catch (e) {
+      // ignore
+    }
+
+    return false;
   }
 
-  async function doShare(url) {
+  async function doShare(text, title) {(url) {
     try {
       if (navigator.share) {
         await navigator.share({ title: 'EmojiPick Party Mode', text: 'Join my EmojiPick room!', url });
@@ -195,7 +220,9 @@
 
     if (btnCopy && invite && !btnCopy.__wired) {
       btnCopy.__wired = true;
-      btnCopy.addEventListener('click', async () => {
+      btnCopy.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const ok = await copyText(invite.value || '');
         setMsg(ok ? 'Invite link copied.' : 'Copy failed. Select and copy manually.');
         if (!ok && invite) { invite.focus(); invite.select?.(); }
@@ -204,7 +231,9 @@
 
     if (btnShare && invite && !btnShare.__wired) {
       btnShare.__wired = true;
-      btnShare.addEventListener('click', async () => {
+      btnShare.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const url = invite.value || '';
         const ok = await doShare(url);
         if (!ok) {
@@ -218,7 +247,9 @@
 
     if (btnQR && qrWrap && !btnQR.__wired) {
       btnQR.__wired = true;
-      btnQR.addEventListener('click', () => {
+      btnQR.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const show = qrWrap.style.display === 'none' || !qrWrap.style.display;
         qrWrap.style.display = show ? 'block' : 'none';
       });
