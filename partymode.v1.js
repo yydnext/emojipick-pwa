@@ -203,7 +203,8 @@ async function copyText(text, focusEl) {
     if (btnCopy && invite && !btnCopy.__wired) {
       btnCopy.__wired = true;
       btnCopy.addEventListener('click', async () => {
-        const ok = await copyText(invite.value || '');
+        const ok = await copyText(invite.value || '', invite);
+
         setMsg(ok ? 'Invite link copied.' : 'Copy failed. Select and copy manually.');
         if (!ok && invite) { invite.focus(); invite.select?.(); }
       });
