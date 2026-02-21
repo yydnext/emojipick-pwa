@@ -475,3 +475,86 @@
   else boot();
 
 })();
+function fallbackCopyTextToClipboard(text) {
+  // iOS/Safari 포함 폭넓게 먹는 폴백
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.top = "-9999px";
+  ta.style.left = "-9999px";
+  document.body.appendChild(ta);
+
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length); // iOS 대응
+
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch (e) {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+async function copyTextSmart(text) {
+  if (!text || typeof text !== "string") {
+    throw new Error("Nothing to copy (empty/invalid text).");
+  }
+
+  // 1) 표준 Clipboard API
+  // - 보안 컨텍스트 + 사용자 클릭 이벤트 내부에서 호출되어야 안정적
+  if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return { ok: true, via: "clipboard.writeText" };
+    } catch (err) {
+      // Safari/PWA/권한 이슈 시 폴백으로 진행
+      // console에 남겨서 원인 추적 가능하게 함
+      console.warn("clipboard.writeText failed:", err);
+    }
+  }
+
+  // 2) 폴백
+  const ok = fallbackCopyTextToClipboard(text);
+  if (ok) return { ok: true, via: "execCommand(copy)" };
+
+  return { ok: false, via: "none" };
+}
+
+// ✅ Copy 버튼에 “직접” 연결 (중요: 클릭 핸들러 안에서 복사 실행)
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("#copyBtn"); // Copy 버튼에 id="copyBtn"가 있어야 함
+  if (!btn) return;
+
+  try {
+    // 여기에서 "복사할 문자열"을 정확히 가져오세요.
+    // 아래 3줄 중 프로젝트에 맞는 걸 하나로 고정하면 됩니다.
+
+    // (예시 A) 화면에 있는 초대링크 input
+    const linkEl = document.getElementById("inviteLink");
+    const textToCopy = linkEl ? linkEl.value : "";
+
+    // (예시 B) 데이터 속성에서 가져오기 (버튼에 data-copy="..." 넣는 방식)
+    // const textToCopy = btn.getAttribute("data-copy") || "";
+
+    // (예시 C) 코드에서 생성한 inviteUrl 변수가 있다면 그걸 사용
+    // const textToCopy = window.inviteUrl || inviteUrl || "";
+
+    console.log("COPY payload =", textToCopy); // ★ 빈 값인지 바로 확인됨
+
+    const res = await copyTextSmart(textToCopy);
+
+    if (res.ok) {
+      btn.textContent = "Copied!";
+      setTimeout(() => (btn.textContent = "Copy"), 900);
+    } else {
+      alert("Copy failed. Please long-press to copy manually.");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Copy error: " + (err?.message || err));
+  }
+});
