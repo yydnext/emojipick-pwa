@@ -525,36 +525,49 @@ async function copyTextSmart(text) {
 }
 
 // ✅ Copy 버튼에 “직접” 연결 (중요: 클릭 핸들러 안에서 복사 실행)
+// === FINAL: Copy 버튼 고정 (dynamic UI에서도 항상 동작) ===
 document.addEventListener("click", async (e) => {
-  const btn = e.target.closest("#copyBtn"); // Copy 버튼에 id="copyBtn"가 있어야 함
+  const btn = e.target.closest("#copyBtn");
   if (!btn) return;
 
+  e.preventDefault();
+  e.stopPropagation();
+
+  const inviteEl = document.getElementById("inviteLink");
+  const text = (inviteEl?.value ?? inviteEl?.textContent ?? "").trim();
+
+  console.log("COPY clicked. payload =", text);
+
+  if (!text) {
+    alert("Invite link가 비어있습니다. Create room 후 다시 시도하세요.");
+    return;
+  }
+
   try {
-    // 여기에서 "복사할 문자열"을 정확히 가져오세요.
-    // 아래 3줄 중 프로젝트에 맞는 걸 하나로 고정하면 됩니다.
+    await navigator.clipboard.writeText(text);
+    btn.textContent = "Copied!";
+    setTimeout(() => (btn.textContent = "Copy"), 900);
+  } catch (err) {
+    console.warn("clipboard.writeText failed, fallback:", err);
 
-    // (예시 A) 화면에 있는 초대링크 input
-    const linkEl = document.getElementById("inviteLink");
-    const textToCopy = linkEl ? linkEl.value : "";
+    // fallback (Safari/PWA 포함)
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.top = "-9999px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
 
-    // (예시 B) 데이터 속성에서 가져오기 (버튼에 data-copy="..." 넣는 방식)
-    // const textToCopy = btn.getAttribute("data-copy") || "";
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
 
-    // (예시 C) 코드에서 생성한 inviteUrl 변수가 있다면 그걸 사용
-    // const textToCopy = window.inviteUrl || inviteUrl || "";
-
-    console.log("COPY payload =", textToCopy); // ★ 빈 값인지 바로 확인됨
-
-    const res = await copyTextSmart(textToCopy);
-
-    if (res.ok) {
+    if (ok) {
       btn.textContent = "Copied!";
       setTimeout(() => (btn.textContent = "Copy"), 900);
     } else {
-      alert("Copy failed. Please long-press to copy manually.");
+      alert("Copy failed. 링크를 길게 눌러 복사해주세요.");
     }
-  } catch (err) {
-    console.error(err);
-    alert("Copy error: " + (err?.message || err));
   }
-});
+}, true);
