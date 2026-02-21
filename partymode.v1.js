@@ -149,49 +149,42 @@
     return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${data}`;
   }
 
- async function fallbackCopy(text, focusEl) {
-  // 1) 먼저 target input을 직접 select해서 복사 (가장 성공률 높음)
-  try {
-    if (focusEl && typeof focusEl.select === 'function') {
-      focusEl.focus();
-      focusEl.select();
-      const ok = document.execCommand && document.execCommand('copy');
-      try { focusEl.setSelectionRange(0, 0); } catch {}
-      if (ok) return true;
+  async function fallbackCopy(text) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      return true;
+    } catch {
+      return false;
     }
-  } catch {}
+  }
 
-  // 2) 그래도 안되면 textarea로 복사
-  try {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.setAttribute('readonly', '');
-    ta.style.position = 'fixed';
-    ta.style.left = '-9999px';
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    const ok = document.execCommand && document.execCommand('copy');
-    document.body.removeChild(ta);
-    return !!ok;
-  } catch {
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {}
+    return await fallbackCopy(text);
+  }
+
+  async function doShare(url) {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'EmojiPick Party Mode', text: 'Join my EmojiPick room!', url });
+        return true;
+      }
+    } catch {}
     return false;
   }
-}
-
-async function copyText(text, focusEl) {
-  // Clipboard API 우선
-  try {
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {}
-
-  // Fallback
-  return await fallbackCopy(text, focusEl);
-}
-
 
   function wireLobbyButtons() {
     const btnCopy = $('btnCopyInvite');
@@ -202,17 +195,35 @@ async function copyText(text, focusEl) {
 
     if (btnCopy && invite && !btnCopy.__wired) {
       btnCopy.__wired = true;
-      btnCopy.addEventListener('click', async () => {
-        const ok = await copyText(invite.value || '', invite);
+      btnCopy.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const invite = $id('inviteLinkInput');
+      const txt = (invite && invite.value ? invite.value.trim() : '').trim();
+      if (!txt) {
+        setMsg('No invite link yet.');
+        return;
+      }
 
-        setMsg(ok ? 'Invite link copied.' : 'Copy failed. Select and copy manually.');
-        if (!ok && invite) { invite.focus(); invite.select?.(); }
-      });
+      const ok = await copyText(txt);
+      if (invite) { invite.focus(); invite.select(); }
+
+      if (ok) {
+        setMsg('Copied invite link!');
+        const prev = btnCopy.textContent;
+        btnCopy.textContent = 'Copied!';
+        setTimeout(() => { btnCopy.textContent = prev || 'Copy'; }, 1200);
+      } else {
+        setMsg('Copy failed — please tap & hold the link to copy.');
+      }
+    });
     }
 
     if (btnShare && invite && !btnShare.__wired) {
       btnShare.__wired = true;
-      btnShare.addEventListener('click', async () => {
+      btnShare.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
         const url = invite.value || '';
         const ok = await doShare(url);
         if (!ok) {
@@ -226,7 +237,9 @@ async function copyText(text, focusEl) {
 
     if (btnQR && qrWrap && !btnQR.__wired) {
       btnQR.__wired = true;
-      btnQR.addEventListener('click', () => {
+      btnQR.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
         const show = qrWrap.style.display === 'none' || !qrWrap.style.display;
         qrWrap.style.display = show ? 'block' : 'none';
       });
