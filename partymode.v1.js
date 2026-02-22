@@ -277,6 +277,7 @@
   function showLobby(roomCode, hostName) {
     ensureLobbyBox();
     wireLobbyButtons();
+    try { wireLegacyCopyButtons(); } catch {}
 
     const roomEl = $('lobbyRoomCode');
     if (roomEl) roomEl.textContent = roomCode;
@@ -474,6 +475,46 @@
       setMsg(`Invited to room ${roomFromUrl}. Enter your name and press Join.`);
     }
 
+
+    // --- EXTRA: wire legacy Copy buttons in existing HTML (btnCopyTicket / btnCopy)
+    // These exist in some templates and were the root cause of "share works, copy doesn't".
+    // We always copy the current inviteLink (filled by showLobby()).
+    function wireLegacyCopyButtons() {
+      const inviteEl = document.getElementById('inviteLink');
+      const getInvite = () => (inviteEl?.value ?? inviteEl?.textContent ?? '').trim();
+
+      const wire = (id, label) => {
+        const b = document.getElementById(id);
+        if (!b || b.__wiredCopyFix) return;
+        b.__wiredCopyFix = true;
+        try { b.type = 'button'; } catch {}
+        b.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const url = getInvite();
+          console.log('[PartyMode] legacy copy click', id, 'payload=', url);
+          if (!url) {
+            setMsg('No invite link yet.');
+            return;
+          }
+          const ok = await copyText(url);
+          if (ok) {
+            setMsg('Copied invite link!');
+            const prev = b.textContent;
+            b.textContent = 'Copied!';
+            setTimeout(() => { b.textContent = prev || label || 'Copy'; }, 1200);
+          } else {
+            setMsg('Copy failed — please tap & hold the link to copy.');
+          }
+        });
+      };
+
+      wire('btnCopyTicket', 'Copy as ticket');
+      wire('btnCopy', 'Copy link');
+    }
+
+    // Call once now, and again after lobby is rendered (DOM can change)
+    wireLegacyCopyButtons();
     // If already host and room exists, show lobby immediately on refresh
     if (roomFromUrl) {
       if (isHostFromUrl() && savedName) {
