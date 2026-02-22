@@ -440,6 +440,42 @@
       btnJoin.addEventListener('click', (ev) => { ev?.preventDefault?.(); safeJoin(); });
     }
 
+
+    // Delegated COPY wiring (capture phase) — survives stopImmediatePropagation in other handlers
+    // Works for different templates: btnCopyInvite, btnCopyTicket, btnCopy
+    if (!document.__partyDelegatedCopy) {
+      document.__partyDelegatedCopy = true;
+      document.addEventListener('click', async (ev) => {
+        const t = ev.target && ev.target.closest ? ev.target.closest('#btnCopyInvite,#btnCopyTicket,#btnCopy') : null;
+        if (!t) return;
+
+        // Run early (capture), and stop others from interfering
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        const inviteEl = document.getElementById('inviteLink');
+        const invite = (inviteEl?.value ?? inviteEl?.textContent ?? '').trim();
+
+        console.log('[PartyMode] delegated copy', t.id, 'payload=', invite);
+
+        if (!invite) {
+          setMsg('No invite link yet.');
+          return;
+        }
+
+        const ok = await copyText(invite);
+
+        if (ok) {
+          setMsg('Copied invite link!');
+          const prev = t.textContent;
+          t.textContent = 'Copied!';
+          setTimeout(() => { t.textContent = prev || 'Copy'; }, 1200);
+        } else {
+          setMsg('Copy failed — please tap & hold the link to copy.');
+        }
+      }, true); // capture
+    }
+
     // Delegated wiring (fallback when HTML ids/attrs differ or DOM is replaced)
     if (!document.__partyDelegatedClick) {
       document.__partyDelegatedClick = true;
