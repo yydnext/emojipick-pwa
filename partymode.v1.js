@@ -1,6 +1,4 @@
-from pathlib import Path, PurePosixPath
-
-final_js = r"""/* EmojiPick Party Mode (Multi-phone)
+/* EmojiPick Party Mode (Multi-phone)
  * Host: enter name -> Create room
  * Guest: open invite link/QR -> enter name -> Join
  *
@@ -490,8 +488,3 @@ final_js = r"""/* EmojiPick Party Mode (Multi-phone)
   else boot();
 
 })();
-"""
-
-out_path = Path("/mnt/data/partymode.v1.FINAL_COPYFIX.js")
-out_path.write_text(final_js, encoding="utf-8")
-str(out_path)
