@@ -1,4 +1,6 @@
-/* EmojiPick Party Mode (Multi-phone)
+from pathlib import Path, PurePosixPath
+
+final_js = r"""/* EmojiPick Party Mode (Multi-phone)
  * Host: enter name -> Create room
  * Guest: open invite link/QR -> enter name -> Join
  *
@@ -156,11 +158,14 @@
       ta.setAttribute('readonly', '');
       ta.style.position = 'fixed';
       ta.style.left = '-9999px';
+      ta.style.top = '-9999px';
       document.body.appendChild(ta);
+      ta.focus();
       ta.select();
-      document.execCommand('copy');
+      ta.setSelectionRange(0, ta.value.length); // iOS
+      const ok = document.execCommand('copy');
       document.body.removeChild(ta);
-      return true;
+      return !!ok;
     } catch {
       return false;
     }
@@ -193,38 +198,46 @@
     const invite = $('inviteLink');
     const qrWrap = $('qrWrap');
 
+    // Copy invite link
     if (btnCopy && invite && !btnCopy.__wired) {
       btnCopy.__wired = true;
       btnCopy.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const invite = $id('inviteLinkInput');
-      const txt = (invite && invite.value ? invite.value.trim() : '').trim();
-      if (!txt) {
-        setMsg('No invite link yet.');
-        return;
-      }
+        e.preventDefault();
+        e.stopPropagation();
 
-      const ok = await copyText(txt);
-      if (invite) { invite.focus(); invite.select(); }
+        const txt = (invite.value || '').trim();
+        if (!txt) {
+          setMsg('No invite link yet.');
+          return;
+        }
 
-      if (ok) {
-        setMsg('Copied invite link!');
-        const prev = btnCopy.textContent;
-        btnCopy.textContent = 'Copied!';
-        setTimeout(() => { btnCopy.textContent = prev || 'Copy'; }, 1200);
-      } else {
-        setMsg('Copy failed — please tap & hold the link to copy.');
-      }
-    });
+        const ok = await copyText(txt);
+        try { invite.focus(); invite.select(); } catch {}
+
+        if (ok) {
+          setMsg('Copied invite link!');
+          const prev = btnCopy.textContent;
+          btnCopy.textContent = 'Copied!';
+          setTimeout(() => { btnCopy.textContent = prev || 'Copy'; }, 1200);
+        } else {
+          setMsg('Copy failed — please tap & hold the link to copy.');
+        }
+      });
     }
 
+    // Share invite link (fallback to copy)
     if (btnShare && invite && !btnShare.__wired) {
       btnShare.__wired = true;
       btnShare.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-        const url = invite.value || '';
+        e.preventDefault();
+        e.stopPropagation();
+
+        const url = (invite.value || '').trim();
+        if (!url) {
+          setMsg('No invite link yet.');
+          return;
+        }
+
         const ok = await doShare(url);
         if (!ok) {
           const copied = await copyText(url);
@@ -235,11 +248,12 @@
       });
     }
 
+    // Toggle QR
     if (btnQR && qrWrap && !btnQR.__wired) {
       btnQR.__wired = true;
       btnQR.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
         const show = qrWrap.style.display === 'none' || !qrWrap.style.display;
         qrWrap.style.display = show ? 'block' : 'none';
       });
@@ -386,7 +400,7 @@
 
   // ---------- boot ----------
   function boot() {
-    const { room, name } = getInputs();
+    const { name } = getInputs();
     const { btnCreate, btnJoin } = getButtons();
 
     // Prevent accidental page reloads caused by <form> submit
@@ -402,6 +416,7 @@
     if (name && savedName && !name.value) name.value = savedName;
 
     // Prefill room code from URL if present
+    const { room } = getInputs();
     const roomFromUrl = upperRoom(getParam('room'));
     if (room && roomFromUrl && !room.value) room.value = roomFromUrl;
 
@@ -475,99 +490,8 @@
   else boot();
 
 })();
-function fallbackCopyTextToClipboard(text) {
-  // iOS/Safari 포함 폭넓게 먹는 폴백
-  const ta = document.createElement("textarea");
-  ta.value = text;
-  ta.setAttribute("readonly", "");
-  ta.style.position = "fixed";
-  ta.style.top = "-9999px";
-  ta.style.left = "-9999px";
-  document.body.appendChild(ta);
+"""
 
-  ta.focus();
-  ta.select();
-  ta.setSelectionRange(0, ta.value.length); // iOS 대응
-
-  let ok = false;
-  try {
-    ok = document.execCommand("copy");
-  } catch (e) {
-    ok = false;
-  }
-  document.body.removeChild(ta);
-  return ok;
-}
-
-async function copyTextSmart(text) {
-  if (!text || typeof text !== "string") {
-    throw new Error("Nothing to copy (empty/invalid text).");
-  }
-
-  // 1) 표준 Clipboard API
-  // - 보안 컨텍스트 + 사용자 클릭 이벤트 내부에서 호출되어야 안정적
-  if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return { ok: true, via: "clipboard.writeText" };
-    } catch (err) {
-      // Safari/PWA/권한 이슈 시 폴백으로 진행
-      // console에 남겨서 원인 추적 가능하게 함
-      console.warn("clipboard.writeText failed:", err);
-    }
-  }
-
-  // 2) 폴백
-  const ok = fallbackCopyTextToClipboard(text);
-  if (ok) return { ok: true, via: "execCommand(copy)" };
-
-  return { ok: false, via: "none" };
-}
-
-// ✅ Copy 버튼에 “직접” 연결 (중요: 클릭 핸들러 안에서 복사 실행)
-// === FINAL: Copy 버튼 고정 (dynamic UI에서도 항상 동작) ===
-document.addEventListener("click", async (e) => {
-  const btn = e.target.closest("#copyBtn");
-  if (!btn) return;
-
-  e.preventDefault();
-  e.stopPropagation();
-
-  const inviteEl = document.getElementById("inviteLink");
-  const text = (inviteEl?.value ?? inviteEl?.textContent ?? "").trim();
-
-  console.log("COPY clicked. payload =", text);
-
-  if (!text) {
-    alert("Invite link가 비어있습니다. Create room 후 다시 시도하세요.");
-    return;
-  }
-
-  try {
-    await navigator.clipboard.writeText(text);
-    btn.textContent = "Copied!";
-    setTimeout(() => (btn.textContent = "Copy"), 900);
-  } catch (err) {
-    console.warn("clipboard.writeText failed, fallback:", err);
-
-    // fallback (Safari/PWA 포함)
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.top = "-9999px";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    ta.setSelectionRange(0, ta.value.length);
-
-    const ok = document.execCommand("copy");
-    document.body.removeChild(ta);
-
-    if (ok) {
-      btn.textContent = "Copied!";
-      setTimeout(() => (btn.textContent = "Copy"), 900);
-    } else {
-      alert("Copy failed. 링크를 길게 눌러 복사해주세요.");
-    }
-  }
-}, true);
+out_path = Path("/mnt/data/partymode.v1.FINAL_COPYFIX.js")
+out_path.write_text(final_js, encoding="utf-8")
+str(out_path)
