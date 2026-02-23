@@ -30,7 +30,7 @@
           <div class="muted mini">Read-only KPIs (no emails). Source: <span class="pill">metrics/pro_interest</span></div>
         </div>
         <div class="row gap" style="flex-wrap:wrap;">
-          <a class="secondary" href="partymode.html" style="text-decoration:none; padding:10px 14px; border-radius:10px; border:1px solid #d1d5db;">Back to Party Mode</a>
+          <a class="secondary" href="partymode.html" style="text-decoration:none; padding:10px 14px; border-radius:10px; border:1px solid #d1d5db;" id="backToParty" href="#">Back to Party Mode</a>
           <button id="btnRefresh" class="primary" type="button" style="padding:10px 14px; border-radius:10px;">Refresh</button>
           <button id="btnCopy" class="secondary" type="button" style="padding:10px 14px; border-radius:10px; border:1px solid #d1d5db;">Copy summary</button>
         </div>
@@ -99,6 +99,18 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script>
+  // Return navigation
+  (function(){
+    try{
+      const p = new URLSearchParams(location.search);
+      const ret = p.get('return');
+      const back = document.getElementById('backToParty');
+      if(back){
+        back.href = ret ? decodeURIComponent(ret) : 'partymode.html';
+      }
+    }catch(e){}
+  })();
+
   const firebaseConfig = {
   apiKey: "AIzaSyAVYc_K5ahGZ6TKpL4qUF0jXP16xtPOdww",
   authDomain: "localboost-dev.firebaseapp.com",
