@@ -19,7 +19,13 @@
     th, td { padding: 10px 8px; border-bottom: 1px solid #eef2f7; text-align: left; }
     th { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color:#6b7280; }
     .pill { display:inline-block; padding: 3px 10px; border-radius: 999px; border: 1px solid #e5e7eb; }
-  </style>
+  
+.badge{display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;border-radius:999px;font-weight:800;border:1px solid #e5e7eb;background:#fff;}
+.badge.go{border-color:#16a34a;}
+.badge.hold{border-color:#f59e0b;}
+.badge.stop{border-color:#ef4444;}
+.badge.collect{border-color:#64748b;}
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -100,7 +106,62 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script>
   // Return navigation
-  (function(){
+  (
+// ---- 72h decision window ----
+function getStartTs(){
+  const p = new URLSearchParams(location.search).get('start');
+  if (p){
+    const t = Date.parse(p);
+    if (!Number.isNaN(t)) return t;
+  }
+  const k = 'pro_window_start_ts';
+  const v = localStorage.getItem(k);
+  if (v && !Number.isNaN(Number(v))) return Number(v);
+  const nowTs = Date.now();
+  localStorage.setItem(k, String(nowTs));
+  return nowTs;
+}
+const WINDOW_HOURS = 72;
+const windowStart = getStartTs();
+const windowEnd = windowStart + WINDOW_HOURS*60*60*1000;
+
+function fmtDt(ts){
+  const d = new Date(ts);
+  const pad = (n)=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function setDecision(clicks, submits){
+  const badge = document.getElementById('decisionBadge');
+  const hint = document.getElementById('decisionHint');
+  const windowEl = document.getElementById('windowText');
+
+  if (windowEl){
+    const leftMs = windowEnd - Date.now();
+    const leftH = Math.floor(leftMs/3600000);
+    const leftM = Math.floor((leftMs%3600000)/60000);
+    const left = leftMs>0 ? `${leftH}h ${leftM}m left` : `window ended`;
+    windowEl.textContent = `${fmtDt(windowStart)} → ${fmtDt(windowEnd)}  ·  ${left}`;
+  }
+
+  let status='COLLECTING', cls='collect', msg='Collecting data (need more volume).';
+  const conv = clicks>0 ? (submits/clicks) : 0;
+
+  if (clicks >= 20){
+    if (conv >= 0.05){ status='GO'; cls='go'; msg='Conversion ≥ 5% (proceed to payment MVP).'; }
+    else if (conv < 0.02){ status='STOP'; cls='stop'; msg='Conversion < 2% (pivot or change offer).'; }
+    else { status='HOLD'; cls='hold'; msg='2%–5% (iterate copy/offer, keep collecting).'; }
+  }
+
+  if (badge){
+    badge.textContent = status;
+    badge.className = `badge ${cls}`;
+  }
+  if (hint) hint.textContent = msg;
+  return {status, conv};
+}
+
+function(){
     try{
       const p = new URLSearchParams(location.search);
       const ret = p.get('return');
