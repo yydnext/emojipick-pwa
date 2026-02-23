@@ -112,7 +112,6 @@
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
               <input id="inviteLink" type="text" readonly style="flex:1;min-width:260px;padding:10px;border:1px solid #d1d5db;border-radius:10px;" />
               <button id="btnCopyInvite" type="button" style="padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;">Copy</button>
-              <button id="btnProPack" type="button" style="padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;" title="Unlock Pro Pack (one-time $4.99)">Unlock Pro</button>
               <button id="btnShareInvite" type="button" style="padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;">Share</button>
             </div>
             <div style="font-size:12px;color:#6b7280;margin-top:6px;">
@@ -189,114 +188,6 @@
     } catch {}
     return false;
   }
-
-
-// ---------- Pro Pack (interest test; email optional) ----------
-function firestoreServerTs() {
-  try {
-    if (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue && window.firebase.firestore.FieldValue.serverTimestamp) {
-      return window.firebase.firestore.FieldValue.serverTimestamp();
-    }
-  } catch {}
-  return now();
-}
-
-async function logProInterest(action, extra) {
-  try {
-    const db = getDb();
-    if (!db) return;
-    const roomCode = upperRoom(getParam('room')) || upperRoom($('inpRoomCode')?.value) || upperRoom($('roomCode')?.value) || '';
-    const role = (getParam('host') === '1') ? 'host' : 'guest';
-    await db.collection('pro_interest').add({
-      createdAt: firestoreServerTs(),
-      page: 'partymode',
-      action: String(action || ''),
-      email: (extra && extra.email) ? String(extra.email) : '',
-      room: roomCode,
-      role,
-      ref: document.referrer || '',
-      ua: navigator.userAgent || '',
-    });
-
-    // optional GA4 hook if available
-    try { window.track && window.track('pro_interest_' + action, { page: 'partymode', role, room: roomCode }); } catch {}
-  } catch (e) {
-    console.warn('[PartyMode] pro_interest log failed', e);
-  }
-}
-
-function proEls() {
-  return {
-    modal: $('proModal'),
-    close: $('btnProClose'),
-    email: $('inpProEmail'),
-    notify: $('btnProNotify'),
-    no: $('btnProNoThanks'),
-    thanks: $('proThanks'),
-  };
-}
-
-function openProModal() {
-  const { modal, email, thanks } = proEls();
-  if (!modal) { alert('Pro Pack is coming soon.'); return; }
-  if (thanks) thanks.hidden = true;
-  modal.hidden = false;
-  try { email && email.focus && email.focus(); } catch {}
-}
-
-function closeProModal() {
-  const { modal } = proEls();
-  if (modal) modal.hidden = true;
-}
-
-function wireProModal() {
-  const { modal, close, notify, no } = proEls();
-  if (!modal || modal.__wired) return;
-  modal.__wired = true;
-
-  // backdrop click closes
-  modal.addEventListener('click', (e) => {
-    const t = e.target;
-    if (t && (t.getAttribute && t.getAttribute('data-pro-close') === '1')) closeProModal();
-  });
-
-  if (close) close.addEventListener('click', (e) => { e.preventDefault(); closeProModal(); });
-  if (no) no.addEventListener('click', (e) => { e.preventDefault(); closeProModal(); });
-
-  if (notify) {
-    notify.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const { email, thanks } = proEls();
-      const val = (email?.value || '').trim();
-      await logProInterest('submit', { email: val });
-      if (thanks) {
-        thanks.hidden = false;
-        setTimeout(() => { try { closeProModal(); } catch {} }, 900);
-      } else {
-        closeProModal();
-      }
-    });
-  }
-
-  // ESC closes
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeProModal();
-  });
-}
-
-function wireProButtons() {
-  const b = $('btnProPack');
-  if (b && !b.__wired) {
-    b.__wired = true;
-    b.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      await logProInterest('click', {});
-      wireProModal();
-      openProModal();
-    });
-  }
-}
 
   function wireLobbyButtons() {
     const btnCopy = $('btnCopyInvite');
@@ -386,7 +277,6 @@ function wireProButtons() {
   function showLobby(roomCode, hostName) {
     ensureLobbyBox();
     wireLobbyButtons();
-    try { wireProButtons(); } catch {}
     try { wireLegacyCopyButtons(); } catch {}
 
     const roomEl = $('lobbyRoomCode');
@@ -600,17 +490,6 @@ function wireProButtons() {
         const role = (el.getAttribute('data-role') || el.dataset?.role || '').trim();
         const txt = ((el.textContent || el.value || '') + '').trim().toLowerCase();
 
-const isPro = id === 'btnProPack' || txt.includes('unlock pro') || txt.includes('pro pack');
-if (isPro) {
-  ev.preventDefault();
-  (async () => {
-    await logProInterest('click', {});
-    wireProModal();
-    openProModal();
-  })();
-  return;
-}
-
         const isJoin = id === 'btnJoin' || action === 'joinRoom' || role === 'join' || txt === 'join';
         const isCreate = id === 'btnCreateRoom' || action === 'createRoom' || role === 'create' || txt.includes('create room');
 
@@ -672,8 +551,6 @@ if (isPro) {
 
     // Call once now, and again after lobby is rendered (DOM can change)
     wireLegacyCopyButtons();
-    try { wireProButtons(); } catch {}
-    try { wireProModal(); } catch {}
     // If already host and room exists, show lobby immediately on refresh
     if (roomFromUrl) {
       if (isHostFromUrl() && savedName) {
