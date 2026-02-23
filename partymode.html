@@ -65,8 +65,6 @@
             </div>
             <div class="row gap" style="flex-wrap: wrap; justify-content:flex-end;">
               <button id="btnCopyInvite" class="secondary" type="button">Copy invite link</button>
-
-<button id="btnProPack" class="ghost" type="button" title="Unlock Pro Pack (one-time $4.99)">Unlock Pro Pack</button>
               <button id="btnStart" class="primary" type="button" hidden>Start</button>
             </div>
           </div>
@@ -157,6 +155,7 @@
 
     <footer class="footer">
       <div class="muted">© <span id="year"></span> EmojiPick. Entertainment only.</div>
+      <div class="muted mini"><a href="pro-dashboard.html" target="_blank" rel="noopener">Pro Dashboard</a></div>
     </footer>
   </div>
 
@@ -195,52 +194,7 @@
 </script>
 
 <!-- 3) Party mode JS: 마지막에 -->
-  <script src="partymode.v1.js?v=20260218a"></script>
-
-<!-- Pro Pack Interest Modal (email optional) -->
-<div id="proModal" class="modal" hidden>
-  <div class="modalBackdrop" data-pro-close="1"></div>
-  <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="proModalTitle">
-    <div class="row between" style="gap:12px;">
-      <div>
-        <div id="proModalTitle" class="h2" style="margin:0;">Unlock Pro Pack</div>
-        <div class="muted" style="margin-top:6px;">One-time <b>$4.99</b> (planned). Email is optional.</div>
-      </div>
-      <button id="btnProClose" class="ghost" type="button" aria-label="Close">✕</button>
-    </div>
-
-    <div class="divider"></div>
-
-    <ul style="margin:0; padding-left:18px; line-height:1.7;">
-      <li><b>Remove watermark</b> + HD ticket export (PNG)</li>
-      <li><b>10 premium themes</b> for tickets</li>
-      <li><b>Party History</b> (save last 30 rooms)</li>
-    </ul>
-
-    <div class="divider"></div>
-
-    <label class="muted" for="inpProEmail">Email (optional)</label>
-    <input id="inpProEmail" class="input" placeholder="you@example.com" style="width:100%; margin-top:8px;" />
-
-    <div class="row gap" style="margin-top:14px; flex-wrap: wrap;">
-      <button id="btnProNotify" class="primary" type="button">Notify me</button>
-      <button id="btnProNoThanks" class="secondary" type="button">Not now</button>
-    </div>
-
-    <div id="proThanks" class="micro" style="margin-top:10px;" hidden>
-      Thanks! We’ll notify you if you left an email.
-    </div>
-  </div>
-</div>
-
-<style>
-  /* lightweight modal styling (scoped by ids/classes) */
-  .modal[hidden] { display: none !important; }
-  .modal { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; }
-  .modalBackdrop { position: absolute; inset: 0; background: rgba(17,24,39,.45); }
-  .modalCard { position: relative; width: min(560px, calc(100vw - 24px)); background: #fff; border: 1px solid #e5e7eb;
-    border-radius: 16px; padding: 18px; box-shadow: 0 18px 60px rgba(0,0,0,.18); }
-</style>
+  <script src="partymode.v1.js?v=202602230421"></script>
 
 </body>
 </html>
