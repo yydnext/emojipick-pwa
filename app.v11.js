@@ -412,6 +412,12 @@
 
     // keep for “what next?” actions
     lastResult = { gameId, idxs: [...idxs], dateSeed, nums, mode };
+    // ✅ Auto-save latest ticket text for Party Mode
+  try {
+  const ticketText = formatTicketLine(gameId, dateSeed, nums); // 이미 존재하는 함수
+  localStorage.setItem('emojipick_last_ticket_text', ticketText);
+  localStorage.setItem('emojipick_last_ticket_ts', String(Date.now()));
+  } catch {}
     const more = $('#morePicks');
     if (more) { more.hidden = true; more.innerHTML = ''; }
   }
