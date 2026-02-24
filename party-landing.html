@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-D63MJPZ47S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-D63MJPZ47S');
+  
+  ...
+</div>
+
+</script>
+
+  <script>
+  // EmojiPick GA4 helper
+  window.track = function(name, params) {
+    try {
+      if (typeof gtag === 'function') {
+        var p = params || {};
+        // 디버그 모드: URL에 ?debug=1 붙이면 DebugView에서 더 잘 보임
+        if (location.search.includes('debug=1')) p.debug_mode = true;
+        gtag('event', name, p);
+      }
+    } catch (e) {}
+  };
+</script>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EmojiPick — Lucky Numbers</title>
+  <meta name="description" content="Pick emojis, get lucky numbers, and challenge a friend — for entertainment only." />
+
+  <link rel="canonical" href="https://yydnext.github.io/emojipick-pwa/" />
+
+  <!-- Open Graph (share preview) -->
+  <meta property="og:title" content="EmojiPick — Lucky Numbers" />
+  <meta property="og:description" content="Pick emojis, get lucky numbers, and challenge a friend — for entertainment only." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://yydnext.github.io/emojipick-pwa/" />
+  <meta property="og:image" content="https://yydnext.github.io/emojipick-pwa/og.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="EmojiPick — Lucky Numbers" />
+  <meta name="twitter:description" content="Pick emojis, get lucky numbers, and challenge a friend — for entertainment only." />
+  <meta name="twitter:image" content="https://yydnext.github.io/emojipick-pwa/og.png" />
+
+  <link rel="manifest" href="manifest.webmanifest?v=20260204" />
+
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
+
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="EmojiPick" />
+  <!-- Slightly brighter background so address bar/OS chrome doesn't look "black" -->
+  <meta name="theme-color" content="#f6f8ff" />
+
+  <link rel="stylesheet" href="styles.v11.css?v=20260204v01" />
+</head>
+<body>
+  <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b1220;color:#e5e7eb;">
+    <div style="max-width:980px;width:100%;">
+      <div style="display:flex;flex-direction:column;gap:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:18px;padding:28px;box-shadow:0 16px 60px rgba(0,0,0,0.35);">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="font-size:36px;font-weight:900;letter-spacing:-0.02em;line-height:1.1;">EmojiPick Party Mode</div>
+          <div style="font-size:18px;opacity:0.9;line-height:1.45;">
+            A 1-minute party game you can start with a link. <b>No sign-up.</b>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr;gap:14px;">
+          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:14px;padding:16px;">
+            <div style="font-weight:800;margin-bottom:6px;">How it works</div>
+            <ol style="margin:0;padding-left:18px;line-height:1.7;opacity:0.95;">
+              <li>Enter your name → <b>Create Room</b></li>
+              <li>Tap <b>Copy</b> / <b>Share</b> (or show QR)</li>
+              <li>Friends open the link → Enter name → <b>Join</b></li>
+            </ol>
+          </div>
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <a href="./partymode.html" style="text-decoration:none;">
+              <button style="cursor:pointer;border:none;border-radius:12px;padding:12px 18px;font-weight:900;font-size:16px;background:#22c55e;color:#0b1220;">
+                Start Party Mode
+              </button>
+            </a>
+            <a href="./partymode.html#how" style="text-decoration:none;">
+              <button style="cursor:pointer;border:1px solid rgba(255,255,255,0.16);border-radius:12px;padding:12px 18px;font-weight:800;font-size:16px;background:transparent;color:#e5e7eb;">
+                How to Play
+              </button>
+            </a>
+            <div style="opacity:0.85;font-size:13px;line-height:1.35;">
+              Works on mobile & desktop. Rooms are temporary. Email is optional (only for early access updates).
+            </div>
+          </div>
+
+          <div style="border-top:1px solid rgba(255,255,255,0.10);padding-top:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;opacity:0.8;font-size:12px;">
+            <div>© EmojiPick</div>
+            <div>Tip: Share this page publicly. Use the Party Mode invite link inside the room for friends.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Keep existing scripts if any -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-D63MJPZ47S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-D63MJPZ47S');
+  
+  ...
+</div>
+
+</script>
+<script>
+  // EmojiPick GA4 helper
+  window.track = function(name, params) {
+    try {
+      if (typeof gtag === 'function') {
+        var p = params || {};
+        // 디버그 모드: URL에 ?debug=1 붙이면 DebugView에서 더 잘 보임
+        if (location.search.includes('debug=1')) p.debug_mode = true;
+        gtag('event', name, p);
+      }
+    } catch (e) {}
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="ticket.js?v=20260205v01"></script>
+<script src="app.v11.js?v=20260216a2"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="./firebase-init.js?v=1"></script>
+</body>
+</html>
