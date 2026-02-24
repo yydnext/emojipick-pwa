@@ -1,23 +1,3 @@
-
-function isAdminMode(){
-  try{
-    const p = new URLSearchParams(location.search);
-    if(p.get('admin') === '1') return true;
-    if(localStorage.getItem('emojipick_admin') === '1') return true;
-  }catch(e){}
-  return false;
-}
-
-function updateProDashboardLink(roomId, name){
-  const a = document.getElementById('proDashboardLink');
-  if(!a) return;
-  if(!isAdminMode()){ a.style.display = 'none'; return; }
-
-  const returnUrl = `partymode.html?room=${encodeURIComponent(roomId || '')}&name=${encodeURIComponent(name || '')}&admin=1`;
-  a.href = `pro-dashboard.html?return=${encodeURIComponent(returnUrl)}`;
-  a.style.display = 'inline-block';
-}
-
 /* EmojiPick Party Mode (Multi-phone)
  * Host: enter name -> Create room
  * Guest: open invite link/QR -> enter name -> Join
@@ -132,7 +112,6 @@ function updateProDashboardLink(roomId, name){
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
               <input id="inviteLink" type="text" readonly style="flex:1;min-width:260px;padding:10px;border:1px solid #d1d5db;border-radius:10px;" />
               <button id="btnCopyInvite" type="button" style="padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;">Copy</button>
-              <button id="btnProPack" type="button" style="padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;" title="Unlock Pro Pack (one-time $4.99)">Unlock Pro</button>
               <button id="btnShareInvite" type="button" style="padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;">Share</button>
             </div>
             <div style="font-size:12px;color:#6b7280;margin-top:6px;">
@@ -210,117 +189,88 @@ function updateProDashboardLink(roomId, name){
     return false;
   }
 
-
-// ---------- Pro Pack (interest test; email optional) ----------
-function firestoreServerTs() {
-  try {
-    if (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue && window.firebase.firestore.FieldValue.serverTimestamp) {
-      return window.firebase.firestore.FieldValue.serverTimestamp();
-    }
-  } catch {}
-  return now();
+  
+// ---------- Room Message / Picks (Next action) ----------
+function isHostRole() {
+  return getParam('host') === '1';
 }
 
-async function logProInterest(action, extra) {
-  try {
-    const db = getDb();
-    if (!db) return;
-    const roomCode = upperRoom(getParam('room')) || upperRoom($('inpRoomCode')?.value) || upperRoom($('roomCode')?.value) || '';
-    const role = (getParam('host') === '1') ? 'host' : 'guest';
-    await db.collection('pro_interest').add({
-      createdAt: firestoreServerTs(),
-      page: 'partymode',
-      action: String(action || ''),
-      email: (extra && extra.email) ? String(extra.email) : '',
-      room: roomCode,
-      role,
-      ref: document.referrer || '',
-      ua: navigator.userAgent || '',
-    });
+function getRoomCodeFromUI() {
+  const { room } = getInputs();
+  return upperRoom(room?.value) || upperRoom(getParam('room')) || '';
+}
 
-    // optional GA4 hook if available
-    try { window.track && window.track('pro_interest_' + action, { page: 'partymode', role, room: roomCode }); } catch {}
-  } catch (e) {
-    console.warn('[PartyMode] pro_interest log failed', e);
+function setRoomMsgUI(data) {
+  const box = document.getElementById('roomMsgBox');
+  const textEl = document.getElementById('roomMsgText');
+  const metaEl = document.getElementById('roomMsgMeta');
+  if (!box || !textEl || !metaEl) return;
+
+  const msg = data && data.roomMessage ? data.roomMessage : null;
+  if (!msg || !msg.text) {
+    box.hidden = true;
+    return;
   }
+  box.hidden = false;
+  textEl.textContent = String(msg.text || '');
+  const by = msg.by ? String(msg.by) : '';
+  const at = msg.at && msg.at.toMillis ? new Date(msg.at.toMillis()) : (msg.at ? new Date(msg.at) : null);
+  metaEl.textContent = (by ? `by ${by}` : '') + (at ? ` · ${at.toLocaleString()}` : '');
 }
 
-function proEls() {
-  return {
-    modal: $('proModal'),
-    close: $('btnProClose'),
-    email: $('inpProEmail'),
-    notify: $('btnProNotify'),
-    no: $('btnProNoThanks'),
-    thanks: $('proThanks'),
-  };
-}
+function wireRoomMessage(roomCode) {
+  const btnSend = document.getElementById('btnSendToRoom');
+  const btnClear = document.getElementById('btnClearRoomMsg');
+  const inp = document.getElementById('inpRoomMessage');
 
-function openProModal() {
-  const { modal, email, thanks } = proEls();
-  if (!modal) { alert('Pro Pack is coming soon.'); return; }
-  if (thanks) thanks.hidden = true;
-  modal.hidden = false;
-  try { email && email.focus && email.focus(); } catch {}
-}
+  // Only host should send (guests can still view)
+  if (btnSend) btnSend.style.display = isHostRole() ? '' : 'none';
+  if (btnClear) btnClear.style.display = isHostRole() ? '' : 'none';
+  if (inp) inp.disabled = !isHostRole();
 
-function closeProModal() {
-  const { modal } = proEls();
-  if (modal) modal.hidden = true;
-}
-
-function wireProModal() {
-  const { modal, close, notify, no } = proEls();
-  if (!modal || modal.__wired) return;
-  modal.__wired = true;
-
-  // backdrop click closes
-  modal.addEventListener('click', (e) => {
-    const t = e.target;
-    if (t && (t.getAttribute && t.getAttribute('data-pro-close') === '1')) closeProModal();
-  });
-
-  if (close) close.addEventListener('click', (e) => { e.preventDefault(); closeProModal(); });
-  if (no) no.addEventListener('click', (e) => { e.preventDefault(); closeProModal(); });
-
-  if (notify) {
-    notify.addEventListener('click', async (e) => {
+  if (btnClear && !btnClear.__wired) {
+    btnClear.__wired = true;
+    btnClear.addEventListener('click', (e) => {
       e.preventDefault();
-      const { email, thanks } = proEls();
-      const val = (email?.value || '').trim();
-      await logProInterest('submit', { email: val });
-      if (thanks) {
-        thanks.hidden = false;
-        setTimeout(() => { try { closeProModal(); } catch {} }, 900);
-      } else {
-        closeProModal();
+      if (inp) inp.value = '';
+    });
+  }
+
+  if (btnSend && !btnSend.__wired) {
+    btnSend.__wired = true;
+    btnSend.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const db = getDb();
+      if (!db) return alert('Firebase not ready.');
+      const code = roomCode || getRoomCodeFromUI();
+      if (!code) return alert('No room code.');
+      const name = (getInputs().name?.value || localGet('party_name') || '').trim();
+
+      const text = (inp?.value || '').trim();
+      if (!text) return alert('Paste picks / message first.');
+
+      try {
+        await db.collection('rooms').doc(code).set({
+          roomMessage: {
+            text,
+            by: name || 'host',
+            at: (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue && window.firebase.firestore.FieldValue.serverTimestamp)
+              ? window.firebase.firestore.FieldValue.serverTimestamp()
+              : Date.now()
+          }
+        }, { merge: true });
+
+        setMsg('Sent to room.');
+      } catch (err) {
+        console.error('[PartyMode] sendToRoom failed', err);
+        alert('Failed to send to room. See console.');
       }
     });
   }
-
-  // ESC closes
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeProModal();
-  });
 }
 
-function wireProButtons() {
-  const b = $('btnProPack');
-  if (b && !b.__wired) {
-    b.__wired = true;
-    b.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      await logProInterest('click', {});
-      wireProModal();
-      openProModal();
-    
-    window.track && window.track("pro_interest_click", {page:"partymode", room: state.roomId || ""});
-});
-  }
-}
-
-  function wireLobbyButtons() {
+function wireLobbyButtons() {
     const btnCopy = $('btnCopyInvite');
     const btnShare = $('btnShareInvite');
     const btnQR = $('btnToggleQR');
@@ -408,7 +358,7 @@ function wireProButtons() {
   function showLobby(roomCode, hostName) {
     ensureLobbyBox();
     wireLobbyButtons();
-    try { wireProButtons(); } catch {}
+    try { wireRoomMessage(roomCode); } catch {}
     try { wireLegacyCopyButtons(); } catch {}
 
     const roomEl = $('lobbyRoomCode');
@@ -417,9 +367,6 @@ function wireProButtons() {
     const invite = $('inviteLink');
     const inviteUrl = `${location.origin}${location.pathname}?room=${encodeURIComponent(roomCode)}`;
     if (invite) invite.value = inviteUrl;
-
-    // Admin-only link to Pro Dashboard (kept hidden for normal users)
-    updateProDashboardLink(roomCode, localGet('party_name') || hostName || '');
 
     const qr = $('qrImg');
     if (qr) qr.src = qrUrlFor(inviteUrl);
@@ -436,6 +383,7 @@ function wireProButtons() {
       if (!snap.exists) return;
       const data = snap.data() || {};
       renderPlayers(data.players || {}, data.hostName || hostName || '');
+      try { setRoomMsgUI(data); } catch {}
     }, (err) => console.error('[PartyMode] onSnapshot error', err));
   }
 
@@ -625,17 +573,6 @@ function wireProButtons() {
         const role = (el.getAttribute('data-role') || el.dataset?.role || '').trim();
         const txt = ((el.textContent || el.value || '') + '').trim().toLowerCase();
 
-const isPro = id === 'btnProPack' || txt.includes('unlock pro') || txt.includes('pro pack');
-if (isPro) {
-  ev.preventDefault();
-  (async () => {
-    await logProInterest('click', {});
-    wireProModal();
-    openProModal();
-  })();
-  return;
-}
-
         const isJoin = id === 'btnJoin' || action === 'joinRoom' || role === 'join' || txt === 'join';
         const isCreate = id === 'btnCreateRoom' || action === 'createRoom' || role === 'create' || txt.includes('create room');
 
@@ -697,8 +634,6 @@ if (isPro) {
 
     // Call once now, and again after lobby is rendered (DOM can change)
     wireLegacyCopyButtons();
-    try { wireProButtons(); } catch {}
-    try { wireProModal(); } catch {}
     // If already host and room exists, show lobby immediately on refresh
     if (roomFromUrl) {
       if (isHostFromUrl() && savedName) {
