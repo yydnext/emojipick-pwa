@@ -411,6 +411,7 @@ function wireLobbyButtons() {
     ensureLobbyBox();
     wireLobbyButtons();
     try { wireRoomMessage(roomCode); } catch {}
+    try { wireGuestActions(roomCode, hostName); } catch {}
     try { wireLegacyCopyButtons(); } catch {}
 
     const roomEl = $('lobbyRoomCode');
@@ -534,7 +535,109 @@ function wireLobbyButtons() {
   }
 
   // ---------- boot ----------
-  function boot() {
+  
+// ---------- Guest flow (Option B): jump to main generator then return ----------
+const PARTY_ROOM_KEY = 'emojipick_party_room';
+
+function goToMainGenerator(roomCode) {
+  const code = upperRoom(roomCode || getParam('room') || '');
+  if (!code) return alert('No room code.');
+  try { localSet(PARTY_ROOM_KEY, code); } catch {}
+  const fallback = `./index.html?room=${encodeURIComponent(code)}&return=party`;
+  // keep same origin; using relative path is safest on GitHub Pages
+  window.location.href = fallback;
+}
+
+async function submitMyPicks(roomCode, playerName) {
+  const code = upperRoom(roomCode || getParam('room') || '');
+  if (!code) return alert('No room code.');
+  const name = (playerName || '').trim() || (getInputs().name?.value || localGet('party_name') || '').trim();
+  if (!name) return alert('Enter your name first.');
+
+  const text = getLastTicketText();
+  if (!text) return alert('No latest picks found. Tap "Pick emojis & generate" first.');
+
+  const db = getDb();
+  if (!db) return alert('Firebase not ready.');
+  try {
+    await db.collection('rooms').doc(code).collection('submissions').doc(name).set({
+      text,
+      by: name,
+      at: (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue && window.firebase.firestore.FieldValue.serverTimestamp)
+        ? window.firebase.firestore.FieldValue.serverTimestamp()
+        : Date.now()
+    }, { merge: true });
+    setMsg('Submitted your picks to the room.');
+  } catch (e) {
+    console.error('[PartyMode] submitMyPicks failed', e);
+    alert('Submit failed. See console.');
+  }
+}
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, (c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+}
+
+function renderSubmissions(list) {
+  const ul = document.getElementById('submissionsList');
+  if (!ul) return;
+  ul.innerHTML = '';
+  const items = (list || []).slice().sort((a,b)=> (a.atMs||0) - (b.atMs||0));
+  if (!items.length) {
+    const li = document.createElement('li');
+    li.textContent = 'No submissions yet.';
+    ul.appendChild(li);
+    return;
+  }
+  for (const it of items) {
+    const li = document.createElement('li');
+    const who = it.by || it.id || 'player';
+    li.innerHTML = `<b>${escapeHtml(who)}</b>: ${escapeHtml(it.text || '')}`;
+    ul.appendChild(li);
+  }
+}
+
+function watchSubmissions(roomCode) {
+  const db = getDb();
+  if (!db) return;
+
+  if (window.__unsubSubs) { try { window.__unsubSubs(); } catch {} }
+  window.__unsubSubs = db.collection('rooms').doc(roomCode).collection('submissions').onSnapshot((qs) => {
+    const list = [];
+    qs.forEach((doc) => {
+      const d = doc.data() || {};
+      const atMs = d.at && d.at.toMillis ? d.at.toMillis() : (typeof d.at === 'number' ? d.at : 0);
+      list.push({ id: doc.id, ...d, atMs });
+    });
+    renderSubmissions(list);
+  }, (err)=>console.error('[PartyMode] submissions snapshot error', err));
+}
+
+function wireGuestActions(roomCode, hostName) {
+  const btnGo = document.getElementById('btnGoGenerate');
+  const btnSubmit = document.getElementById('btnSubmitMyPicks');
+
+  const isHost = isHostRole();
+  if (btnGo) btnGo.style.display = isHost ? 'none' : '';
+  if (btnSubmit) btnSubmit.style.display = isHost ? 'none' : '';
+
+  if (btnGo && !btnGo.__wired) {
+    btnGo.__wired = true;
+    btnGo.addEventListener('click', (e)=>{ e.preventDefault(); goToMainGenerator(roomCode); });
+  }
+  if (btnSubmit && !btnSubmit.__wired) {
+    btnSubmit.__wired = true;
+    btnSubmit.addEventListener('click', (e)=>{ 
+      e.preventDefault(); 
+      const name = (getInputs().name?.value || localGet('party_name') || '').trim();
+      submitMyPicks(roomCode, name);
+    });
+  }
+
+  try { watchSubmissions(roomCode); } catch {}
+}
+
+function boot() {
     const { name } = getInputs();
     const { btnCreate, btnJoin } = getButtons();
 
