@@ -45,6 +45,58 @@
     } catch {}
   }
 
+
+// ---------- Auto-fill from main EmojiPick (latest ticket/picks) ----------
+const LAST_TICKET_KEY = 'emojipick_last_ticket_text';
+const LAST_TICKET_TS  = 'emojipick_last_ticket_ts';
+
+function getLastTicketText() {
+  // Primary key we will write from the main generator page (ticket.js/app.v11.js)
+  let t = (localGet(LAST_TICKET_KEY) || '').trim();
+  if (t) return t;
+
+  // Backward/compat guesses (in case older versions used different keys)
+  const candidates = ['lastTicketText','last_ticket_text','emojipick_last_picks_text','ticket_text'];
+  for (const k of candidates) {
+    try {
+      const v = (localGet(k) || '').trim();
+      if (v) return v;
+    } catch {}
+  }
+  return '';
+}
+
+async function autoSendLastTicketToRoom(roomCode, hostName) {
+  const text = getLastTicketText();
+  if (!text) return false;
+
+  const db = getDb();
+  if (!db) return false;
+
+  try {
+    // Do not overwrite if roomMessage already exists
+    const snap = await db.collection('rooms').doc(roomCode).get();
+    const data = snap.exists ? (snap.data() || {}) : {};
+    if (data.roomMessage && data.roomMessage.text) return false;
+
+    await db.collection('rooms').doc(roomCode).set({
+      roomMessage: {
+        text,
+        by: hostName || 'host',
+        at: (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue && window.firebase.firestore.FieldValue.serverTimestamp)
+          ? window.firebase.firestore.FieldValue.serverTimestamp()
+          : Date.now()
+      }
+    }, { merge: true });
+
+    setMsg('Auto-posted your latest picks to the room.');
+    return true;
+  } catch (e) {
+    console.warn('[PartyMode] autoSendLastTicketToRoom failed', e);
+    return false;
+  }
+}
+
   function localGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
   function localSet(key, val) { try { localStorage.setItem(key, val); } catch {} }
 
@@ -434,6 +486,7 @@ function wireLobbyButtons() {
 
     setMsg(`Room created: ${roomCode}`);
     showLobby(roomCode, hostName);
+    try { autoSendLastTicketToRoom(roomCode, hostName); } catch {}
   }
 
   async function joinRoom() {
