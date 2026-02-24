@@ -412,12 +412,6 @@
 
     // keep for “what next?” actions
     lastResult = { gameId, idxs: [...idxs], dateSeed, nums, mode };
-    // ✅ Auto-save latest ticket text for Party Mode
-  try {
-  const ticketText = formatTicketLine(gameId, dateSeed, nums); // 이미 존재하는 함수
-  localStorage.setItem('emojipick_last_ticket_text', ticketText);
-  localStorage.setItem('emojipick_last_ticket_ts', String(Date.now()));
-  } catch {}
     const more = $('#morePicks');
     if (more) { more.hidden = true; more.innerHTML = ''; }
   }
@@ -683,6 +677,39 @@ function setupModalClose() {
 
   // ---------- Wire UI
   function init() {
+
+// --- Party Mode return support (Option B) ---
+const PARTY_ROOM_KEY = 'emojipick_party_room';
+function getPartyRoomFromUrl(){
+  try{
+    const sp = new URLSearchParams(location.search);
+    const room = (sp.get('room')||'').trim().toUpperCase();
+    const ret  = (sp.get('return')||'').trim().toLowerCase();
+    if (room && ret === 'party') return room;
+  }catch{}
+  return '';
+}
+
+function injectReturnToParty(room){
+  if (!room) return;
+  try { localStorage.setItem(PARTY_ROOM_KEY, room); } catch {}
+  const bar = document.createElement('div');
+  bar.id = 'partyReturnBar';
+  bar.style.cssText = 'position:sticky;top:0;z-index:9999;background:#111827;color:#fff;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.12);display:flex;gap:10px;align-items:center;justify-content:space-between;';
+  bar.innerHTML = `
+    <div style="font-weight:800;">Party Mode room: <span style="opacity:.9">${room}</span></div>
+    <a href="./partymode.html?room=${room}" style="text-decoration:none;">
+      <button type="button" style="cursor:pointer;border:none;border-radius:10px;padding:8px 12px;font-weight:900;background:#22c55e;color:#0b1220;">
+        Return to Party Mode
+      </button>
+    </a>
+  `;
+  document.body.insertBefore(bar, document.body.firstChild);
+}
+
+const __partyRoom = getPartyRoomFromUrl();
+if (__partyRoom) injectReturnToParty(__partyRoom);
+
     setupModalClose();
     closeModal();
     // Service worker: disabled in v10 to avoid stale-cache issues on GitHub Pages.
@@ -928,10 +955,6 @@ function setupModalClose() {
       btnTicket.addEventListener('click', async () => {
         if (!lastResult) return;
         const text = formatTicketLine(lastResult.gameId, lastResult.dateSeed, lastResult.nums);
-        try {
-        localStorage.setItem('emojipick_last_ticket_text', text);
-        localStorage.setItem('emojipick_last_ticket_ts', String(Date.now()));
-        } catch {}
         const ok = await copyText(text);
         btnTicket.textContent = ok ? 'Copied ✓' : 'Copy as ticket';
         setTimeout(() => (btnTicket.textContent = 'Copy as ticket'), 1200);
