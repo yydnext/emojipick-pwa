@@ -66,84 +66,245 @@
 
   <link rel="stylesheet" href="styles.v11.css?v=20260204v01" />
 </head>
-<body>
-  <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b1220;color:#e5e7eb;">
-    <div style="max-width:980px;width:100%;">
-      <div style="display:flex;flex-direction:column;gap:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:18px;padding:28px;box-shadow:0 16px 60px rgba(0,0,0,0.35);">
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <div style="font-size:36px;font-weight:900;letter-spacing:-0.02em;line-height:1.1;">EmojiPick Party Mode</div>
-          <div style="font-size:18px;opacity:0.9;line-height:1.45;">
-            A 1-minute party game you can start with a link. <b>No sign-up.</b>
-          </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr;gap:14px;">
-          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:14px;padding:16px;">
-            <div style="font-weight:800;margin-bottom:6px;">How it works</div>
-            <ol style="margin:0;padding-left:18px;line-height:1.7;opacity:0.95;">
-              <li>Enter your name → <b>Create Room</b></li>
-              <li>Tap <b>Copy</b> / <b>Share</b> (or show QR)</li>
-              <li>Friends open the link → Enter name → <b>Join</b></li>
-            </ol>
-          </div>
-
-          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-            <a href="./partymode.html" style="text-decoration:none;">
-              <button style="cursor:pointer;border:none;border-radius:12px;padding:12px 18px;font-weight:900;font-size:16px;background:#22c55e;color:#0b1220;">
-                Start Party Mode
-              </button>
-            </a>
-            <a href="./partymode.html#how" style="text-decoration:none;">
-              <button style="cursor:pointer;border:1px solid rgba(255,255,255,0.16);border-radius:12px;padding:12px 18px;font-weight:800;font-size:16px;background:transparent;color:#e5e7eb;">
-                How to Play
-              </button>
-            </a>
-            <div style="opacity:0.85;font-size:13px;line-height:1.35;">
-              Works on mobile & desktop. Rooms are temporary. Email is optional (only for early access updates).
-            </div>
-          </div>
-
-          <div style="border-top:1px solid rgba(255,255,255,0.10);padding-top:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;opacity:0.8;font-size:12px;">
-            <div>© EmojiPick</div>
-            <div>Tip: Share this page publicly. Use the Party Mode invite link inside the room for friends.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <!-- Keep existing scripts if any -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-D63MJPZ47S"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-D63MJPZ47S');
-  
-  ...
-</div>
-
-</script>
-<script>
-  // EmojiPick GA4 helper
-  window.track = function(name, params) {
-    try {
-      if (typeof gtag === 'function') {
-        var p = params || {};
-        // 디버그 모드: URL에 ?debug=1 붙이면 DebugView에서 더 잘 보임
-        if (location.search.includes('debug=1')) p.debug_mode = true;
-        gtag('event', name, p);
-      }
-    } catch (e) {}
-  };
-</script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="ticket.js?v=20260205v01"></script>
-<script src="app.v11.js?v=20260216a2"></script>
+<body>
+  <div class="app">
+    <header class="topbar">
+        <div class="logo" aria-hidden="true">
+          <img src="./icon-192.png" alt="" style="width:28px;height:28px;border-radius:8px;display:block;">
+          </div>
+
+        <div>
+          <div class="brandName">EmojiPick</div>
+          <div class="brandTag">Pick emojis → Get lucky numbers → Share & challenge</div>
+        </div>
+      </div>
+
+      <div class="row" style="gap:8px; flex-wrap: wrap; justify-content: flex-end;">
+        <!-- Real links so navigation works even if a cached JS build is still running -->
+        <a id="btnMyPicks" class="linkBtn" href="./mypicks.html">My Picks</a>
+        <a id="btnCompare" class="linkBtn" href="./compare.html">Compare</a>
+        <button id="btnUpgrade" class="linkBtn" type="button">Upgrade</button>
+        <a id="btnParty" class="linkBtn" href="./partymode.html">Party Mode</a>
+        <a class="linkBtn" href="./about.html">About</a>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="card">
+        <div class="tabs" role="tablist" aria-label="Game selection">
+          <button class="tab" role="tab" id="tab-pb" data-game="pb" aria-selected="true">Powerball</button>
+          <button class="tab" role="tab" id="tab-mm" data-game="mm" aria-selected="false">Mega Millions</button>
+          <button class="tab" role="tab" id="tab-tx" data-game="tx" aria-selected="false">TX Instant (Demo)</button>
+        </div>
+
+        <div class="row between" style="margin-top: 10px;">
+          <div>
+            <div id="gameTitle" class="h2">Powerball</div>
+            <div id="gameRule" class="muted">Pick 5 numbers + 1 Powerball</div>
+          </div>
+          <div class="pill" id="todayPill"></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="modeBanner" class="banner" hidden>
+          <div class="bannerTitle">Friend challenge</div>
+          <div id="modeText" class="bannerText"></div>
+        </div>
+
+        <section id="panelPick" class="panel">
+          <div class="row between">
+            <div>
+              <div class="h3">Pick your emojis</div>
+              <div id="pickHint" class="muted">Choose 6 emojis for this game.</div>
+            </div>
+            <div class="counter"><span id="pickedCount">0</span>/<span id="needCount">6</span></div>
+          </div>
+
+          <div class="filters">
+            <button class="chip" data-filter="all" aria-pressed="true">All</button>
+            <button class="chip" data-filter="lucky" aria-pressed="false">Lucky</button>
+            <button class="chip" data-filter="money" aria-pressed="false">Money</button>
+            <button class="chip" data-filter="animals" aria-pressed="false">Animals</button>
+            <button class="chip" data-filter="nature" aria-pressed="false">Nature</button>
+            <button class="chip" data-filter="fun" aria-pressed="false">Fun</button>
+          </div>
+
+          <div id="emojiGrid" class="emojiGrid" aria-label="Emoji grid"></div>
+
+          <div class="row gap" style="margin-top: 14px;">
+            <button id="btnReset" class="secondary" type="button">Reset</button>
+            <button id="btnGenerate" class="primary" type="button" disabled>Generate my numbers</button>
+          </div>
+
+          <div class="micro" style="margin-top: 10px;">
+            For entertainment only. This page does not sell lottery tickets.
+          </div>
+        </section>
+
+        <section id="panelResult" class="panel" hidden>
+          <div class="row between">
+            <div>
+              <div class="h3">Your result</div>
+              <div id="resultSubtitle" class="muted">Based on your emojis + today’s seed.</div>
+            </div>
+            <button id="btnBack" class="ghost" type="button">Back</button>
+          </div>
+
+            <div class="row between" style="align-items:flex-start;">
+              <div>
+                <div class="h2" id="resultGame">Powerball</div>
+                <div class="muted" id="resultDate">—</div>
+              </div>
+              <div class="badge" id="resultBadge">Today</div>
+            </div>
+
+            <div class="emojiLine" id="resultEmojis"></div>
+            <div class="numbers" id="resultNumbers"></div>
+            <div class="fortune" id="resultFortune"></div>
+          </div>
+
+          <section class="nextCard" id="nextCard" aria-label="Next steps">
+            <div class="nextTitle">What next?</div>
+            <div class="nextText muted">Make this feel useful (and shareable) in 5 seconds.</div>
+            <div class="row gap" style="margin-top: 10px; flex-wrap: wrap;">
+              <button id="btnCopyTicket" class="secondary" type="button">Copy as ticket</button>
+              <button id="btnMorePicks" class="secondary" type="button">3 more fun picks</button>
+              <button id="btnSavePick" class="secondary" type="button">Save</button>
+              <button id="btnCalendar" class="secondary" type="button">Check reminder</button>
+              <button id="btnExplain" class="ghost" type="button">Why these numbers?</button>
+            </div>
+
+            <div id="morePicks" class="morePicks" hidden></div>
+          </section>
+
+          <div id="comparePanel" class="compare" hidden>
+            <div class="compareTitle">Challenge result</div>
+            <div id="compareText" class="compareText"></div>
+          </div>
+
+          <div class="row gap" style="margin-top: 14px;">
+            <button id="btnShare" class="primary" type="button">Share</button>
+            <button id="btnCopy" class="secondary" type="button">Copy link</button>
+          </div>
+
+          <div class="row gap" style="margin-top: 10px;">
+            <button id="btnChallenge" class="secondary" type="button">Challenge a friend</button>
+            <a id="btnPartner" class="partner" href="#" rel="noopener">Play on partner app (coming soon)</a>
+          </div>
+
+          <div class="micro" style="margin-top: 10px;">
+            Tip: The “partner app” button can be wired to YD deep links later.
+          </div>
+        </section>
+      </section>
+
+      <section class="footerCard">
+        <div class="footerTitle">How it works</div>
+        <ol class="steps">
+          <li>Choose a draw (Powerball / Mega Millions / TX Instant Demo)</li>
+          <li>Pick a set of emojis (today’s seed makes it feel fresh)</li>
+          <li>Share your card or challenge a friend</li>
+        </ol>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="muted">© <span id="year"></span> EmojiPick. Entertainment only. <span id="build"></span></div>
+      <div class="footerLinks">
+        <a id="btnPrivacy" class="linkBtn" href="./privacy.html">Privacy</a>
+        <a id="btnTerms" class="linkBtn" href="./terms.html">Terms</a>
+      </div>
+    </footer>
+  </div><script src="app.v11.js?v=20260216a2"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="./firebase-init.js?v=1"></script>
+
+
+
+<!-- ===== Party Mode Hub (added) ===== -->
+<section id="partyModeHub" style="max-width:980px;margin:28px auto 0;padding:0 16px;">
+  <div style="border:1px solid #e5e7eb;border-radius:16px;padding:18px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.06);">
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">
+        <div style="font-size:20px;font-weight:900;">Party Mode (Multi-phone)</div>
+        <div style="margin-top:6px;color:#374151;line-height:1.4;">
+          Start a room, share the invite link (or QR), and let friends join instantly. <b>No sign‑up.</b>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+          <a href="./partymode.html" style="text-decoration:none;">
+            <button type="button" style="cursor:pointer;border:none;border-radius:12px;padding:10px 14px;font-weight:900;background:#7c3aed;color:#fff;">
+              Start Party Mode
+            </button>
+          </a>
+          <button id="btnHowPartyWorks" type="button" style="cursor:pointer;border:1px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-weight:800;background:#fff;">
+            How it works
+          </button>
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:#6b7280;">
+          Tip: After friends join, use <b>Unlock Pro</b> to vote on future Pro features (email optional).
+        </div>
+      </div>
+      <div style="min-width:260px;flex:0 0 260px;">
+        <div style="font-size:12px;color:#6b7280;margin-bottom:6px;">Quick steps</div>
+        <ol style="margin:0;padding-left:18px;line-height:1.7;color:#111827;">
+          <li>Enter your name → <b>Create Room</b></li>
+          <li>Tap <b>Copy/Share</b> (or QR)</li>
+          <li>Friends open link → Enter name → <b>Join</b></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Party Mode How‑to Modal -->
+<div id="partyHowModal" style="position:fixed;inset:0;z-index:9999;display:none;place-items:center;">
+  <div id="partyHowBackdrop" style="position:absolute;inset:0;background:rgba(17,24,39,.45);"></div>
+  <div style="position:relative;width:min(620px,calc(100vw - 24px));background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;box-shadow:0 18px 60px rgba(0,0,0,.18);">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+      <div style="font-size:18px;font-weight:900;">How Party Mode works</div>
+      <button id="btnPartyHowClose" type="button" style="cursor:pointer;border:1px solid #e5e7eb;border-radius:10px;padding:6px 10px;background:#fff;">✕</button>
+    </div>
+    <div style="margin-top:10px;color:#111827;line-height:1.6;">
+      <ol style="margin:0;padding-left:18px;">
+        <li><b>Create Room</b> as host. A lobby appears with an invite link.</li>
+        <li>Tap <b>Copy</b> / <b>Share</b> (or show QR) to invite friends.</li>
+        <li>Friends open the link, enter a name, and tap <b>Join</b>.</li>
+      </ol>
+      <div style="margin-top:10px;color:#6b7280;font-size:12px;">
+        Note: Party Mode is for quick testing right now. We’re measuring interest for Pro features (email optional).
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;">
+      <a href="./partymode.html" style="text-decoration:none;">
+        <button type="button" style="cursor:pointer;border:none;border-radius:12px;padding:10px 14px;font-weight:900;background:#7c3aed;color:#fff;">
+          Go to Party Mode
+        </button>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const btn = document.getElementById('btnHowPartyWorks');
+  const modal = document.getElementById('partyHowModal');
+  const closeBtn = document.getElementById('btnPartyHowClose');
+  const backdrop = document.getElementById('partyHowBackdrop');
+
+  function open(){ if(modal){ modal.style.display='grid'; } }
+  function close(){ if(modal){ modal.style.display='none'; } }
+
+  if(btn) btn.addEventListener('click', open);
+  if(closeBtn) closeBtn.addEventListener('click', close);
+  if(backdrop) backdrop.addEventListener('click', close);
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') close(); });
+})();
+</script>
+
 </body>
 </html>
