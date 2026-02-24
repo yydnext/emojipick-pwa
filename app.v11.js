@@ -928,6 +928,10 @@ function setupModalClose() {
       btnTicket.addEventListener('click', async () => {
         if (!lastResult) return;
         const text = formatTicketLine(lastResult.gameId, lastResult.dateSeed, lastResult.nums);
+        try {
+        localStorage.setItem('emojipick_last_ticket_text', text);
+        localStorage.setItem('emojipick_last_ticket_ts', String(Date.now()));
+        } catch {}
         const ok = await copyText(text);
         btnTicket.textContent = ok ? 'Copied ✓' : 'Copy as ticket';
         setTimeout(() => (btnTicket.textContent = 'Copy as ticket'), 1200);
