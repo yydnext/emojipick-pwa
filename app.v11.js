@@ -710,6 +710,21 @@ function injectReturnToParty(room){
 const __partyRoom = getPartyRoomFromUrl();
 if (__partyRoom) injectReturnToParty(__partyRoom);
 
+function maybeAutoReturnToParty(reason) {
+  const room = getPartyRoomFromUrl();
+  if (!room) return;
+  // Allow opt-out by ?noreturn=1 during debugging
+  try {
+    const sp = new URLSearchParams(location.search);
+    if (sp.get('noreturn') === '1') return;
+  } catch {}
+  const delay = (reason === 'save') ? 200 : 600;
+  setTimeout(() => {
+    try { location.href = `./partymode.html?room=${encodeURIComponent(room)}`; } catch {}
+  }, delay);
+}
+
+
     setupModalClose();
     closeModal();
     // Service worker: disabled in v10 to avoid stale-cache issues on GitHub Pages.
@@ -781,6 +796,7 @@ if (__partyRoom) injectReturnToParty(__partyRoom);
       }
 
       showResult();
+      try { maybeAutoReturnToParty('generate'); } catch {}
     });
 
     $('#btnBack').addEventListener('click', () => {
@@ -822,6 +838,7 @@ if (__partyRoom) injectReturnToParty(__partyRoom);
         saveHistory(hist);
         saveBtn.textContent = 'Saved ✓';
         setTimeout(() => (saveBtn.textContent = 'Save'), 1200);
+        try { maybeAutoReturnToParty('save'); } catch {}
       });
     }
 
