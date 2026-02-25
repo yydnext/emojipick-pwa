@@ -56,6 +56,7 @@
           </div>
         <div class="divider"></div>
 
+<div id="hostActionSection">
 <div class="h3" style="margin:0 0 8px 0;">Next action</div>
 <div class="muted" style="margin-bottom:10px;">Host can post the room’s picks/message. Guests will see it instantly.</div>
 
@@ -68,12 +69,14 @@
 </div>
 
 <div id="roomMsgBox" class="card" style="margin-top:12px;" hidden>
-  <div class="label">Latest in room</div>
+  <div class="label">Host’s posted picks</div>
   <div id="roomMsgMeta" class="micro muted" style="margin-top:6px;"></div>
   <pre id="roomMsgText" style="white-space:pre-wrap;margin:10px 0 0 0;"></pre>
 </div>
 <div class="divider"></div>
 
+</div>
+<div id="guestActionSection">
 <div class="h3" style="margin:0 0 8px 0;">Guest action</div>
 <div class="muted" style="margin-bottom:10px;">
   Guests: pick emojis and generate your numbers on the main page, then come back and submit to this room.
@@ -88,6 +91,7 @@
   <div class="label">Submissions in this room</div>
   <div class="micro muted" style="margin-top:6px;">Host can reveal/compare later. (MVP: shows text submissions)</div>
   <ul id="submissionsList" style="margin:10px 0 0 0;padding-left:18px;line-height:1.7;"></ul>
+</div>
 </div>
 </section>
 
