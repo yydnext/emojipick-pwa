@@ -413,6 +413,7 @@ function wireLobbyButtons() {
     try { wireRoomMessage(roomCode); } catch {}
     try { wireGuestActions(roomCode, hostName); } catch {}
     try { applyRoleSectionsUI(roomCode); } catch {}
+    try { maybeAutoSubmitOnReturn(roomCode); } catch {}
     try { wireLegacyCopyButtons(); } catch {}
 
     const roomEl = $('lobbyRoomCode');
@@ -672,12 +673,41 @@ function applyRoleSectionsUI(roomCode) {
   setGuestSubmitEnabled(roomCode);
 }
 
+
+// ---------- Auto-submit guest picks after returning from main generator ----------
+function submitFingerprint(roomCode, playerName, text) {
+  return `room=${upperRoom(roomCode||'')}|name=${String(playerName||'').trim()}|text=${String(text||'').trim()}`;
+}
+
+async function maybeAutoSubmitOnReturn(roomCode) {
+  if (isHostRole()) return false;
+  const code = upperRoom(roomCode || getParam('room') || '');
+  const name = (getInputs().name?.value || localGet('party_name') || '').trim();
+  const text = (getLastTicketText() || '').trim();
+  if (!code || !name || !text) return false;
+
+  const meta = getLastTicketMeta();
+  // only auto-submit fresh picks to avoid re-submitting stale host picks
+  if (!(meta.ts && meta.ageMs >= 0 && meta.ageMs <= LAST_TICKET_MAX_AGE_MS)) return false;
+
+  const fp = submitFingerprint(code, name, text);
+  const doneKey = 'emojipick_party_last_submit_fp';
+  if ((localGet(doneKey) || '') === fp) return false;
+
+  const ok = await submitMyPicks(code, name).then(()=>true).catch(()=>false);
+  if (ok) {
+    try { localSet(doneKey, fp); } catch {}
+    return true;
+  }
+  return false;
+}
+
 function boot() {
 
 try {
-  window.addEventListener('focus', () => setGuestSubmitEnabled(upperRoom(getParam('room') || getInputs().room?.value || '')));
+  window.addEventListener('focus', () => { const __rc = upperRoom(getParam('room') || getInputs().room?.value || ''); setGuestSubmitEnabled(__rc); maybeAutoSubmitOnReturn(__rc); });
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) setGuestSubmitEnabled(upperRoom(getParam('room') || getInputs().room?.value || ''));
+    if (!document.hidden) { const __rc = upperRoom(getParam('room') || getInputs().room?.value || ''); setGuestSubmitEnabled(__rc); maybeAutoSubmitOnReturn(__rc); }
   });
 } catch {}
 
