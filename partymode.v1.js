@@ -618,7 +618,7 @@ async function submitMyPicks(roomCode, playerName) {
     setMsg('Submitted your picks to the room.');
   } catch (e) {
     console.error('[PartyMode] submitMyPicks failed', e);
-    alert('Submit failed. See console.');
+    console.error('[PartyMode] submit error details', e); alert('Submit failed. See console.');
   }
 }
 
@@ -708,16 +708,30 @@ function setGuestSubmitEnabled(roomCode) {
   const code = upperRoom(roomCode || getParam('room') || '');
   const p = getPendingPartySubmit();
   const meta = getLastTicketMeta();
+  const currentName = (getInputs().name?.value || localGet('party_name') || '').trim();
   const enabled = !!code &&
     p.room === code &&
     !!p.name &&
+    !!currentName &&
+    p.name === currentName &&
     !!meta.text &&
     !!meta.ts &&
     meta.ageMs >= 0 &&
-    meta.ageMs <= LAST_TICKET_MAX_AGE_MS;
+    meta.ageMs <= LAST_TICKET_MAX_AGE_MS &&
+    meta.ts >= (p.at || 0);
   btn.disabled = !enabled;
   btn.style.opacity = enabled ? '' : '.55';
-  btn.title = enabled ? '' : 'Pick emojis & generate first (then return here).';
+  btn.title = enabled ? '' : 'Tap "Pick emojis & generate", then return here.';
+}
+
+
+function hideActionSectionsUntilLobby() {
+  try {
+    const hs = document.getElementById('hostActionSection');
+    const gs = document.getElementById('guestActionSection');
+    if (hs) hs.style.display = 'none';
+    if (gs) gs.style.display = 'none';
+  } catch {}
 }
 
 function applyRoleSectionsUI(roomCode) {
@@ -739,28 +753,22 @@ async function maybeAutoSubmitOnReturn(roomCode) {
   if (isHostRole()) return false;
   const code = upperRoom(roomCode || getParam('room') || '');
   const name = (getInputs().name?.value || localGet('party_name') || '').trim();
-  const text = (getLastTicketText() || '').trim();
   const pending = getPendingPartySubmit();
-  if (!code || !name || !text) return false;
-  if (!(pending.room === code && pending.name && pending.name === name)) return false;
-
   const meta = getLastTicketMeta();
-  // only auto-submit fresh picks to avoid re-submitting stale host picks
-  if (!(meta.ts && meta.ageMs >= 0 && meta.ageMs <= LAST_TICKET_MAX_AGE_MS)) return false;
+  if (!code || !name || !meta.text) return false;
+  if (!(pending.room === code && pending.name && pending.name === name)) return false;
+  if (!(pending.at && meta.ts && meta.ts >= pending.at)) return false;
+  if (!(meta.ageMs >= 0 && meta.ageMs <= LAST_TICKET_MAX_AGE_MS)) return false;
 
-  const fp = submitFingerprint(code, name, text);
-  const doneKey = 'emojipick_party_last_submit_fp';
-  if ((localGet(doneKey) || '') === fp) return false;
+  const fp = submitFingerprint(code, name, meta.text);
+  if (localGet('emojipick_last_submit_fp') === fp) return false;
 
-  const ok = await submitMyPicks(code, name).then(()=>true).catch(()=>false);
-  if (ok) {
-    try { localSet(doneKey, fp); } catch {}
-    return true;
-  }
-  return false;
+  submitMyPicks(code, name);
+  return true;
 }
 
 function boot() {
+  try { hideActionSectionsUntilLobby(); } catch {}
 
 try {
   window.addEventListener('focus', () => { const __rc = upperRoom(getParam('room') || getInputs().room?.value || ''); setGuestSubmitEnabled(__rc); maybeAutoSubmitOnReturn(__rc); });
