@@ -413,6 +413,7 @@ function wireLobbyButtons() {
     try { wireRoomMessage(roomCode); } catch {}
     try { wireGuestActions(roomCode, hostName); } catch {}
     try { applyRoleSectionsUI(roomCode); } catch {}
+    try { setTimeout(() => { tryAutoSubmitOnReturn(roomCode); }, 250); } catch {}
     try { maybeAutoSubmitOnReturn(roomCode); } catch {}
     try { wireLegacyCopyButtons(); } catch {}
 
@@ -489,6 +490,7 @@ function wireLobbyButtons() {
 
     setMsg(`Room created: ${roomCode}`);
     showLobby(roomCode, hostName);
+    try { clearPendingPartySubmit(); } catch {}
     try { autoSendLastTicketToRoom(roomCode, hostName); } catch {}
   }
 
@@ -538,6 +540,37 @@ function wireLobbyButtons() {
 
   // ---------- boot ----------
   
+
+const PENDING_PARTY_SUBMIT_ROOM = 'emojipick_party_pending_room';
+const PENDING_PARTY_SUBMIT_NAME = 'emojipick_party_pending_name';
+const PENDING_PARTY_SUBMIT_AT   = 'emojipick_party_pending_at';
+
+function markPendingPartySubmit(roomCode, playerName){
+  try {
+    localSet(PENDING_PARTY_SUBMIT_ROOM, upperRoom(roomCode||''));
+    localSet(PENDING_PARTY_SUBMIT_NAME, String(playerName||''));
+    localSet(PENDING_PARTY_SUBMIT_AT, String(Date.now()));
+  } catch {}
+}
+
+function getPendingPartySubmit(){
+  try {
+    return {
+      room: upperRoom(localGet(PENDING_PARTY_SUBMIT_ROOM) || ''),
+      name: String(localGet(PENDING_PARTY_SUBMIT_NAME) || ''),
+      at: Number(localGet(PENDING_PARTY_SUBMIT_AT) || 0) || 0
+    };
+  } catch { return { room:'', name:'', at:0 }; }
+}
+
+function clearPendingPartySubmit(){
+  try {
+    localStorage.removeItem(PENDING_PARTY_SUBMIT_ROOM);
+    localStorage.removeItem(PENDING_PARTY_SUBMIT_NAME);
+    localStorage.removeItem(PENDING_PARTY_SUBMIT_AT);
+  } catch {}
+}
+
 // ---------- Guest flow (Option B): jump to main generator then return ----------
 const PARTY_ROOM_KEY = 'emojipick_party_room';
 
@@ -655,51 +688,38 @@ function hasFreshLastTicket() {
   return !!m.text && !!m.ts && m.ageMs >= 0 && m.ageMs <= LAST_TICKET_MAX_AGE_MS;
 }
 
+
 function setGuestSubmitEnabled(roomCode) {
   const btn = document.getElementById('btnSubmitMyPicks');
   if (!btn) return;
-  const enabled = !!upperRoom(roomCode || getParam('room') || '') && !!(getLastTicketText() || '').trim();
+  const code = upperRoom(roomCode || getParam('room') || '');
+  const pending = getPendingPartySubmit();
+  const meta = getLastTicketMeta();
+  const enabled = !!code
+    && pending.room === code
+    && !!pending.name
+    && !!meta.text
+    && !!meta.ts
+    && meta.ageMs >= 0
+    && meta.ageMs <= LAST_TICKET_MAX_AGE_MS;
   btn.disabled = !enabled;
   btn.style.opacity = enabled ? '' : '.55';
-  btn.title = enabled ? '' : 'Generate numbers first, then return here.';
+  btn.title = enabled ? '' : 'Pick emojis & generate first (then return here).';
 }
-
-function applyRoleSectionsUI(roomCode) {
-  const hostSec = document.getElementById('hostActionSection');
-  const guestSec = document.getElementById('guestActionSection');
-  const isHost = isHostRole();
-  if (hostSec) hostSec.style.display = isHost ? '' : 'none';
-  if (guestSec) guestSec.style.display = isHost ? 'none' : '';
-  setGuestSubmitEnabled(roomCode);
+  return false;
 }
 
 
-// ---------- Auto-submit guest picks after returning from main generator ----------
-function submitFingerprint(roomCode, playerName, text) {
-  return `room=${upperRoom(roomCode||'')}|name=${String(playerName||'').trim()}|text=${String(text||'').trim()}`;
-}
-
-async function maybeAutoSubmitOnReturn(roomCode) {
+async function tryAutoSubmitOnReturn(roomCode){
   if (isHostRole()) return false;
   const code = upperRoom(roomCode || getParam('room') || '');
-  const name = (getInputs().name?.value || localGet('party_name') || '').trim();
-  const text = (getLastTicketText() || '').trim();
-  if (!code || !name || !text) return false;
-
+  if (!code) return false;
+  const pending = getPendingPartySubmit();
   const meta = getLastTicketMeta();
-  // only auto-submit fresh picks to avoid re-submitting stale host picks
-  if (!(meta.ts && meta.ageMs >= 0 && meta.ageMs <= LAST_TICKET_MAX_AGE_MS)) return false;
-
-  const fp = submitFingerprint(code, name, text);
-  const doneKey = 'emojipick_party_last_submit_fp';
-  if ((localGet(doneKey) || '') === fp) return false;
-
-  const ok = await submitMyPicks(code, name).then(()=>true).catch(()=>false);
-  if (ok) {
-    try { localSet(doneKey, fp); } catch {}
-    return true;
-  }
-  return false;
+  const name = (getInputs().name?.value || localGet('party_name') || '').trim();
+  if (!(pending.room === code && pending.name && name && pending.name === name)) return false;
+  if (!(meta.text && meta.ts && meta.ageMs >= 0 && meta.ageMs <= LAST_TICKET_MAX_AGE_MS)) return false;
+  try { await submitMyPicks(code, name); return true; } catch { return false; }
 }
 
 function boot() {
