@@ -67,8 +67,10 @@ function getLastTicketText() {
 }
 
 async function autoSendLastTicketToRoom(roomCode, hostName) {
-  const text = getLastTicketText();
+  const meta = getLastTicketMeta();
+  const text = meta.text;
   if (!text) return false;
+  if (!(meta.ts && meta.ageMs >= 0 && meta.ageMs <= LAST_TICKET_MAX_AGE_MS)) return false;
 
   const db = getDb();
   if (!db) return false;
@@ -282,9 +284,21 @@ function wireRoomMessage(roomCode) {
 
   if (btnClear && !btnClear.__wired) {
     btnClear.__wired = true;
-    btnClear.addEventListener('click', (e) => {
+    btnClear.addEventListener('click', async (e) => {
       e.preventDefault();
       if (inp) inp.value = '';
+      try {
+        if (isHostRole()) {
+          const db = getDb();
+          const code = roomCode || getRoomCodeFromUI();
+          if (db && code) {
+            await db.collection('rooms').doc(code).set({ roomMessage: null }, { merge: true });
+            setMsg('Cleared host posted picks.');
+          }
+        }
+      } catch (err) {
+        console.warn('[PartyMode] clear room message failed', err);
+      }
     });
   }
 
@@ -413,7 +427,7 @@ function wireLobbyButtons() {
     try { wireRoomMessage(roomCode); } catch {}
     try { wireGuestActions(roomCode, hostName); } catch {}
     try { applyRoleSectionsUI(roomCode); } catch {}
-    try { setTimeout(() => { tryAutoSubmitOnReturn(roomCode); }, 250); } catch {}
+    try { setTimeout(() => { maybeAutoSubmitOnReturn(roomCode); }, 250); } catch {}
     try { maybeAutoSubmitOnReturn(roomCode); } catch {}
     try { wireLegacyCopyButtons(); } catch {}
 
@@ -552,7 +566,6 @@ function markPendingPartySubmit(roomCode, playerName){
     localSet(PENDING_PARTY_SUBMIT_AT, String(Date.now()));
   } catch {}
 }
-
 function getPendingPartySubmit(){
   try {
     return {
@@ -562,7 +575,6 @@ function getPendingPartySubmit(){
     };
   } catch { return { room:'', name:'', at:0 }; }
 }
-
 function clearPendingPartySubmit(){
   try {
     localStorage.removeItem(PENDING_PARTY_SUBMIT_ROOM);
@@ -578,6 +590,7 @@ function goToMainGenerator(roomCode) {
   const code = upperRoom(roomCode || getParam('room') || '');
   if (!code) return alert('No room code.');
   try { localSet(PARTY_ROOM_KEY, code); } catch {}
+  try { markPendingPartySubmit(code, (getInputs().name?.value || localGet('party_name') || '').trim()); } catch {}
   const fallback = `./index.html?room=${encodeURIComponent(code)}&return=party`;
   // keep same origin; using relative path is safest on GitHub Pages
   window.location.href = fallback;
@@ -665,6 +678,7 @@ function wireGuestActions(roomCode, hostName) {
     btnSubmit.addEventListener('click', (e)=>{ 
       e.preventDefault(); 
       const name = (getInputs().name?.value || localGet('party_name') || '').trim();
+      if (btnSubmit.disabled) { alert('First tap "Pick emojis & generate", then return here.'); return; }
       submitMyPicks(roomCode, name);
     });
   }
@@ -688,38 +702,62 @@ function hasFreshLastTicket() {
   return !!m.text && !!m.ts && m.ageMs >= 0 && m.ageMs <= LAST_TICKET_MAX_AGE_MS;
 }
 
-
 function setGuestSubmitEnabled(roomCode) {
   const btn = document.getElementById('btnSubmitMyPicks');
   if (!btn) return;
   const code = upperRoom(roomCode || getParam('room') || '');
-  const pending = getPendingPartySubmit();
+  const p = getPendingPartySubmit();
   const meta = getLastTicketMeta();
-  const enabled = !!code
-    && pending.room === code
-    && !!pending.name
-    && !!meta.text
-    && !!meta.ts
-    && meta.ageMs >= 0
-    && meta.ageMs <= LAST_TICKET_MAX_AGE_MS;
+  const enabled = !!code &&
+    p.room === code &&
+    !!p.name &&
+    !!meta.text &&
+    !!meta.ts &&
+    meta.ageMs >= 0 &&
+    meta.ageMs <= LAST_TICKET_MAX_AGE_MS;
   btn.disabled = !enabled;
   btn.style.opacity = enabled ? '' : '.55';
   btn.title = enabled ? '' : 'Pick emojis & generate first (then return here).';
 }
-  return false;
+
+function applyRoleSectionsUI(roomCode) {
+  const hostSec = document.getElementById('hostActionSection');
+  const guestSec = document.getElementById('guestActionSection');
+  const isHost = isHostRole();
+  if (hostSec) hostSec.style.display = isHost ? '' : 'none';
+  if (guestSec) guestSec.style.display = isHost ? 'none' : '';
+  setGuestSubmitEnabled(roomCode);
 }
 
 
-async function tryAutoSubmitOnReturn(roomCode){
+// ---------- Auto-submit guest picks after returning from main generator ----------
+function submitFingerprint(roomCode, playerName, text) {
+  return `room=${upperRoom(roomCode||'')}|name=${String(playerName||'').trim()}|text=${String(text||'').trim()}`;
+}
+
+async function maybeAutoSubmitOnReturn(roomCode) {
   if (isHostRole()) return false;
   const code = upperRoom(roomCode || getParam('room') || '');
-  if (!code) return false;
-  const pending = getPendingPartySubmit();
-  const meta = getLastTicketMeta();
   const name = (getInputs().name?.value || localGet('party_name') || '').trim();
-  if (!(pending.room === code && pending.name && name && pending.name === name)) return false;
-  if (!(meta.text && meta.ts && meta.ageMs >= 0 && meta.ageMs <= LAST_TICKET_MAX_AGE_MS)) return false;
-  try { await submitMyPicks(code, name); return true; } catch { return false; }
+  const text = (getLastTicketText() || '').trim();
+  const pending = getPendingPartySubmit();
+  if (!code || !name || !text) return false;
+  if (!(pending.room === code && pending.name && pending.name === name)) return false;
+
+  const meta = getLastTicketMeta();
+  // only auto-submit fresh picks to avoid re-submitting stale host picks
+  if (!(meta.ts && meta.ageMs >= 0 && meta.ageMs <= LAST_TICKET_MAX_AGE_MS)) return false;
+
+  const fp = submitFingerprint(code, name, text);
+  const doneKey = 'emojipick_party_last_submit_fp';
+  if ((localGet(doneKey) || '') === fp) return false;
+
+  const ok = await submitMyPicks(code, name).then(()=>true).catch(()=>false);
+  if (ok) {
+    try { localSet(doneKey, fp); } catch {}
+    return true;
+  }
+  return false;
 }
 
 function boot() {
