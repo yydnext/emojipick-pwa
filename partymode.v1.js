@@ -412,6 +412,7 @@ function wireLobbyButtons() {
     wireLobbyButtons();
     try { wireRoomMessage(roomCode); } catch {}
     try { wireGuestActions(roomCode, hostName); } catch {}
+    try { applyRoleSectionsUI(roomCode); } catch {}
     try { wireLegacyCopyButtons(); } catch {}
 
     const roomEl = $('lobbyRoomCode');
@@ -610,7 +611,7 @@ function watchSubmissions(roomCode) {
       list.push({ id: doc.id, ...d, atMs });
     });
     renderSubmissions(list);
-  }, (err)=>console.error('[PartyMode] submissions snapshot error', err));
+  }, (err)=>{ console.error('[PartyMode] submissions snapshot error', err); setMsg('Submissions read failed (check Firestore rules).'); });
 }
 
 function wireGuestActions(roomCode, hostName) {
@@ -637,7 +638,49 @@ function wireGuestActions(roomCode, hostName) {
   try { watchSubmissions(roomCode); } catch {}
 }
 
+
+// ---------- UI state / freshness (v4) ----------
+const LAST_TICKET_MAX_AGE_MS = 2 * 60 * 1000; // 2 minutes for auto-post safety
+
+function getLastTicketMeta() {
+  const text = (getLastTicketText() || '').trim();
+  const tsRaw = localGet('emojipick_last_ticket_ts') || localGet('lastTicketTs') || '';
+  const ts = Number(tsRaw) || 0;
+  return { text, ts, ageMs: ts ? (Date.now() - ts) : Number.POSITIVE_INFINITY };
+}
+
+function hasFreshLastTicket() {
+  const m = getLastTicketMeta();
+  return !!m.text && !!m.ts && m.ageMs >= 0 && m.ageMs <= LAST_TICKET_MAX_AGE_MS;
+}
+
+function setGuestSubmitEnabled(roomCode) {
+  const btn = document.getElementById('btnSubmitMyPicks');
+  if (!btn) return;
+  const enabled = !!upperRoom(roomCode || getParam('room') || '') && !!(getLastTicketText() || '').trim();
+  btn.disabled = !enabled;
+  btn.style.opacity = enabled ? '' : '.55';
+  btn.title = enabled ? '' : 'Generate numbers first, then return here.';
+}
+
+function applyRoleSectionsUI(roomCode) {
+  const hostSec = document.getElementById('hostActionSection');
+  const guestSec = document.getElementById('guestActionSection');
+  const isHost = isHostRole();
+  if (hostSec) hostSec.style.display = isHost ? '' : 'none';
+  if (guestSec) guestSec.style.display = isHost ? 'none' : '';
+  setGuestSubmitEnabled(roomCode);
+}
+
 function boot() {
+
+try {
+  window.addEventListener('focus', () => setGuestSubmitEnabled(upperRoom(getParam('room') || getInputs().room?.value || '')));
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) setGuestSubmitEnabled(upperRoom(getParam('room') || getInputs().room?.value || ''));
+  });
+} catch {}
+
     const { name } = getInputs();
     const { btnCreate, btnJoin } = getButtons();
 
