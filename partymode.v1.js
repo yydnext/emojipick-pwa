@@ -767,6 +767,49 @@ async function maybeAutoSubmitOnReturn(roomCode) {
   return true;
 }
 
+
+async function maybeAutoResumePartyRoom() {
+  try {
+    const code = upperRoom(getParam('room') || '');
+    if (!code) return false;
+
+    const inputs = getInputs ? getInputs() : {};
+    const roomInput = inputs.room;
+    const nameInput = inputs.name;
+    const savedName = (nameInput?.value || localGet('party_name') || '').trim();
+    if (!savedName) return false;
+
+    // If lobby is already visible, watchers should already be attached
+    const inviteEl = document.getElementById('inviteLink');
+    if (inviteEl) {
+      const panel = inviteEl.closest('.card,.panel,section,div');
+      if (panel && panel.hidden === false) return false;
+    }
+
+    if (roomInput) roomInput.value = code;
+    if (nameInput && !nameInput.value) nameInput.value = savedName;
+
+    const db = getDb();
+    if (!db) return false;
+
+    // Re-attach player presence and snapshot watchers by showing lobby again
+    try {
+      await db.collection('rooms').doc(code).collection('players').doc(savedName).set({
+        name: savedName,
+        joinedAt: (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue && window.firebase.firestore.FieldValue.serverTimestamp)
+          ? window.firebase.firestore.FieldValue.serverTimestamp()
+          : Date.now()
+      }, { merge: true });
+    } catch {}
+
+    showLobby(code, savedName);
+    return true;
+  } catch (e) {
+    console.warn('[PartyMode] auto-resume failed', e);
+    return false;
+  }
+}
+
 function boot() {
   try { hideActionSectionsUntilLobby(); } catch {}
 
@@ -935,7 +978,8 @@ try {
         showLobby(roomFromUrl, savedName);
       }
     }
-  }
+      try { setTimeout(() => { maybeAutoResumePartyRoom(); }, 150); } catch {}
+}
 
   function isHostFromUrl() { return getParam('host') === '1'; }
 
