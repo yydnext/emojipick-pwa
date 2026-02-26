@@ -1,238 +1,139 @@
-<!doctype html>
+!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EmojiPick — Party Mode</title>
-  <link rel="stylesheet" href="styles.v11.css?v=20260205v01" />
-  <link rel="icon" href="./icon-192.png">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EmojiPick Party Mode</title>
+  <style>
+    :root{--line:#e5e7eb;--muted:#6b7280;--violet:#7c3aed;--green:#22c55e;--amber:#f59e0b}
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#f3f4f6;color:#111827}
+    .wrap{max-width:1080px;margin:0 auto;padding:16px}
+    .hero{background:#111827;color:#fff;border-radius:16px;padding:16px}
+    .grid{display:grid;gap:14px}.g2{grid-template-columns:1.2fr .8fr}@media(max-width:900px){.g2{grid-template-columns:1fr}}
+    .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.between{justify-content:space-between}
+    .input,textarea{width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px} textarea{min-height:74px;resize:vertical}
+    .btn{border:none;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer}
+    .btn.primary{background:var(--violet);color:#fff}.btn.green{background:var(--green);color:#111827}.btn.secondary{background:#fff;border:1px solid var(--line)}
+    .btn.warn{background:var(--amber)} .btn:disabled{opacity:.5;cursor:not-allowed}
+    .label{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase}.h2{font-size:18px;font-weight:900}.h3{font-size:16px;font-weight:900}
+    .micro{font-size:12px;color:var(--muted)} .mono{font-family:ui-monospace,Menlo,monospace}
+    .hidden{display:none!important}.divider{height:1px;background:var(--line);margin:12px 0}.pill{border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;background:#fff}
+    ul.compact{margin:8px 0 0 0;padding-left:18px;line-height:1.7} pre.box{white-space:pre-wrap;background:#f9fafb;border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0 0 0}
+  </style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div class="brand">
-     <div class="logo" aria-hidden="true">
-      <img src="./icon-192.png" alt="" style="width:28px;height:28px;border-radius:8px;display:block;">
-      </div>
-
-        <div>
-          <div class="brandName">EmojiPick</div>
-          <div class="brandTag">Party Mode (Multi-phone)</div>
-        </div>
-      </div>
-
-      <div class="row" style="gap:8px; flex-wrap: wrap; justify-content: flex-end;">
-        <a class="linkBtn" href="./index.html">Home</a>
-        <a class="linkBtn" href="./about.html">About</a>
-      </div>
-    </header>
-
-    <main class="content">
-      <section class="card">
-
-        <!-- STEP 0: ENTRY -->
-        <section id="viewEntry" class="panel">
-          <div class="h2">Party Mode</div>
-          <div class="muted" style="margin-top:6px;">
-            Create a room as host, or join with a room code.
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="row gap" style="flex-wrap: wrap;">
-            <button id="btnCreateRoom" class="primary" type="button">Create room (Host)</button>
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="row gap" style="flex-wrap: wrap;">
-            <input id="inpRoomCode" class="input" placeholder="Room code (e.g., A7K3)" style="min-width:200px;" />
-            <input id="inpName" class="input" placeholder="Your name (e.g., Mike)" style="min-width:200px;" />
-            <button id="btnJoinRoom" class="secondary" type="button">Join</button>
-          </div>
-
-          <div class="micro" style="margin-top:10px;">
-            Tip: You can also open a link like <span class="muted">partymode.html?room=A7K3</span>
-          </div>
-        <div class="divider"></div>
-
-<div id="hostActionSection">
-<div class="h3" style="margin:0 0 8px 0;">Next action</div>
-<div class="muted" style="margin-bottom:10px;">Host can post the room’s picks/message. Guests will see it instantly.</div>
-
-<textarea id="inpRoomMessage" class="input" rows="3" placeholder="Paste your picks (or a short message) here…"
-  style="width:100%; resize: vertical;"></textarea>
-
-<div class="row gap" style="margin-top:10px; flex-wrap:wrap;">
-  <button id="btnSendToRoom" class="primary" type="button">Send to room</button>
-  <button id="btnClearRoomMsg" class="secondary" type="button">Clear</button>
-</div>
-
-<div id="roomMsgBox" class="card" style="margin-top:12px;" hidden>
-  <div class="label">Host’s posted picks</div>
-  <div id="roomMsgMeta" class="micro muted" style="margin-top:6px;"></div>
-  <pre id="roomMsgText" style="white-space:pre-wrap;margin:10px 0 0 0;"></pre>
-</div>
-<div class="divider"></div>
-
-</div>
-<div id="guestActionSection">
-<div class="h3" style="margin:0 0 8px 0;">Guest action</div>
-<div class="muted" style="margin-bottom:10px;">
-  Guests: pick emojis and generate your numbers on the main page, then come back and submit to this room.
-</div>
-
-<div class="row gap" style="margin-top:10px; flex-wrap:wrap;">
-  <button id="btnGoGenerate" class="secondary" type="button">Pick emojis &amp; generate</button>
-  <button id="btnSubmitMyPicks" class="primary" type="button">Submit my picks</button>
-</div>
-
-<div class="card" style="margin-top:12px;">
-  <div class="label">Submissions in this room</div>
-  <div class="micro muted" style="margin-top:6px;">Host can reveal/compare later. (MVP: shows text submissions)</div>
-  <ul id="submissionsList" style="margin:10px 0 0 0;padding-left:18px;line-height:1.7;"></ul>
-</div>
-</div>
-</section>
-
-        <!-- STEP 1: LOBBY -->
-        <section id="viewLobby" class="panel" hidden>
-          <div class="row between">
-            <div>
-              <div class="h2">Lobby</div>
-              <div class="muted">Room: <b id="lblRoomCode">—</b></div>
-            </div>
-            <div class="row gap" style="flex-wrap: wrap; justify-content:flex-end;">
-              <button id="btnCopyInvite" class="secondary" type="button">Copy invite link</button>
-              <button id="btnStart" class="primary" type="button" hidden>Start</button>
-            </div>
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="muted">Players</div>
-          <div id="playerList" style="margin-top:10px;"></div>
-
-          <div class="divider"></div>
-
-          <div class="row gap" style="flex-wrap: wrap;">
-            <label class="muted">Game:</label>
-            <select id="selGame" class="input" style="min-width:200px;">
-              <option value="pb" selected>Powerball</option>
-              <option value="mm">Mega Millions</option>
-            </select>
-          </div>
-
-          <div class="micro" style="margin-top:10px;">
-            Host can start when everyone joined.
-          </div>
-        </section>
-
-        <!-- STEP 2: PICK -->
-        <section id="viewPick" class="panel" hidden>
-          <div class="row between">
-            <div>
-              <div class="h2">Pick your emojis</div>
-              <div class="muted">Choose 6 emojis, then submit.</div>
-            </div>
-            <div class="counter"><span id="pickedCount">0</span>/6</div>
-          </div>
-
-          <div class="divider"></div>
-
-          <!-- Reuse existing grid style -->
-          <div id="emojiGridParty" class="emojiGrid" aria-label="Emoji grid"></div>
-
-          <div class="row gap" style="margin-top: 14px;">
-            <button id="btnResetParty" class="secondary" type="button">Reset</button>
-            <button id="btnSubmitParty" class="primary" type="button" disabled>Submit</button>
-          </div>
-
-          <div class="divider"></div>
-          <div class="muted">Submitted: <b id="lblSubmitted">0</b>/<b id="lblTotal">0</b></div>
-
-          <div class="row gap" style="margin-top: 12px; flex-wrap: wrap;">
-            <button id="btnReveal" class="primary" type="button" hidden>Reveal results (Host)</button>
-          </div>
-        </section>
-
-        <!-- STEP 3: RESULT -->
-        <section id="viewResult" class="panel" hidden>
-          <div class="row between">
-            <div>
-              <div class="h2">Results</div>
-              <div class="muted">Room: <b id="lblRoomCode2">—</b></div>
-            </div>
-            <a class="linkBtn" href="./index.html">Back to Home</a>
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="resultCard" id="partyResultCard">
-            <div class="h3" style="margin-bottom:6px;">Winning numbers (for this party)</div>
-            <div id="partyNumbers" class="numbers">—</div>
-            <div id="partyFortune" class="fortune" style="margin-top:10px;">—</div>
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="h3">Ranking</div>
-          <div id="rankingList" style="margin-top:10px;"></div>
-
-          <div class="row gap" style="margin-top: 14px;">
-            <button id="btnCopyPartyLink" class="secondary" type="button">Copy room link</button>
-            <button id="btnCopyTicketParty" class="secondary" type="button">Copy as ticket (later)</button>
-          </div>
-
-          <div class="micro" style="margin-top:10px;">
-            Copy-as-ticket will be added after Party v1 is stable.
-          </div>
-        </section>
-
-      </section>
-    </main>
-
-    <footer class="footer">
-      <div class="muted">© <span id="year"></span> EmojiPick. Entertainment only.</div>
-    </footer>
+<div class="wrap">
+  <div class="hero">
+    <div class="row between">
+      <div><div class="h2">EmojiPick Party Mode</div><div class="micro" style="color:#d1d5db">Create a room, invite friends, submit picks, compare later.</div></div>
+      <div id="roomStatusPill" class="pill">Status: lobby</div>
+    </div>
   </div>
 
-  <!-- IMPORTANT:
-       You must ensure firebase is available to this page.
-       Option A) If you already load app.v11.js on all pages, keep it.
-       Option B) If party mode is separate, load firebase init module here.
-  -->
+  <div class="grid g2" style="margin-top:14px;">
+    <div class="grid">
+      <div class="card">
+        <div class="label">Join / Create</div>
+        <div class="row" style="margin-top:8px;">
+          <div style="flex:1;min-width:220px"><input id="name" class="input" placeholder="Your name"></div>
+          <div style="width:140px"><input id="roomCode" class="input mono" placeholder="ROOM" maxlength="6"></div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="btnCreateRoom" class="btn green" type="button">Create Room</button>
+          <button id="btnJoin" class="btn primary" type="button">Join</button>
+          <span class="micro">Invite links auto-fill room code.</span>
+        </div>
+        <div id="msg" class="micro" style="margin-top:8px;color:#374151"></div>
+      </div>
 
-  <!-- If your firebase init is in app.v11.js and it exposes window.db or similar, keep this. -->
+      <div id="lobbyCard" class="card hidden">
+        <div class="row between">
+          <div><div class="label">Room</div><div id="lobbyRoomCode" class="h2 mono">-</div></div>
+          <div class="row"><button id="btnStartCollecting" class="btn warn hidden" type="button">Start collecting</button></div>
+        </div>
+        <div class="divider"></div>
+        <div class="label">Invite link</div>
+        <div class="row" style="margin-top:8px;">
+          <input id="inviteLink" class="input mono" readonly style="flex:1;min-width:220px">
+          <button id="btnCopyInvite" class="btn secondary" type="button">Copy</button>
+          <button id="btnShareInvite" class="btn secondary" type="button">Share</button>
+          <button id="btnToggleQR" class="btn secondary" type="button">QR</button>
+        </div>
+        <div id="qrWrap" class="hidden" style="margin-top:10px"><img id="qrImg" style="width:180px;height:180px;border:1px solid var(--line);border-radius:10px" alt="QR"></div>
+        <div class="divider"></div>
+        <div class="label">Players</div>
+        <ul id="playersList" class="compact"></ul>
+      </div>
 
-   <!-- Firebase (compat) -->
+      <div id="hostPostedCard" class="card hidden">
+        <div class="label">Host’s posted picks / message</div>
+        <div id="hostMsgMeta" class="micro" style="margin-top:4px"></div>
+        <pre id="hostMsgText" class="box"></pre>
+      </div>
 
-  <!-- Party mode logic -->
-<!-- 1) Firebase compat 라이브러리: 먼저 로드 -->
-<!-- Party mode logic -->
+      <div id="submissionsCard" class="card hidden">
+        <div class="label">Submissions in this room</div>
+        <div class="micro">Host and guests can both see this list.</div>
+        <ul id="submissionsList" class="compact"></ul>
+      </div>
+    </div>
 
-<!-- 1) Firebase compat: 딱 1번만 -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <div class="grid">
+      <div id="hostPanel" class="card hidden">
+        <div class="h3">Host Broadcast</div>
+        <div class="micro">Post a room message / official picks for everyone.</div>
+        <textarea id="inpHostMessage" placeholder="Type a host message or paste official picks…"></textarea>
+        <div class="row" style="margin-top:10px;">
+          <button id="btnSendHostMessage" class="btn primary" type="button">Send to room</button>
+          <button id="btnClearHostMessage" class="btn secondary" type="button">Clear</button>
+        </div>
+        <div class="divider"></div>
+        <div class="h3">Winning numbers (Host)</div>
+        <div class="micro">For compare/reveal later (v1 stores only).</div>
+        <input id="inpWinningNumbers" class="input" placeholder="e.g. 1 2 4 23 44 + PB 3">
+        <div class="row" style="margin-top:10px;"><button id="btnSetWinningNumbers" class="btn secondary" type="button">Set winning numbers</button></div>
+        <div id="winningMeta" class="micro" style="margin-top:8px"></div>
+      </div>
 
-<!-- 2) Firebase init: 딱 1번만 -->
-<script>
-  const firebaseConfig = {
-  apiKey: "AIzaSyAVYc_K5ahGZ6TKpL4qUF0jXP16xtPOdww",
-  authDomain: "localboost-dev.firebaseapp.com",
-  projectId: "localboost-dev",
-  storageBucket: "localboost-dev.firebasestorage.app",
-  messagingSenderId: "262055028680",
-  appId: "1:262055028680:web:197f41affc87849d87c2fd"
-};
+      <div id="guestPanel" class="card hidden">
+        <div class="h3">Guest Action</div>
+        <div class="micro">Generate your picks on the main page, then come back and submit.</div>
+        <div class="row" style="margin-top:10px;">
+          <button id="btnGoGenerate" class="btn secondary" type="button">Pick emojis & generate</button>
+          <button id="btnSubmitMyPicks" class="btn primary" type="button" disabled>Submit my picks</button>
+        </div>
+        <div class="divider"></div>
+        <div class="label">Your latest picks (this device)</div>
+        <pre id="guestLatestPicksText" class="box"></pre>
+        <div id="guestLatestMeta" class="micro" style="margin-top:6px"></div>
+      </div>
 
-  firebase.initializeApp(firebaseConfig);
-  window.db = firebase.firestore();
-  window.__FIREBASE_READY__ = true;
-</script>
+      <div class="card">
+        <div class="label">Pro Pack (interest test)</div>
+        <div class="micro">One-time $4.99 planned · email optional</div>
+        <div class="row" style="margin-top:10px;">
+          <button id="btnProPack" class="btn secondary" type="button">Unlock Pro Pack</button>
+          <a href="./pro-dashboard.html" target="_blank" rel="noopener" style="font-size:12px;color:#2563eb;text-decoration:none">Pro Dashboard</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-<!-- 3) Party mode JS: 마지막에 -->
-  <script src="partymode.v1.js?v=20260218a"></script>
+<div id="proModal" class="hidden" style="position:fixed;inset:0;z-index:9999;display:none;place-items:center;background:rgba(17,24,39,.45)">
+  <div style="width:min(560px,calc(100vw - 24px));background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px">
+    <div class="row between"><div><div class="h3">Unlock Pro Pack</div><div class="micro">One-time $4.99 (planned). Email optional.</div></div><button id="btnProClose" class="btn secondary" type="button">✕</button></div>
+    <div class="divider"></div>
+    <ul class="compact"><li>Remove watermark + HD export</li><li>Premium ticket themes</li><li>Save party room history</li></ul>
+    <div class="divider"></div>
+    <input id="inpProEmail" class="input" placeholder="you@example.com (optional)">
+    <div class="row" style="margin-top:10px;"><button id="btnProNotify" class="btn primary" type="button">Notify me</button><button id="btnProNoThanks" class="btn secondary" type="button">Not now</button></div>
+    <div id="proThanks" class="micro hidden" style="margin-top:8px">Thanks! We saved your interest.</div>
+  </div>
+</div>
 
+<!-- Keep your existing Firebase compat/init scripts in this file if needed -->
+<script src="./partymode.v1.js?v=20260226-clean1"></script>
 </body>
 </html>
