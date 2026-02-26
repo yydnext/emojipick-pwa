@@ -616,6 +616,7 @@ async function submitMyPicks(roomCode, playerName) {
         : Date.now()
     }, { merge: true });
     setMsg('Submitted your picks to the room.');
+    try { localSet('emojipick_last_submit_fp', submitFingerprint(code, name, text)); } catch {}
   } catch (e) {
     console.error('[PartyMode] submitMyPicks failed', e);
     console.error('[PartyMode] submit error details', e); alert('Submit failed. See console.');
@@ -706,22 +707,20 @@ function setGuestSubmitEnabled(roomCode) {
   const btn = document.getElementById('btnSubmitMyPicks');
   if (!btn) return;
   const code = upperRoom(roomCode || getParam('room') || '');
-  const p = getPendingPartySubmit();
   const meta = getLastTicketMeta();
-  const currentName = (getInputs().name?.value || localGet('party_name') || '').trim();
-  const enabled = !!code &&
-    p.room === code &&
-    !!p.name &&
-    !!currentName &&
-    p.name === currentName &&
-    !!meta.text &&
-    !!meta.ts &&
-    meta.ageMs >= 0 &&
-    meta.ageMs <= LAST_TICKET_MAX_AGE_MS &&
-    meta.ts >= (p.at || 0);
+  const isHost = isHostRole();
+
+  // Practical rule: guest + room + fresh latest ticket (generated recently on this device)
+  const enabled = !isHost
+    && !!code
+    && !!meta.text
+    && !!meta.ts
+    && meta.ageMs >= 0
+    && meta.ageMs <= (10 * 60 * 1000); // 10 min to reduce accidental lockout
+
   btn.disabled = !enabled;
   btn.style.opacity = enabled ? '' : '.55';
-  btn.title = enabled ? '' : 'Tap "Pick emojis & generate", then return here.';
+  btn.title = enabled ? '' : 'Pick emojis & generate first (then return here).';
 }
 
 
@@ -738,7 +737,25 @@ function applyRoleSectionsUI(roomCode) {
   const hostSec = document.getElementById('hostActionSection');
   const guestSec = document.getElementById('guestActionSection');
   const isHost = isHostRole();
-  if (hostSec) hostSec.style.display = isHost ? '' : 'none';
+
+  // Keep host section visible for guests so they can see "Host’s posted picks"
+  if (hostSec) hostSec.style.display = '';
+
+  // But hide host-only controls for guests
+  const inp = document.getElementById('inpRoomMessage');
+  const btnSend = document.getElementById('btnSendToRoom');
+  const btnClear = document.getElementById('btnClearRoomMsg');
+  const hostHeader = hostSec ? hostSec.querySelector('.h3') : null;
+  const hostDesc = hostSec ? hostSec.querySelector('.muted') : null;
+
+  if (inp) { inp.style.display = isHost ? '' : 'none'; inp.disabled = !isHost; }
+  if (btnSend) btnSend.style.display = isHost ? '' : 'none';
+  if (btnClear) btnClear.style.display = isHost ? '' : 'none';
+  if (hostHeader) hostHeader.textContent = isHost ? 'Next action' : 'Host’s posted picks';
+  if (hostDesc) hostDesc.textContent = isHost
+    ? "Host can post the room’s picks/message. Guests will see it instantly."
+    : "Host’s posted picks/message will appear below.";
+
   if (guestSec) guestSec.style.display = isHost ? 'none' : '';
   setGuestSubmitEnabled(roomCode);
 }
@@ -753,18 +770,20 @@ async function maybeAutoSubmitOnReturn(roomCode) {
   if (isHostRole()) return false;
   const code = upperRoom(roomCode || getParam('room') || '');
   const name = (getInputs().name?.value || localGet('party_name') || '').trim();
-  const pending = getPendingPartySubmit();
   const meta = getLastTicketMeta();
-  if (!code || !name || !meta.text) return false;
-  if (!(pending.room === code && pending.name && pending.name === name)) return false;
-  if (!(pending.at && meta.ts && meta.ts >= pending.at)) return false;
-  if (!(meta.ageMs >= 0 && meta.ageMs <= LAST_TICKET_MAX_AGE_MS)) return false;
+  if (!code || !name || !meta.text || !meta.ts) return false;
+  if (!(meta.ageMs >= 0 && meta.ageMs <= (10 * 60 * 1000))) return false;
 
   const fp = submitFingerprint(code, name, meta.text);
   if (localGet('emojipick_last_submit_fp') === fp) return false;
 
-  submitMyPicks(code, name);
-  return true;
+  try {
+    await submitMyPicks(code, name);
+    try { localSet('emojipick_last_submit_fp', fp); } catch {}
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 
