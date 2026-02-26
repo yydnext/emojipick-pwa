@@ -1006,3 +1006,133 @@ try {
   else boot();
 
 })();
+
+/* ===== v10 stability patch (guest visibility + submit + room message polling) ===== */
+(function(){
+  if (window.__PM_V10_PATCH__) return;
+  window.__PM_V10_PATCH__ = true;
+
+  function _safe(fn){ try { return fn(); } catch(e){ console.warn('[PM v10]', e); } }
+
+  function getRoomCodeV10(){
+    return _safe(()=> (typeof upperRoom === 'function'
+      ? upperRoom((typeof getParam==='function' ? (getParam('room')||'') : ''))
+      : '')) || '';
+  }
+
+  function getLatestTicketV10(){
+    try {
+      if (typeof getLastTicketText === 'function') return (getLastTicketText() || '').trim();
+      return (localStorage.getItem('emojipick_last_ticket_text') || '').trim();
+    } catch { return ''; }
+  }
+
+  function forceGuestUI(){
+    _safe(() => {
+      if (typeof isHostRole === 'function' && isHostRole()) return;
+      var hostSec = document.getElementById('hostActionSection');
+      var guestSec = document.getElementById('guestActionSection');
+      var roomMsgBox = document.getElementById('roomMsgBox');
+      if (hostSec) hostSec.style.display = '';
+      if (guestSec) guestSec.style.display = '';
+      if (roomMsgBox) roomMsgBox.hidden = false;
+
+      var inp = document.getElementById('inpRoomMessage');
+      var btnSend = document.getElementById('btnSendToRoom');
+      var btnClear = document.getElementById('btnClearRoomMsg');
+      if (inp) { inp.style.display = 'none'; inp.disabled = true; }
+      if (btnSend) btnSend.style.display = 'none';
+      if (btnClear) btnClear.style.display = 'none';
+
+      var h3 = hostSec ? hostSec.querySelector('.h3') : null;
+      var muted = hostSec ? hostSec.querySelector('.muted') : null;
+      if (h3) h3.textContent = "Host’s posted picks";
+      if (muted) muted.textContent = "Host’s posted picks/message will appear below.";
+    });
+  }
+
+  // Relax submit enable rule: guest + room + any latest ticket text
+  window.setGuestSubmitEnabled = function(roomCode){
+    _safe(() => {
+      var btn = document.getElementById('btnSubmitMyPicks');
+      if (!btn) return;
+      var isHost = (typeof isHostRole === 'function') ? isHostRole() : false;
+      var code = roomCode || getRoomCodeV10();
+      var txt = getLatestTicketV10();
+      var enabled = !isHost && !!code && !!txt;
+      btn.disabled = !enabled;
+      btn.style.opacity = enabled ? '' : '.55';
+      btn.title = enabled ? '' : 'Pick emojis & generate first (then return here).';
+    });
+  };
+
+  function startRoomMessagePolling(roomCode){
+    _safe(() => {
+      if (window.__pmRoomPollTimer) { try { clearInterval(window.__pmRoomPollTimer); } catch(e){} }
+      var code = roomCode || getRoomCodeV10();
+      if (!code || typeof getDb !== 'function') return;
+      var db = getDb();
+      if (!db) return;
+      window.__pmRoomPollTimer = setInterval(async function(){
+        try {
+          var snap = await db.collection('rooms').doc(code).get();
+          if (!snap.exists) return;
+          var data = snap.data() || {};
+          if (typeof setRoomMsgUI === 'function') setRoomMsgUI(data);
+        } catch (e) {
+          console.warn('[PM v10] poll room message failed', e);
+        }
+      }, 1500);
+    });
+  }
+
+  if (typeof showLobby === 'function' && !window.__pmShowLobbyWrapped) {
+    window.__pmShowLobbyWrapped = true;
+    var _origShowLobby = showLobby;
+    window.showLobby = function(roomCode, hostName){
+      var r = _origShowLobby.apply(this, arguments);
+      _safe(() => {
+        setTimeout(function(){
+          forceGuestUI();
+          window.setGuestSubmitEnabled(roomCode);
+          startRoomMessagePolling(roomCode);
+        }, 120);
+      });
+      return r;
+    };
+    try { showLobby = window.showLobby; } catch(e){}
+  }
+
+  document.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest ? e.target.closest('#btnSubmitMyPicks') : null;
+    if (!btn) return;
+    _safe(() => {
+      if (btn.disabled) {
+        e.preventDefault();
+        alert('Pick emojis & generate first, then return here.');
+        return;
+      }
+      console.log('[PM v10] submit click', {
+        room: getRoomCodeV10(),
+        latestTicket: getLatestTicketV10(),
+        name: (typeof getInputs==='function' && getInputs().name) ? getInputs().name.value : null
+      });
+    });
+  }, true);
+
+  window.addEventListener('focus', function(){
+    _safe(() => {
+      forceGuestUI();
+      window.setGuestSubmitEnabled(getRoomCodeV10());
+      startRoomMessagePolling(getRoomCodeV10());
+    });
+  });
+
+  _safe(() => {
+    if (location.search.indexOf('room=') >= 0) {
+      forceGuestUI();
+      window.setGuestSubmitEnabled(getRoomCodeV10());
+      startRoomMessagePolling(getRoomCodeV10());
+    }
+  });
+})();
