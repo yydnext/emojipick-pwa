@@ -1,1138 +1,323 @@
-/* EmojiPick Party Mode (Multi-phone)
- * Host: enter name -> Create room
- * Guest: open invite link/QR -> enter name -> Join
- *
- * Wires UI by id OR data-action and injects Lobby UI if missing.
- * Requires Firebase compat + window.db (firebase.firestore()) set in HTML.
- */
-
-(function () {
-  'use strict';
-
-  // ---------- helpers ----------
-  const $ = (id) => document.getElementById(id);
-  const qs = (sel) => document.querySelector(sel);
-  const findBtnByText = (re) => {
-    const els = Array.from(document.querySelectorAll('button, input[type="button"], input[type="submit"]'));
-    return els.find((el) => re.test(((el.textContent || el.value || '') + '').trim()));
-  };
-  const upperRoom = (s) => (s || '').trim().toUpperCase();
-  const cleanName = (s) => (s || '').trim();
-  const now = () => Date.now();
-
-  function getDb() {
-    if (window.db) return window.db;
-    if (window.firebase && typeof window.firebase.firestore === 'function') return window.firebase.firestore();
-    return null;
-  }
-
-  function setMsg(msg) {
-    const el = $('msg') || qs('[data-role="msg"]') || qs('.msg');
-    if (el) el.textContent = msg || '';
-  }
-
-  function getParam(k) {
-    try { return new URLSearchParams(location.search).get(k); }
-    catch { return null; }
-  }
-
-  function setParam(k, v) {
-    try {
-      const u = new URL(location.href);
-      if (v === null || v === undefined || v === '') u.searchParams.delete(k);
-      else u.searchParams.set(k, String(v));
-      history.replaceState({}, '', u.toString());
-    } catch {}
-  }
-
-
-// ---------- Auto-fill from main EmojiPick (latest ticket/picks) ----------
-const LAST_TICKET_KEY = 'emojipick_last_ticket_text';
-const LAST_TICKET_TS  = 'emojipick_last_ticket_ts';
-
-function getLastTicketText() {
-  // Primary key we will write from the main generator page (ticket.js/app.v11.js)
-  let t = (localGet(LAST_TICKET_KEY) || '').trim();
-  if (t) return t;
-
-  // Backward/compat guesses (in case older versions used different keys)
-  const candidates = ['lastTicketText','last_ticket_text','emojipick_last_picks_text','ticket_text'];
-  for (const k of candidates) {
-    try {
-      const v = (localGet(k) || '').trim();
-      if (v) return v;
-    } catch {}
-  }
-  return '';
-}
-
-async function autoSendLastTicketToRoom(roomCode, hostName) {
-  const meta = getLastTicketMeta();
-  const text = meta.text;
-  if (!text) return false;
-  if (!(meta.ts && meta.ageMs >= 0 && meta.ageMs <= LAST_TICKET_MAX_AGE_MS)) return false;
-
-  const db = getDb();
-  if (!db) return false;
-
-  try {
-    // Do not overwrite if roomMessage already exists
-    const snap = await db.collection('rooms').doc(roomCode).get();
-    const data = snap.exists ? (snap.data() || {}) : {};
-    if (data.roomMessage && data.roomMessage.text) return false;
-
-    await db.collection('rooms').doc(roomCode).set({
-      roomMessage: {
-        text,
-        by: hostName || 'host',
-        at: (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue && window.firebase.firestore.FieldValue.serverTimestamp)
-          ? window.firebase.firestore.FieldValue.serverTimestamp()
-          : Date.now()
-      }
-    }, { merge: true });
-
-    setMsg('Auto-posted your latest picks to the room.');
-    return true;
-  } catch (e) {
-    console.warn('[PartyMode] autoSendLastTicketToRoom failed', e);
-    return false;
-  }
-}
-
-  function localGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
-  function localSet(key, val) { try { localStorage.setItem(key, val); } catch {} }
-
-  function getInputs() {
-    const room =
-      $('roomCode') ||
-      qs('input[name="roomCode"]') ||
-      qs('[data-role="roomCode"]') ||
-      qs('input[placeholder*="Room"]');
-
-    const name =
-      $('name') ||
-      qs('input[name="name"]') ||
-      qs('[data-role="name"]') ||
-      qs('input[placeholder*="name" i]');
-
-    return { room, name };
-  }
-
-  function getButtons() {
-    // Be resilient to HTML changes (ids, attributes, or plain text buttons)
-    const btnCreate =
-      $('btnCreateRoom') ||
-      qs('#btnCreateRoom') ||
-      qs('[data-action="createRoom"]') ||
-      qs('[data-role="create"]') ||
-      findBtnByText(/create\s*room/i);
-
-    const btnJoin =
-      $('btnJoin') ||
-      qs('#btnJoin') ||
-      qs('[data-action="joinRoom"]') ||
-      qs('[data-role="join"]') ||
-      findBtnByText(/^join$/i);
-
-    return { btnCreate, btnJoin };
-  }
-
-  function genRoomCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I,O,1,0
-    let out = '';
-    for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
-    return out;
-  }
-
-  // ---------- Lobby UI ----------
-  function ensureLobbyBox() {
-    let box = $('lobbyBox') || qs('#lobbyBox');
-    if (box) return box;
-
-    const anchor = qs('.card') || qs('main') || document.body;
-
-    box = document.createElement('div');
-    box.id = 'lobbyBox';
-    box.style.marginTop = '18px';
-    box.innerHTML = `
-      <div style="border:1px solid #e5e7eb;border-radius:14px;padding:18px;background:#fff;max-width:980px;margin:0 auto;">
-        <div style="font-size:28px;font-weight:800;margin-bottom:8px;">Lobby</div>
-
-        <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
-          <div style="flex:1;min-width:360px;">
-            <div style="font-size:16px;margin-bottom:6px;"><b>Room:</b> <span id="lobbyRoomCode"></span></div>
-
-            <div style="font-size:14px;color:#374151;margin:10px 0 6px;"><b>Invite link:</b></div>
-            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-              <input id="inviteLink" type="text" readonly style="flex:1;min-width:260px;padding:10px;border:1px solid #d1d5db;border-radius:10px;" />
-              <button id="btnCopyInvite" type="button" style="padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;">Copy</button>
-              <button id="btnShareInvite" type="button" style="padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;">Share</button>
-            </div>
-            <div style="font-size:12px;color:#6b7280;margin-top:6px;">
-              Tip: Use <b>Share</b> for SMS/WhatsApp, or <b>Copy</b> to paste anywhere.
-            </div>
-
-            <div style="margin-top:12px;">
-              <button id="btnToggleQR" type="button" style="padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;">QR code</button>
-            </div>
-          </div>
-
-          <div style="min-width:220px;display:none;" id="qrWrap">
-            <div style="font-size:14px;color:#374151;margin-bottom:6px;"><b>Scan to open invite link</b></div>
-            <img id="qrImg" alt="QR code" style="width:200px;height:200px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;" />
-          </div>
-        </div>
-
-        <div style="margin-top:18px;">
-          <div style="font-size:14px;color:#374151;margin-bottom:8px;"><b>Players</b></div>
-          <ul id="playersList" style="margin:0;padding-left:18px;line-height:1.7;"></ul>
-          <div id="lobbyStatus" style="margin-top:8px;font-size:12px;color:#6b7280;"></div>
-        </div>
-      </div>
-    `;
-    if (anchor && anchor !== document.body) {
-      anchor.parentNode.insertBefore(box, anchor.nextSibling);
-    } else {
-      document.body.appendChild(box);
-    }
-    return box;
-  }
-
-  function qrUrlFor(text) {
-    const data = encodeURIComponent(text);
-    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${data}`;
-  }
-
-  async function fallbackCopy(text) {
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      ta.style.top = '-9999px';
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      ta.setSelectionRange(0, ta.value.length); // iOS
-      const ok = document.execCommand('copy');
-      document.body.removeChild(ta);
-      return !!ok;
-    } catch {
-      return false;
-    }
-  }
-
-  async function copyText(text) {
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-    } catch {}
-    return await fallbackCopy(text);
-  }
-
-  async function doShare(url) {
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: 'EmojiPick Party Mode', text: 'Join my EmojiPick room!', url });
-        return true;
-      }
-    } catch {}
-    return false;
-  }
-
-  
-// ---------- Room Message / Picks (Next action) ----------
-function isHostRole() {
-  return getParam('host') === '1';
-}
-
-function getRoomCodeFromUI() {
-  const { room } = getInputs();
-  return upperRoom(room?.value) || upperRoom(getParam('room')) || '';
-}
-
-function setRoomMsgUI(data) {
-  const box = document.getElementById('roomMsgBox');
-  const textEl = document.getElementById('roomMsgText');
-  const metaEl = document.getElementById('roomMsgMeta');
-  if (!box || !textEl || !metaEl) return;
-
-  const msg = data && data.roomMessage ? data.roomMessage : null;
-  if (!msg || !msg.text) {
-    box.hidden = true;
-    return;
-  }
-  box.hidden = false;
-  textEl.textContent = String(msg.text || '');
-  const by = msg.by ? String(msg.by) : '';
-  const at = msg.at && msg.at.toMillis ? new Date(msg.at.toMillis()) : (msg.at ? new Date(msg.at) : null);
-  metaEl.textContent = (by ? `by ${by}` : '') + (at ? ` · ${at.toLocaleString()}` : '');
-}
-
-function wireRoomMessage(roomCode) {
-  const btnSend = document.getElementById('btnSendToRoom');
-  const btnClear = document.getElementById('btnClearRoomMsg');
-  const inp = document.getElementById('inpRoomMessage');
-
-  // Only host should send (guests can still view)
-  if (btnSend) btnSend.style.display = isHostRole() ? '' : 'none';
-  if (btnClear) btnClear.style.display = isHostRole() ? '' : 'none';
-  if (inp) inp.disabled = !isHostRole();
-
-  if (btnClear && !btnClear.__wired) {
-    btnClear.__wired = true;
-    btnClear.addEventListener('click', async (e) => {
-      e.preventDefault();
-      if (inp) inp.value = '';
-      try {
-        if (isHostRole()) {
-          const db = getDb();
-          const code = roomCode || getRoomCodeFromUI();
-          if (db && code) {
-            await db.collection('rooms').doc(code).set({ roomMessage: null }, { merge: true });
-            setMsg('Cleared host posted picks.');
-          }
-        }
-      } catch (err) {
-        console.warn('[PartyMode] clear room message failed', err);
-      }
-    });
-  }
-
-  if (btnSend && !btnSend.__wired) {
-    btnSend.__wired = true;
-    btnSend.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const db = getDb();
-      if (!db) return alert('Firebase not ready.');
-      const code = roomCode || getRoomCodeFromUI();
-      if (!code) return alert('No room code.');
-      const name = (getInputs().name?.value || localGet('party_name') || '').trim();
-
-      const text = (inp?.value || '').trim();
-      if (!text) return alert('Paste picks / message first.');
-
-      try {
-        await db.collection('rooms').doc(code).set({
-          roomMessage: {
-            text,
-            by: name || 'host',
-            at: (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue && window.firebase.firestore.FieldValue.serverTimestamp)
-              ? window.firebase.firestore.FieldValue.serverTimestamp()
-              : Date.now()
-          }
-        }, { merge: true });
-
-        setMsg('Sent to room.');
-      } catch (err) {
-        console.error('[PartyMode] sendToRoom failed', err);
-        alert('Failed to send to room. See console.');
-      }
-    });
-  }
-}
-
-function wireLobbyButtons() {
-    const btnCopy = $('btnCopyInvite');
-    const btnShare = $('btnShareInvite');
-    const btnQR = $('btnToggleQR');
-    const invite = $('inviteLink');
-    const qrWrap = $('qrWrap');
-
-    // Copy invite link
-    if (btnCopy && invite && !btnCopy.__wired) {
-      btnCopy.__wired = true;
-      btnCopy.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const txt = (invite.value || '').trim();
-        if (!txt) {
-          setMsg('No invite link yet.');
-          return;
-        }
-
-        const ok = await copyText(txt);
-        try { invite.focus(); invite.select(); } catch {}
-
-        if (ok) {
-          setMsg('Copied invite link!');
-          const prev = btnCopy.textContent;
-          btnCopy.textContent = 'Copied!';
-          setTimeout(() => { btnCopy.textContent = prev || 'Copy'; }, 1200);
-        } else {
-          setMsg('Copy failed — please tap & hold the link to copy.');
-        }
-      });
-    }
-
-    // Share invite link (fallback to copy)
-    if (btnShare && invite && !btnShare.__wired) {
-      btnShare.__wired = true;
-      btnShare.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const url = (invite.value || '').trim();
-        if (!url) {
-          setMsg('No invite link yet.');
-          return;
-        }
-
-        const ok = await doShare(url);
-        if (!ok) {
-          const copied = await copyText(url);
-          setMsg(copied ? 'Sharing not available — copied instead.' : 'Sharing not available — copy manually.');
-        } else {
-          setMsg('Invite shared.');
-        }
-      });
-    }
-
-    // Toggle QR
-    if (btnQR && qrWrap && !btnQR.__wired) {
-      btnQR.__wired = true;
-      btnQR.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const show = qrWrap.style.display === 'none' || !qrWrap.style.display;
-        qrWrap.style.display = show ? 'block' : 'none';
-      });
-    }
-  }
-
-  function renderPlayers(playersObj, hostName) {
-    const ul = $('playersList');
-    if (!ul) return;
-    ul.innerHTML = '';
-
-    const names = Object.keys(playersObj || {}).sort((a, b) => a.localeCompare(b));
-    names.forEach((name) => {
-      const li = document.createElement('li');
-      li.textContent = (hostName && name === hostName) ? `${name} (host)` : name;
-      ul.appendChild(li);
-    });
-
-    const status = $('lobbyStatus');
-    if (status) status.textContent = `Status: lobby · Players: ${names.length}`;
-  }
-
-  function showLobby(roomCode, hostName) {
-    ensureLobbyBox();
-    wireLobbyButtons();
-    try { wireRoomMessage(roomCode); } catch {}
-    try { wireGuestActions(roomCode, hostName); } catch {}
-    try { applyRoleSectionsUI(roomCode); } catch {}
-    try { setTimeout(() => { maybeAutoSubmitOnReturn(roomCode); }, 250); } catch {}
-    try { maybeAutoSubmitOnReturn(roomCode); } catch {}
-    try { wireLegacyCopyButtons(); } catch {}
-
-    const roomEl = $('lobbyRoomCode');
-    if (roomEl) roomEl.textContent = roomCode;
-
-    const invite = $('inviteLink');
-    const inviteUrl = `${location.origin}${location.pathname}?room=${encodeURIComponent(roomCode)}`;
-    if (invite) invite.value = inviteUrl;
-
-    const qr = $('qrImg');
-    if (qr) qr.src = qrUrlFor(inviteUrl);
-
-    const qrWrap = $('qrWrap');
-    if (qrWrap) qrWrap.style.display = 'none'; // show only when user taps QR button
-
-    // live players list
-    const db = getDb();
-    if (!db) return;
-
-    if (window.__unsubRoom) { try { window.__unsubRoom(); } catch {} }
-    window.__unsubRoom = db.collection('rooms').doc(roomCode).onSnapshot((snap) => {
-      if (!snap.exists) return;
-      const data = snap.data() || {};
-      renderPlayers(data.players || {}, data.hostName || hostName || '');
-      try { setRoomMsgUI(data); } catch {}
-    }, (err) => console.error('[PartyMode] onSnapshot error', err));
-  }
-
-  // ---------- core actions ----------
-  async function createRoom() {
-    const { room, name } = getInputs();
-    const hostName = cleanName(name?.value);
-
-    if (!hostName) {
-      alert('Please enter your name first.');
-      name?.focus?.();
-      return;
-    }
-
-    const db = getDb();
-    if (!db) {
-      alert('Firebase not ready yet. Please refresh the page.');
-      return;
-    }
-
-    localSet('party_name', hostName);
-
-    // Try a few codes in case of collision
-    let roomCode = '';
-    for (let i = 0; i < 5; i++) {
-      const code = genRoomCode();
-      const ref = db.collection('rooms').doc(code);
-      const existing = await ref.get();
-      if (!existing.exists) { roomCode = code; break; }
-    }
-    if (!roomCode) {
-      alert('Could not create a room (code collision). Try again.');
-      return;
-    }
-
-    const roomRef = db.collection('rooms').doc(roomCode);
-    await roomRef.set({
-      createdAt: now(),
-      hostName,
-      status: 'lobby',
-      picks: {},
-      players: { [hostName]: { joinedAt: now() } }
-    }, { merge: true });
-
-    if (room) room.value = roomCode;
-    setParam('room', roomCode);
-    setParam('host', '1');
-
-    setMsg(`Room created: ${roomCode}`);
-    showLobby(roomCode, hostName);
-    try { clearPendingPartySubmit(); } catch {}
-    try { autoSendLastTicketToRoom(roomCode, hostName); } catch {}
-  }
-
-  async function joinRoom() {
-    const { room, name } = getInputs();
-    const roomCode = upperRoom(room?.value) || upperRoom(getParam('room'));
-    const playerName = cleanName(name?.value);
-
-    if (!roomCode) {
-      alert('Please enter a room code first.');
-      room?.focus?.();
-      return;
-    }
-    if (!playerName) {
-      alert('Please enter your name first.');
-      name?.focus?.();
-      return;
-    }
-
-    const db = getDb();
-    if (!db) {
-      alert('Firebase not ready yet. Please refresh the page.');
-      return;
-    }
-
-    localSet('party_name', playerName);
-
-    const roomRef = db.collection('rooms').doc(roomCode);
-    const snap = await roomRef.get();
-    if (!snap.exists) {
-      alert(`Room not found: ${roomCode}`);
-      return;
-    }
-
-    // Add player (merge keeps existing players)
-    await roomRef.set({
-      players: { [playerName]: { joinedAt: now() } }
-    }, { merge: true });
-
-    if (room) room.value = roomCode;
-    setParam('room', roomCode);
-    setParam('host', ''); // guest
-
-    setMsg(`Joined room ${roomCode} as ${playerName}`);
-    showLobby(roomCode, snap.data()?.hostName || '');
-  }
-
-  // ---------- boot ----------
-  
-
-const PENDING_PARTY_SUBMIT_ROOM = 'emojipick_party_pending_room';
-const PENDING_PARTY_SUBMIT_NAME = 'emojipick_party_pending_name';
-const PENDING_PARTY_SUBMIT_AT   = 'emojipick_party_pending_at';
-
-function markPendingPartySubmit(roomCode, playerName){
-  try {
-    localSet(PENDING_PARTY_SUBMIT_ROOM, upperRoom(roomCode||''));
-    localSet(PENDING_PARTY_SUBMIT_NAME, String(playerName||''));
-    localSet(PENDING_PARTY_SUBMIT_AT, String(Date.now()));
-  } catch {}
-}
-function getPendingPartySubmit(){
-  try {
-    return {
-      room: upperRoom(localGet(PENDING_PARTY_SUBMIT_ROOM) || ''),
-      name: String(localGet(PENDING_PARTY_SUBMIT_NAME) || ''),
-      at: Number(localGet(PENDING_PARTY_SUBMIT_AT) || 0) || 0
-    };
-  } catch { return { room:'', name:'', at:0 }; }
-}
-function clearPendingPartySubmit(){
-  try {
-    localStorage.removeItem(PENDING_PARTY_SUBMIT_ROOM);
-    localStorage.removeItem(PENDING_PARTY_SUBMIT_NAME);
-    localStorage.removeItem(PENDING_PARTY_SUBMIT_AT);
-  } catch {}
-}
-
-// ---------- Guest flow (Option B): jump to main generator then return ----------
-const PARTY_ROOM_KEY = 'emojipick_party_room';
-
-function goToMainGenerator(roomCode) {
-  const code = upperRoom(roomCode || getParam('room') || '');
-  if (!code) return alert('No room code.');
-  try { localSet(PARTY_ROOM_KEY, code); } catch {}
-  try { markPendingPartySubmit(code, (getInputs().name?.value || localGet('party_name') || '').trim()); } catch {}
-  const fallback = `./index.html?room=${encodeURIComponent(code)}&return=party`;
-  // keep same origin; using relative path is safest on GitHub Pages
-  window.location.href = fallback;
-}
-
-async function submitMyPicks(roomCode, playerName) {
-  const code = upperRoom(roomCode || getParam('room') || '');
-  if (!code) return alert('No room code.');
-  const name = (playerName || '').trim() || (getInputs().name?.value || localGet('party_name') || '').trim();
-  if (!name) return alert('Enter your name first.');
-
-  const text = getLastTicketText();
-  if (!text) return alert('No latest picks found. Tap "Pick emojis & generate" first.');
-
-  const db = getDb();
-  if (!db) return alert('Firebase not ready.');
-  try {
-    await db.collection('rooms').doc(code).collection('submissions').doc(name).set({
-      text,
-      by: name,
-      at: (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue && window.firebase.firestore.FieldValue.serverTimestamp)
-        ? window.firebase.firestore.FieldValue.serverTimestamp()
-        : Date.now()
-    }, { merge: true });
-    setMsg('Submitted your picks to the room.');
-    try { localSet('emojipick_last_submit_fp', submitFingerprint(code, name, text)); } catch {}
-  } catch (e) {
-    console.error('[PartyMode] submitMyPicks failed', e);
-    console.error('[PartyMode] submit error details', e); alert('Submit failed. See console.');
-  }
-}
-
-function escapeHtml(s){
-  return String(s||'').replace(/[&<>"']/g, (c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
-}
-
-function renderSubmissions(list) {
-  const ul = document.getElementById('submissionsList');
-  if (!ul) return;
-  ul.innerHTML = '';
-  const items = (list || []).slice().sort((a,b)=> (a.atMs||0) - (b.atMs||0));
-  if (!items.length) {
-    const li = document.createElement('li');
-    li.textContent = 'No submissions yet.';
-    ul.appendChild(li);
-    return;
-  }
-  for (const it of items) {
-    const li = document.createElement('li');
-    const who = it.by || it.id || 'player';
-    li.innerHTML = `<b>${escapeHtml(who)}</b>: ${escapeHtml(it.text || '')}`;
-    ul.appendChild(li);
-  }
-}
-
-function watchSubmissions(roomCode) {
-  const db = getDb();
-  if (!db) return;
-
-  if (window.__unsubSubs) { try { window.__unsubSubs(); } catch {} }
-  window.__unsubSubs = db.collection('rooms').doc(roomCode).collection('submissions').onSnapshot((qs) => {
-    const list = [];
-    qs.forEach((doc) => {
-      const d = doc.data() || {};
-      const atMs = d.at && d.at.toMillis ? d.at.toMillis() : (typeof d.at === 'number' ? d.at : 0);
-      list.push({ id: doc.id, ...d, atMs });
-    });
-    renderSubmissions(list);
-  }, (err)=>{ console.error('[PartyMode] submissions snapshot error', err); setMsg('Submissions read failed (check Firestore rules).'); });
-}
-
-function wireGuestActions(roomCode, hostName) {
-  const btnGo = document.getElementById('btnGoGenerate');
-  const btnSubmit = document.getElementById('btnSubmitMyPicks');
-
-  const isHost = isHostRole();
-  if (btnGo) btnGo.style.display = isHost ? 'none' : '';
-  if (btnSubmit) btnSubmit.style.display = isHost ? 'none' : '';
-
-  if (btnGo && !btnGo.__wired) {
-    btnGo.__wired = true;
-    btnGo.addEventListener('click', (e)=>{ e.preventDefault(); goToMainGenerator(roomCode); });
-  }
-  if (btnSubmit && !btnSubmit.__wired) {
-    btnSubmit.__wired = true;
-    btnSubmit.addEventListener('click', (e)=>{ 
-      e.preventDefault(); 
-      const name = (getInputs().name?.value || localGet('party_name') || '').trim();
-      if (btnSubmit.disabled) { alert('First tap "Pick emojis & generate", then return here.'); return; }
-      submitMyPicks(roomCode, name);
-    });
-  }
-
-  try { watchSubmissions(roomCode); } catch {}
-}
-
-
-// ---------- UI state / freshness (v4) ----------
-const LAST_TICKET_MAX_AGE_MS = 2 * 60 * 1000; // 2 minutes for auto-post safety
-
-function getLastTicketMeta() {
-  const text = (getLastTicketText() || '').trim();
-  const tsRaw = localGet('emojipick_last_ticket_ts') || localGet('lastTicketTs') || '';
-  const ts = Number(tsRaw) || 0;
-  return { text, ts, ageMs: ts ? (Date.now() - ts) : Number.POSITIVE_INFINITY };
-}
-
-function hasFreshLastTicket() {
-  const m = getLastTicketMeta();
-  return !!m.text && !!m.ts && m.ageMs >= 0 && m.ageMs <= LAST_TICKET_MAX_AGE_MS;
-}
-
-function setGuestSubmitEnabled(roomCode) {
-  const btn = document.getElementById('btnSubmitMyPicks');
-  if (!btn) return;
-  const code = upperRoom(roomCode || getParam('room') || '');
-  const meta = getLastTicketMeta();
-  const isHost = isHostRole();
-
-  // Practical rule: guest + room + fresh latest ticket (generated recently on this device)
-  const enabled = !isHost
-    && !!code
-    && !!meta.text
-    && !!meta.ts
-    && meta.ageMs >= 0
-    && meta.ageMs <= (10 * 60 * 1000); // 10 min to reduce accidental lockout
-
-  btn.disabled = !enabled;
-  btn.style.opacity = enabled ? '' : '.55';
-  btn.title = enabled ? '' : 'Pick emojis & generate first (then return here).';
-}
-
-
-function hideActionSectionsUntilLobby() {
-  try {
-    const hs = document.getElementById('hostActionSection');
-    const gs = document.getElementById('guestActionSection');
-    if (hs) hs.style.display = 'none';
-    if (gs) gs.style.display = 'none';
-  } catch {}
-}
-
-function applyRoleSectionsUI(roomCode) {
-  const hostSec = document.getElementById('hostActionSection');
-  const guestSec = document.getElementById('guestActionSection');
-  const isHost = isHostRole();
-
-  // Keep host section visible for guests so they can see "Host’s posted picks"
-  if (hostSec) hostSec.style.display = '';
-
-  // But hide host-only controls for guests
-  const inp = document.getElementById('inpRoomMessage');
-  const btnSend = document.getElementById('btnSendToRoom');
-  const btnClear = document.getElementById('btnClearRoomMsg');
-  const hostHeader = hostSec ? hostSec.querySelector('.h3') : null;
-  const hostDesc = hostSec ? hostSec.querySelector('.muted') : null;
-
-  if (inp) { inp.style.display = isHost ? '' : 'none'; inp.disabled = !isHost; }
-  if (btnSend) btnSend.style.display = isHost ? '' : 'none';
-  if (btnClear) btnClear.style.display = isHost ? '' : 'none';
-  if (hostHeader) hostHeader.textContent = isHost ? 'Next action' : 'Host’s posted picks';
-  if (hostDesc) hostDesc.textContent = isHost
-    ? "Host can post the room’s picks/message. Guests will see it instantly."
-    : "Host’s posted picks/message will appear below.";
-
-  if (guestSec) guestSec.style.display = isHost ? 'none' : '';
-  setGuestSubmitEnabled(roomCode);
-}
-
-
-// ---------- Auto-submit guest picks after returning from main generator ----------
-function submitFingerprint(roomCode, playerName, text) {
-  return `room=${upperRoom(roomCode||'')}|name=${String(playerName||'').trim()}|text=${String(text||'').trim()}`;
-}
-
-async function maybeAutoSubmitOnReturn(roomCode) {
-  if (isHostRole()) return false;
-  const code = upperRoom(roomCode || getParam('room') || '');
-  const name = (getInputs().name?.value || localGet('party_name') || '').trim();
-  const meta = getLastTicketMeta();
-  if (!code || !name || !meta.text || !meta.ts) return false;
-  if (!(meta.ageMs >= 0 && meta.ageMs <= (10 * 60 * 1000))) return false;
-
-  const fp = submitFingerprint(code, name, meta.text);
-  if (localGet('emojipick_last_submit_fp') === fp) return false;
-
-  try {
-    await submitMyPicks(code, name);
-    try { localSet('emojipick_last_submit_fp', fp); } catch {}
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-
-async function maybeAutoResumePartyRoom() {
-  try {
-    const code = upperRoom(getParam('room') || '');
-    if (!code) return false;
-
-    const inputs = getInputs ? getInputs() : {};
-    const roomInput = inputs.room;
-    const nameInput = inputs.name;
-    const savedName = (nameInput?.value || localGet('party_name') || '').trim();
-    if (!savedName) return false;
-
-    // If lobby is already visible, watchers should already be attached
-    const inviteEl = document.getElementById('inviteLink');
-    if (inviteEl) {
-      const panel = inviteEl.closest('.card,.panel,section,div');
-      if (panel && panel.hidden === false) return false;
-    }
-
-    if (roomInput) roomInput.value = code;
-    if (nameInput && !nameInput.value) nameInput.value = savedName;
-
-    const db = getDb();
-    if (!db) return false;
-
-    // Re-attach player presence and snapshot watchers by showing lobby again
-    try {
-      await db.collection('rooms').doc(code).collection('players').doc(savedName).set({
-        name: savedName,
-        joinedAt: (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue && window.firebase.firestore.FieldValue.serverTimestamp)
-          ? window.firebase.firestore.FieldValue.serverTimestamp()
-          : Date.now()
-      }, { merge: true });
-    } catch {}
-
-    showLobby(code, savedName);
-    return true;
-  } catch (e) {
-    console.warn('[PartyMode] auto-resume failed', e);
-    return false;
-  }
-}
-
-function boot() {
-  try { hideActionSectionsUntilLobby(); } catch {}
-
-try {
-  window.addEventListener('focus', () => { const __rc = upperRoom(getParam('room') || getInputs().room?.value || ''); setGuestSubmitEnabled(__rc); maybeAutoSubmitOnReturn(__rc); });
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) { const __rc = upperRoom(getParam('room') || getInputs().room?.value || ''); setGuestSubmitEnabled(__rc); maybeAutoSubmitOnReturn(__rc); }
-  });
-} catch {}
-
-    const { name } = getInputs();
-    const { btnCreate, btnJoin } = getButtons();
-
-    // Prevent accidental page reloads caused by <form> submit
-    if (!document.__partySubmitGuard) {
-      document.__partySubmitGuard = true;
-      document.addEventListener('submit', (ev) => {
-        if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
-      }, true);
-    }
-
-    // Prefill name from storage
-    const savedName = localGet('party_name');
-    if (name && savedName && !name.value) name.value = savedName;
-
-    // Prefill room code from URL if present
-    const { room } = getInputs();
-    const roomFromUrl = upperRoom(getParam('room'));
-    if (room && roomFromUrl && !room.value) room.value = roomFromUrl;
-
-    const safeCreate = () => createRoom().catch((e) => {
-      console.error('[PartyMode] createRoom error', e);
-      alert('Failed to create room. See console for details.');
-    });
-
-    const safeJoin = () => joinRoom().catch((e) => {
-      console.error('[PartyMode] joinRoom error', e);
-      alert('Failed to join room. See console for details.');
-    });
-
-    // Direct wiring (if buttons found)
-    if (btnCreate && !btnCreate.__wired) {
-      btnCreate.__wired = true;
-      btnCreate.addEventListener('click', (ev) => { ev?.preventDefault?.(); safeCreate(); });
-    }
-
-    if (btnJoin && !btnJoin.__wired) {
-      btnJoin.__wired = true;
-      btnJoin.addEventListener('click', (ev) => { ev?.preventDefault?.(); safeJoin(); });
-    }
-
-
-    // Delegated COPY wiring (capture phase) — survives stopImmediatePropagation in other handlers
-    // Works for different templates: btnCopyInvite, btnCopyTicket, btnCopy
-    if (!document.__partyDelegatedCopy) {
-      document.__partyDelegatedCopy = true;
-      document.addEventListener('click', async (ev) => {
-        const t = ev.target && ev.target.closest ? ev.target.closest('#btnCopyInvite,#btnCopyTicket,#btnCopy') : null;
-        if (!t) return;
-
-        // Run early (capture), and stop others from interfering
-        ev.preventDefault();
-        ev.stopPropagation();
-
-        const inviteEl = document.getElementById('inviteLink');
-        const invite = (inviteEl?.value ?? inviteEl?.textContent ?? '').trim();
-
-        console.log('[PartyMode] delegated copy', t.id, 'payload=', invite);
-
-        if (!invite) {
-          setMsg('No invite link yet.');
-          return;
-        }
-
-        const ok = await copyText(invite);
-
-        if (ok) {
-          setMsg('Copied invite link!');
-          const prev = t.textContent;
-          t.textContent = 'Copied!';
-          setTimeout(() => { t.textContent = prev || 'Copy'; }, 1200);
-        } else {
-          setMsg('Copy failed — please tap & hold the link to copy.');
-        }
-      }, true); // capture
-    }
-
-    // Delegated wiring (fallback when HTML ids/attrs differ or DOM is replaced)
-    if (!document.__partyDelegatedClick) {
-      document.__partyDelegatedClick = true;
-      document.addEventListener('click', (ev) => {
-        const el = ev.target && ev.target.closest
-          ? ev.target.closest('button, input[type="button"], input[type="submit"]')
-          : null;
-        if (!el) return;
-
-        const id = (el.id || '').trim();
-        const action = (el.getAttribute('data-action') || el.dataset?.action || '').trim();
-        const role = (el.getAttribute('data-role') || el.dataset?.role || '').trim();
-        const txt = ((el.textContent || el.value || '') + '').trim().toLowerCase();
-
-        const isJoin = id === 'btnJoin' || action === 'joinRoom' || role === 'join' || txt === 'join';
-        const isCreate = id === 'btnCreateRoom' || action === 'createRoom' || role === 'create' || txt.includes('create room');
-
-        if (isJoin) { ev.preventDefault(); safeJoin(); }
-        if (isCreate) { ev.preventDefault(); safeCreate(); }
-      }, true);
-    }
-
-    // Enter key on name triggers Join (nice UX on mobile/desktop)
-    if (name && !name.__wiredEnter) {
-      name.__wiredEnter = true;
-      name.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') { ev.preventDefault(); safeJoin(); }
-      });
-    }
-
-    // If page opened with ?room=XXXX, show hint message
-    if (roomFromUrl && !isHostFromUrl()) {
-      setMsg(`Invited to room ${roomFromUrl}. Enter your name and press Join.`);
-    }
-
-
-    // --- EXTRA: wire legacy Copy buttons in existing HTML (btnCopyTicket / btnCopy)
-    // These exist in some templates and were the root cause of "share works, copy doesn't".
-    // We always copy the current inviteLink (filled by showLobby()).
-    function wireLegacyCopyButtons() {
-      const inviteEl = document.getElementById('inviteLink');
-      const getInvite = () => (inviteEl?.value ?? inviteEl?.textContent ?? '').trim();
-
-      const wire = (id, label) => {
-        const b = document.getElementById(id);
-        if (!b || b.__wiredCopyFix) return;
-        b.__wiredCopyFix = true;
-        try { b.type = 'button'; } catch {}
-        b.addEventListener('click', async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const url = getInvite();
-          console.log('[PartyMode] legacy copy click', id, 'payload=', url);
-          if (!url) {
-            setMsg('No invite link yet.');
-            return;
-          }
-          const ok = await copyText(url);
-          if (ok) {
-            setMsg('Copied invite link!');
-            const prev = b.textContent;
-            b.textContent = 'Copied!';
-            setTimeout(() => { b.textContent = prev || label || 'Copy'; }, 1200);
-          } else {
-            setMsg('Copy failed — please tap & hold the link to copy.');
-          }
-        });
-      };
-
-      wire('btnCopyTicket', 'Copy as ticket');
-      wire('btnCopy', 'Copy link');
-    }
-
-    // Call once now, and again after lobby is rendered (DOM can change)
-    wireLegacyCopyButtons();
-    // If already host and room exists, show lobby immediately on refresh
-    if (roomFromUrl) {
-      if (isHostFromUrl() && savedName) {
-        showLobby(roomFromUrl, savedName);
-      }
-    }
-      try { setTimeout(() => { maybeAutoResumePartyRoom(); }, 150); } catch {}
-}
-
-  function isHostFromUrl() { return getParam('host') === '1'; }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else boot();
-
-})();
-
-/* ===== v10 stability patch (guest visibility + submit + room message polling) ===== */
 (function(){
-  if (window.__PM_V10_PATCH__) return;
-  window.__PM_V10_PATCH__ = true;
+'use strict';
+const $ = (id)=>document.getElementById(id);
+const upper = (s)=>String(s||'').trim().toUpperCase();
+const clean = (s)=>String(s||'').trim();
+const TS_FRESH_MS = 10*60*1000;
+let unsubRoom=null, unsubPlayers=null, unsubSubs=null;
 
-  function _safe(fn){ try { return fn(); } catch(e){ console.warn('[PM v10]', e); } }
+function qs(k){ try { return new URLSearchParams(location.search).get(k)||''; } catch { return ''; } }
+function setQs(k,v){ try { const u=new URL(location.href); if(v)u.searchParams.set(k,String(v)); else u.searchParams.delete(k); history.replaceState({},'',u.toString()); } catch{} }
+function localGet(k){ try{return localStorage.getItem(k);}catch{return null;} }
+function localSet(k,v){ try{localStorage.setItem(k,String(v));}catch{} }
+function getDb(){ if(window.db) return window.db; try{return window.firebase.firestore();}catch{return null;} }
+function serverTs(){ try{return window.firebase.firestore.FieldValue.serverTimestamp();}catch{return Date.now();} }
+function setMsg(m){ if($('msg')) $('msg').textContent = m||''; }
+function isHost(){ return qs('host')==='1'; }
+function roomCode(){ return upper($('roomCode')?.value || qs('room')); }
+function playerName(){ return clean($('name')?.value || localGet('party_name')); }
+function fmtTime(ts){ try{ const d = ts&&ts.toMillis?new Date(ts.toMillis()):new Date(ts); return d.toLocaleString(); }catch{return '';} }
+function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function randCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<4;i++) o+=c[Math.floor(Math.random()*c.length)]; return o; }
 
-  function getRoomCodeV10(){
-    return _safe(()=> (typeof upperRoom === 'function'
-      ? upperRoom((typeof getParam==='function' ? (getParam('room')||'') : ''))
-      : '')) || '';
+function latestTicket(){
+  const text = clean(localGet('emojipick_last_ticket_text'));
+  const ts = Number(localGet('emojipick_last_ticket_ts')||0)||0;
+  return { text, ts, ageMs: ts ? Date.now()-ts : Infinity };
+}
+
+function setStatusPill(status){
+  if(!$('roomStatusPill')) return;
+  $('roomStatusPill').textContent = 'Status: ' + (status||'lobby');
+}
+
+function roleUI(){
+  if($('hostPanel')) $('hostPanel').classList.toggle('hidden', !isHost());
+  if($('guestPanel')) $('guestPanel').classList.toggle('hidden', isHost());
+}
+
+function showLobby(code){
+  $('lobbyCard')?.classList.remove('hidden');
+  $('submissionsCard')?.classList.remove('hidden');
+  $('lobbyRoomCode').textContent = code;
+  const invite = `${location.origin}${location.pathname}?room=${encodeURIComponent(code)}`;
+  $('inviteLink').value = invite;
+  $('qrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(invite)}`;
+  roleUI();
+  refreshGuestLatestPanel();
+  refreshGuestSubmitEnabled();
+}
+
+function refreshGuestLatestPanel(){
+  if(!$('guestLatestPicksText')) return;
+  const lt = latestTicket();
+  if(lt.text){
+    $('guestLatestPicksText').textContent = lt.text;
+    $('guestLatestMeta').textContent = lt.ts ? `Generated: ${new Date(lt.ts).toLocaleString()} (${Math.round(lt.ageMs/1000)}s ago)` : '';
+  } else {
+    $('guestLatestPicksText').textContent = 'No latest picks found on this device yet.';
+    $('guestLatestMeta').textContent = 'Tap “Pick emojis & generate” first.';
   }
+}
 
-  function getLatestTicketV10(){
-    try {
-      if (typeof getLastTicketText === 'function') return (getLastTicketText() || '').trim();
-      return (localStorage.getItem('emojipick_last_ticket_text') || '').trim();
-    } catch { return ''; }
+function refreshGuestSubmitEnabled(){
+  const btn = $('btnSubmitMyPicks'); if(!btn) return;
+  if(isHost()){ btn.disabled=true; return; }
+  const lt = latestTicket();
+  const ok = !!roomCode() && !!playerName() && !!lt.text && !!lt.ts && lt.ageMs >=0 && lt.ageMs <= TS_FRESH_MS;
+  btn.disabled = !ok;
+  btn.title = ok ? '' : 'Join room + generate your picks first.';
+}
+
+async function ensureRoom(code, hostNameMaybe){
+  const db = getDb(); if(!db) throw new Error('Firebase not ready');
+  const ref = db.collection('rooms').doc(code);
+  const s = await ref.get();
+  if(!s.exists){
+    await ref.set({ status:'lobby', hostName: hostNameMaybe||'', createdAt: serverTs() }, {merge:true});
   }
+  return ref;
+}
 
-  function forceGuestUI(){
-    _safe(() => {
-      if (typeof isHostRole === 'function' && isHostRole()) return;
-      var hostSec = document.getElementById('hostActionSection');
-      var guestSec = document.getElementById('guestActionSection');
-      var roomMsgBox = document.getElementById('roomMsgBox');
-      if (hostSec) hostSec.style.display = '';
-      if (guestSec) guestSec.style.display = '';
-      if (roomMsgBox) roomMsgBox.hidden = false;
+function detachWatchers(){
+  try{unsubRoom&&unsubRoom();}catch{} try{unsubPlayers&&unsubPlayers();}catch{} try{unsubSubs&&unsubSubs();}catch{}
+  unsubRoom=unsubPlayers=unsubSubs=null;
+}
 
-      var inp = document.getElementById('inpRoomMessage');
-      var btnSend = document.getElementById('btnSendToRoom');
-      var btnClear = document.getElementById('btnClearRoomMsg');
-      if (inp) { inp.style.display = 'none'; inp.disabled = true; }
-      if (btnSend) btnSend.style.display = 'none';
-      if (btnClear) btnClear.style.display = 'none';
-
-      var h3 = hostSec ? hostSec.querySelector('.h3') : null;
-      var muted = hostSec ? hostSec.querySelector('.muted') : null;
-      if (h3) h3.textContent = "Host’s posted picks";
-      if (muted) muted.textContent = "Host’s posted picks/message will appear below.";
-    });
+function renderHostPosted(msg){
+  const card = $('hostPostedCard');
+  if(!card) return;
+  if(!msg || !msg.text){
+    card.classList.add('hidden');
+    $('hostMsgText').textContent=''; $('hostMsgMeta').textContent='';
+    return;
   }
+  card.classList.remove('hidden');
+  $('hostMsgText').textContent = String(msg.text||'');
+  $('hostMsgMeta').textContent = `${msg.by ? `by ${msg.by}`:''}${msg.at ? ` · ${fmtTime(msg.at)}`:''}`;
+}
 
-  // Relax submit enable rule: guest + room + any latest ticket text
-  window.setGuestSubmitEnabled = function(roomCode){
-    _safe(() => {
-      var btn = document.getElementById('btnSubmitMyPicks');
-      if (!btn) return;
-      var isHost = (typeof isHostRole === 'function') ? isHostRole() : false;
-      var code = roomCode || getRoomCodeV10();
-      var txt = getLatestTicketV10();
-      var enabled = !isHost && !!code && !!txt;
-      btn.disabled = !enabled;
-      btn.style.opacity = enabled ? '' : '.55';
-      btn.title = enabled ? '' : 'Pick emojis & generate first (then return here).';
-    });
-  };
+function renderWinning(text, at){
+  if($('inpWinningNumbers') && isHost() && text && !$('inpWinningNumbers').value) $('inpWinningNumbers').value = text;
+  if($('winningMeta')) $('winningMeta').textContent = text ? `Saved: ${text}${at ? ` · ${fmtTime(at)}`:''}` : 'Not set yet.';
+}
 
-  function startRoomMessagePolling(roomCode){
-    _safe(() => {
-      if (window.__pmRoomPollTimer) { try { clearInterval(window.__pmRoomPollTimer); } catch(e){} }
-      var code = roomCode || getRoomCodeV10();
-      if (!code || typeof getDb !== 'function') return;
-      var db = getDb();
-      if (!db) return;
-      window.__pmRoomPollTimer = setInterval(async function(){
-        try {
-          var snap = await db.collection('rooms').doc(code).get();
-          if (!snap.exists) return;
-          var data = snap.data() || {};
-          if (typeof setRoomMsgUI === 'function') setRoomMsgUI(data);
-        } catch (e) {
-          console.warn('[PM v10] poll room message failed', e);
-        }
-      }, 1500);
-    });
+function attachWatchers(code, hostFallback){
+  detachWatchers();
+  const db = getDb(); if(!db) return;
+  const roomRef = db.collection('rooms').doc(code);
+
+  unsubRoom = roomRef.onSnapshot((snap)=>{
+    if(!snap.exists) return;
+    const d = snap.data()||{};
+    setStatusPill(d.status||'lobby');
+    renderHostPosted(d.roomMessage||null);
+    renderWinning(d.winningNumbersText||'', d.winningNumbersAt||null);
+    if(isHost()) $('btnStartCollecting')?.classList.toggle('hidden', (d.status||'lobby') !== 'lobby');
+  }, (e)=>console.error('[PartyMode] room watch', e));
+
+  unsubPlayers = roomRef.collection('players').onSnapshot((qs)=>{
+    const arr=[]; qs.forEach(doc=>arr.push(doc.id)); arr.sort((a,b)=>a.localeCompare(b));
+    const ul=$('playersList'); ul.innerHTML='';
+    if(!arr.length){ const li=document.createElement('li'); li.textContent='No players yet.'; ul.appendChild(li); return; }
+    arr.forEach(n=>{ const li=document.createElement('li'); li.textContent = (hostFallback && n===hostFallback)? `${n} (host)` : n; ul.appendChild(li); });
+  }, (e)=>console.error('[PartyMode] players watch', e));
+
+  unsubSubs = roomRef.collection('submissions').onSnapshot((qs)=>{
+    const items=[]; qs.forEach(doc=>{ const d=doc.data()||{}; items.push({id:doc.id,...d, t: d.submittedAt?.toMillis?d.submittedAt.toMillis():(d.submittedAt||0)}); });
+    items.sort((a,b)=>(a.t||0)-(b.t||0));
+    const ul=$('submissionsList'); ul.innerHTML='';
+    if(!items.length){ const li=document.createElement('li'); li.textContent='No submissions yet.'; ul.appendChild(li); return; }
+    items.forEach(it=>{ const li=document.createElement('li'); li.innerHTML = `<b>${esc(it.by||it.id)}</b>: ${esc(it.text||'')}`; ul.appendChild(li); });
+  }, (e)=>{ console.error('[PartyMode] submissions watch', e); setMsg('Submissions read failed. Check Firestore rules for rooms/{room}/submissions.'); });
+}
+
+async function createRoom(){
+  const db=getDb(); if(!db) return alert('Firebase not ready.');
+  const name=playerName(); if(!name) return alert('Enter your name first.');
+  localSet('party_name', name);
+  let code='';
+  for(let i=0;i<6;i++){ const c=randCode(); const s=await db.collection('rooms').doc(c).get(); if(!s.exists){ code=c; break; } }
+  if(!code) return alert('Could not create room.');
+  await db.collection('rooms').doc(code).set({ status:'lobby', hostName:name, createdAt: serverTs() }, {merge:true});
+  await db.collection('rooms').doc(code).collection('players').doc(name).set({ name, joinedAt: serverTs() }, {merge:true});
+  $('roomCode').value=code; setQs('room', code); setQs('host','1');
+  setMsg(`Room created: ${code}`);
+  showLobby(code); attachWatchers(code, name);
+  const lt=latestTicket();
+  if(lt.text && lt.ts && lt.ageMs<=TS_FRESH_MS){
+    try { await setHostMessage(lt.text, name); setMsg('Room created. Auto-posted your latest picks.'); } catch {}
   }
+}
 
-  if (typeof showLobby === 'function' && !window.__pmShowLobbyWrapped) {
-    window.__pmShowLobbyWrapped = true;
-    var _origShowLobby = showLobby;
-    window.showLobby = function(roomCode, hostName){
-      var r = _origShowLobby.apply(this, arguments);
-      _safe(() => {
-        setTimeout(function(){
-          forceGuestUI();
-          window.setGuestSubmitEnabled(roomCode);
-          startRoomMessagePolling(roomCode);
-        }, 120);
-      });
-      return r;
-    };
-    try { showLobby = window.showLobby; } catch(e){}
+async function joinRoom(){
+  const db=getDb(); if(!db) return alert('Firebase not ready.');
+  const code=roomCode(); const name=playerName();
+  if(!code) return alert('Enter room code first.');
+  if(!name) return alert('Enter your name first.');
+  localSet('party_name', name);
+  const ref=db.collection('rooms').doc(code);
+  const snap=await ref.get(); if(!snap.exists) return alert(`Room not found: ${code}`);
+  await ref.collection('players').doc(name).set({ name, joinedAt: serverTs() }, {merge:true});
+  $('roomCode').value=code; setQs('room', code); setQs('host','');
+  setMsg(`Joined room ${code} as ${name}`);
+  showLobby(code); attachWatchers(code, snap.data()?.hostName || '');
+  setTimeout(()=>tryAutoSubmit(), 250);
+}
+
+async function autoResumeIfNeeded(){
+  const code = upper(qs('room')); const name = playerName();
+  if(!code || !name) return false;
+  if($('lobbyCard') && !$('lobbyCard').classList.contains('hidden')) return false;
+  const db=getDb(); if(!db) return false;
+  try{
+    const ref = await ensureRoom(code, '');
+    await ref.collection('players').doc(name).set({ name, joinedAt: serverTs() }, {merge:true});
+    if($('roomCode')) $('roomCode').value = code;
+    if($('name') && !$('name').value) $('name').value = name;
+    showLobby(code);
+    const s = await ref.get();
+    attachWatchers(code, s.data()?.hostName || '');
+    setMsg('Returned to Party Mode.');
+    setTimeout(()=>tryAutoSubmit(), 300);
+    return true;
+  }catch(e){ console.warn('[PartyMode] autoResumeIfNeeded', e); return false; }
+}
+
+async function setHostMessage(text, by){
+  const db=getDb(); if(!db) throw new Error('Firebase not ready');
+  const code=roomCode(); if(!code) throw new Error('No room');
+  await db.collection('rooms').doc(code).set({ roomMessage:{ text, by: by||playerName()||'host', at: serverTs() } }, {merge:true});
+  renderHostPosted({ text, by: by||playerName()||'host', at: Date.now() });
+}
+
+async function clearHostMessage(){
+  const db=getDb(); if(!db) return alert('Firebase not ready.');
+  const code=roomCode(); if(!code) return;
+  await db.collection('rooms').doc(code).set({ roomMessage:null }, {merge:true});
+  if($('inpHostMessage')) $('inpHostMessage').value='';
+  renderHostPosted(null); setMsg('Cleared host posted picks.');
+}
+
+async function setWinningNumbers(){
+  const db=getDb(); if(!db) return alert('Firebase not ready.');
+  const code=roomCode(); const txt=clean($('inpWinningNumbers')?.value);
+  if(!code) return alert('No room.');
+  if(!txt) return alert('Enter winning numbers.');
+  await db.collection('rooms').doc(code).set({ winningNumbersText: txt, winningNumbersAt: serverTs() }, {merge:true});
+  setMsg('Winning numbers saved.');
+}
+
+async function startCollecting(){
+  const db=getDb(); if(!db) return alert('Firebase not ready.');
+  const code=roomCode(); if(!code) return;
+  await db.collection('rooms').doc(code).set({ status:'collecting' }, {merge:true});
+  setMsg('Status changed to collecting.');
+}
+
+function pendingMatches(){
+  return upper(localGet('emojipick_party_pending_room')) === roomCode() &&
+         clean(localGet('emojipick_party_pending_name')) === playerName();
+}
+function fp(code,name,text){ return `${upper(code)}|${clean(name)}|${String(text||'')}`; }
+
+function goGenerate(){
+  const code=roomCode(), name=playerName();
+  if(!code) return alert('Join a room first.');
+  if(!name) return alert('Enter your name first.');
+  localSet('party_name', name);
+  localSet('emojipick_party_pending_room', code);
+  localSet('emojipick_party_pending_name', name);
+  localSet('emojipick_party_pending_at', Date.now());
+  location.href = `./index.html?room=${encodeURIComponent(code)}&return=party`;
+}
+
+async function submitMyPicks(auto=false){
+  if(isHost()) return false;
+  const db=getDb(); if(!db){ if(!auto) alert('Firebase not ready.'); return false; }
+  const code=roomCode(), name=playerName(); if(!code||!name){ if(!auto) alert('Join room first.'); return false; }
+  const lt=latestTicket();
+  if(!lt.text || !lt.ts || lt.ageMs>TS_FRESH_MS){ if(!auto) alert('No recent picks found. Generate first.'); return false; }
+
+  const lastFp = localGet('emojipick_last_submit_fp');
+  const currFp = fp(code,name,lt.text);
+
+  if(!lastFp && !pendingMatches()){ if(!auto) alert('Please use “Pick emojis & generate” and return here first.'); return false; }
+  if(auto && lastFp===currFp) return false;
+
+  try{
+    await db.collection('rooms').doc(code).collection('submissions').doc(name).set({
+      by:name, text:lt.text, submittedAt:serverTs(), source:'guest_generate'
+    }, {merge:true});
+    localSet('emojipick_last_submit_fp', currFp);
+    setMsg('Submitted your picks.');
+    refreshGuestLatestPanel(); refreshGuestSubmitEnabled();
+    return true;
+  }catch(e){
+    console.error('[PartyMode] submit', e);
+    if(!auto) alert('Submit failed. Check Firestore rules for submissions.');
+    return false;
   }
+}
+async function tryAutoSubmit(){ if(isHost()) return false; if(!pendingMatches()) return false; return submitMyPicks(true); }
 
-  document.addEventListener('click', function(e){
-    var btn = e.target && e.target.closest ? e.target.closest('#btnSubmitMyPicks') : null;
-    if (!btn) return;
-    _safe(() => {
-      if (btn.disabled) {
-        e.preventDefault();
-        alert('Pick emojis & generate first, then return here.');
-        return;
-      }
-      console.log('[PM v10] submit click', {
-        room: getRoomCodeV10(),
-        latestTicket: getLatestTicketV10(),
-        name: (typeof getInputs==='function' && getInputs().name) ? getInputs().name.value : null
-      });
+async function copyInvite(){
+  const txt=clean($('inviteLink')?.value); if(!txt) return;
+  try{
+    if(navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(txt);
+    else{ const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.top='-9999px'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+    setMsg('Copied invite link.');
+  }catch{ alert('Copy failed.'); }
+}
+async function shareInvite(){
+  const url=clean($('inviteLink')?.value); if(!url) return;
+  try{ if(navigator.share) await navigator.share({title:'EmojiPick Party Mode', text:'Join my room', url}); else await copyInvite(); setMsg('Invite shared.'); }catch{}
+}
+
+function openPro(){ $('proModal').classList.remove('hidden'); $('proModal').style.display='grid'; $('proThanks').classList.add('hidden'); }
+function closePro(){ $('proModal').classList.add('hidden'); $('proModal').style.display='none'; }
+
+async function logPro(action,email){
+  const db=getDb(); if(!db) return;
+  try{
+    await db.collection('pro_interest').add({
+      createdAt: serverTs(), page:'partymode', action, email: clean(email||''), room: roomCode(),
+      role: isHost()?'host':'guest', ua:navigator.userAgent||'', ref:document.referrer||''
     });
-  }, true);
+  }catch(e){ console.warn('[PartyMode] pro log', e); }
+}
 
-  window.addEventListener('focus', function(){
-    _safe(() => {
-      forceGuestUI();
-      window.setGuestSubmitEnabled(getRoomCodeV10());
-      startRoomMessagePolling(getRoomCodeV10());
-    });
-  });
+function wire(){
+  $('btnCreateRoom')?.addEventListener('click', e=>{e.preventDefault(); createRoom();});
+  $('btnJoin')?.addEventListener('click', e=>{e.preventDefault(); joinRoom();});
+  $('btnCopyInvite')?.addEventListener('click', e=>{e.preventDefault(); copyInvite();});
+  $('btnShareInvite')?.addEventListener('click', e=>{e.preventDefault(); shareInvite();});
+  $('btnToggleQR')?.addEventListener('click', e=>{e.preventDefault(); $('qrWrap')?.classList.toggle('hidden');});
+  $('btnSendHostMessage')?.addEventListener('click', async e=>{ e.preventDefault(); const t=clean($('inpHostMessage')?.value); if(!t) return alert('Enter a message first.'); try{ await setHostMessage(t); setMsg('Sent to room.'); }catch(err){ console.error(err); alert('Send failed.'); } });
+  $('btnClearHostMessage')?.addEventListener('click', e=>{e.preventDefault(); clearHostMessage();});
+  $('btnSetWinningNumbers')?.addEventListener('click', e=>{e.preventDefault(); setWinningNumbers();});
+  $('btnStartCollecting')?.addEventListener('click', e=>{e.preventDefault(); startCollecting();});
+  $('btnGoGenerate')?.addEventListener('click', e=>{e.preventDefault(); goGenerate();});
+  $('btnSubmitMyPicks')?.addEventListener('click', e=>{e.preventDefault(); submitMyPicks(false);});
 
-  _safe(() => {
-    if (location.search.indexOf('room=') >= 0) {
-      forceGuestUI();
-      window.setGuestSubmitEnabled(getRoomCodeV10());
-      startRoomMessagePolling(getRoomCodeV10());
-    }
-  });
+  $('btnProPack')?.addEventListener('click', async e=>{ e.preventDefault(); await logPro('click',''); openPro(); });
+  $('btnProClose')?.addEventListener('click', e=>{e.preventDefault(); closePro();});
+  $('btnProNoThanks')?.addEventListener('click', e=>{e.preventDefault(); closePro();});
+  $('btnProNotify')?.addEventListener('click', async e=>{ e.preventDefault(); await logPro('submit', $('inpProEmail')?.value||''); $('proThanks').classList.remove('hidden'); setTimeout(closePro, 900); });
+
+  window.addEventListener('focus', ()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); tryAutoSubmit(); });
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }});
+}
+
+async function boot(){
+  wire();
+  if($('roomCode') && qs('room')) $('roomCode').value = upper(qs('room'));
+  if($('name') && localGet('party_name') && !$('name').value) $('name').value = localGet('party_name');
+  roleUI();
+  refreshGuestLatestPanel();
+  refreshGuestSubmitEnabled();
+  await autoResumeIfNeeded();
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
