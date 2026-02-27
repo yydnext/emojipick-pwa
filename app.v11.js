@@ -416,7 +416,38 @@
     if (more) { more.hidden = true; more.innerHTML = ''; }
   }
 
-  function compareNumbers(a, b) {
+  
+function writePartyLatestTicket(gameId, dateSeed, nums) {
+  try {
+    const g = GAMES[gameId];
+    const main = (nums?.main || []).join(' ');
+    const bonusVal = (nums?.bonus || [])[0];
+    const bonus = (bonusVal != null) ? ` + ${g.bonusLabel} ${bonusVal}` : '';
+    const text = `${g.name} • ${dateSeed}: ${main}${bonus} (Entertainment only)`;
+    localStorage.setItem('emojipick_last_ticket_text', text);
+    localStorage.setItem('emojipick_last_ticket_ts', String(Date.now()));
+    return text;
+  } catch (e) {
+    console.warn('[PartyBridge] write latest ticket failed', e);
+    return '';
+  }
+}
+
+function maybeReturnToPartyMode() {
+  try {
+    const params = new URLSearchParams(location.search);
+    const ret = params.get('return');
+    const room = (params.get('room') || localStorage.getItem('emojipick_party_pending_room') || '').toUpperCase();
+    if (ret !== 'party' || !room) return;
+    setTimeout(() => {
+      location.href = `./partymode.html?room=${encodeURIComponent(room)}`;
+    }, 250);
+  } catch (e) {
+    console.warn('[PartyBridge] return failed', e);
+  }
+}
+
+function compareNumbers(a, b) {
     const mainA = new Set(a.main);
     const mainB = new Set(b.main);
     let mainOverlap = 0;
@@ -677,54 +708,6 @@ function setupModalClose() {
 
   // ---------- Wire UI
   function init() {
-
-// --- Party Mode return support (Option B) ---
-const PARTY_ROOM_KEY = 'emojipick_party_room';
-function getPartyRoomFromUrl(){
-  try{
-    const sp = new URLSearchParams(location.search);
-    const room = (sp.get('room')||'').trim().toUpperCase();
-    const ret  = (sp.get('return')||'').trim().toLowerCase();
-    if (room && ret === 'party') return room;
-  }catch{}
-  return '';
-}
-
-function injectReturnToParty(room){
-  if (!room) return;
-  try { localStorage.setItem(PARTY_ROOM_KEY, room); } catch {}
-  const bar = document.createElement('div');
-  bar.id = 'partyReturnBar';
-  bar.style.cssText = 'position:sticky;top:0;z-index:9999;background:#111827;color:#fff;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.12);display:flex;gap:10px;align-items:center;justify-content:space-between;';
-  bar.innerHTML = `
-    <div style="font-weight:800;">Party Mode room: <span style="opacity:.9">${room}</span></div>
-    <a href="./partymode.html?room=${room}" style="text-decoration:none;">
-      <button type="button" style="cursor:pointer;border:none;border-radius:10px;padding:8px 12px;font-weight:900;background:#22c55e;color:#0b1220;">
-        Return to Party Mode
-      </button>
-    </a>
-  `;
-  document.body.insertBefore(bar, document.body.firstChild);
-}
-
-const __partyRoom = getPartyRoomFromUrl();
-if (__partyRoom) injectReturnToParty(__partyRoom);
-
-function maybeAutoReturnToParty(reason) {
-  const room = getPartyRoomFromUrl();
-  if (!room) return;
-  // Allow opt-out by ?noreturn=1 during debugging
-  try {
-    const sp = new URLSearchParams(location.search);
-    if (sp.get('noreturn') === '1') return;
-  } catch {}
-  const delay = (reason === 'save') ? 200 : 600;
-  setTimeout(() => {
-    try { location.href = `./partymode.html?room=${encodeURIComponent(room)}`; } catch {}
-  }, delay);
-}
-
-
     setupModalClose();
     closeModal();
     // Service worker: disabled in v10 to avoid stale-cache issues on GitHub Pages.
@@ -780,6 +763,8 @@ function maybeAutoReturnToParty(reason) {
 
       const myNums = computeNumbers(currentGame, idxs, dateSeed);
       renderResult(currentGame, idxs, dateSeed, myNums, hostParam ? 'challenge' : 'solo');
+      writePartyLatestTicket(currentGame, dateSeed, myNums);
+      maybeReturnToPartyMode();
 
       // If in challenge mode (came with host emojis), compute host and compare.
       if (hostParam) {
@@ -796,7 +781,6 @@ function maybeAutoReturnToParty(reason) {
       }
 
       showResult();
-      try { maybeAutoReturnToParty('generate'); } catch {}
     });
 
     $('#btnBack').addEventListener('click', () => {
@@ -838,7 +822,6 @@ function maybeAutoReturnToParty(reason) {
         saveHistory(hist);
         saveBtn.textContent = 'Saved ✓';
         setTimeout(() => (saveBtn.textContent = 'Save'), 1200);
-        try { maybeAutoReturnToParty('save'); } catch {}
       });
     }
 
