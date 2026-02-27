@@ -133,7 +133,29 @@
   </div>
 </div>
 
-<!-- Keep your existing Firebase compat/init scripts in this file if needed -->
-<script src="./partymode.v1.js?v=20260226-clean1"></script>
+<!-- Firebase compat -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+<!-- Firebase init -->
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAVYc_K5ahGZ6TKpL4qUFQjXP16xtPOdww",
+    authDomain: "localboost-dev.firebaseapp.com",
+    projectId: "localboost-dev",
+    storageBucket: "localboost-dev.firebasestorage.app",
+    messagingSenderId: "262055028680",
+    appId: "1:262055028680:web:197f41affc87849d87c2fd"
+  };
+
+  if (!window.__FIREBASE_READY__) {
+    firebase.initializeApp(firebaseConfig);
+    window.db = firebase.firestore();
+    window.__FIREBASE_READY__ = true;
+  }
+</script>
+
+<!-- Party mode JS -->
+<script src="./partymode.v1.js?v=20260226fix1"></script>
 </body>
 </html>
