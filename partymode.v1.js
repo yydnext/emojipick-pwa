@@ -405,8 +405,8 @@ async function boot(){
   wire();
   if($('roomCode') && qs('room')) $('roomCode').value = upper(qs('room'));
  // Only auto-fill host name; guest should start blank to avoid stale identity reuse
-if ($('name') && localGet('party_name') && !$('name').value && isHost()) {
-  $('name').value = localGet('party_name');
+  // if ($('name') && localGet('party_name') && !$('name').value && isHost()) {
+  // $('name').value = localGet('party_name');
 }
   roleUI();
   refreshGuestLatestPanel();
