@@ -233,6 +233,17 @@ async function joinRoom(){
   if(!code) return alert('Enter room code first.');
   if(!name) return alert('Enter your name first.');
   localSet('party_name', name);
+  // Guest re-join cleanup (same browser tab state reset)
+try {
+  localStorage.removeItem('emojipick_last_ticket_text');
+  localStorage.removeItem('emojipick_last_ticket_ts');
+  localStorage.removeItem('emojiPick_last_ticket_text'); // legacy fallback key
+  localStorage.removeItem('last_ticket_text');           // legacy fallback key
+  localStorage.removeItem('emojipick_last_submit_fp');
+  localStorage.removeItem('emojipick_party_pending_room');
+  localStorage.removeItem('emojipick_party_pending_name');
+  localStorage.removeItem('emojipick_party_pending_at');
+} catch {}
   const ref=db.collection('rooms').doc(code);
   const snap=await ref.get(); if(!snap.exists) return alert(`Room not found: ${code}`);
   await ref.collection('players').doc(name).set({ name, joinedAt: serverTs() }, {merge:true});
