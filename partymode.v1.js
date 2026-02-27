@@ -31,6 +31,25 @@ function setStatusPill(status){
   $('roomStatusPill').textContent = 'Status: ' + (status||'lobby');
 }
 
+
+function resetRoomUIState(){
+  try{ detachWatchers(); }catch{}
+  try{
+    if($('playersList')) $('playersList').innerHTML = '';
+    if($('submissionsList')) $('submissionsList').innerHTML = '';
+    if($('hostPostedCard')) $('hostPostedCard').classList.add('hidden');
+    if($('hostMsgText')) $('hostMsgText').textContent = '';
+    if($('hostMsgMeta')) $('hostMsgMeta').textContent = '';
+    if($('lobbyCard')) $('lobbyCard').classList.add('hidden');
+    if($('submissionsCard')) $('submissionsCard').classList.add('hidden');
+  }catch{}
+  try{
+    localStorage.removeItem('emojipick_last_submit_fp');
+    localStorage.removeItem('emojipick_party_pending_room');
+    localStorage.removeItem('emojipick_party_pending_name');
+    localStorage.removeItem('emojipick_party_pending_at');
+  }catch{}
+}
 function roleUI(){
   if($('hostPanel')) $('hostPanel').classList.toggle('hidden', !isHost());
   if($('guestPanel')) $('guestPanel').classList.toggle('hidden', isHost());
@@ -53,20 +72,42 @@ function refreshGuestLatestPanel(){
   const lt = latestTicket();
   if(lt.text){
     $('guestLatestPicksText').textContent = lt.text;
-    $('guestLatestMeta').textContent = lt.ts ? `Generated: ${new Date(lt.ts).toLocaleString()} (${Math.round(lt.ageMs/1000)}s ago)` : '';
+    $('guestLatestMeta').textContent = lt.ts ? `Generated: ${new Date(lt.ts).toLocaleString()} (${Math.round(lt.ageMs/1000)}s ago)` : 'Detected (legacy save without timestamp).';
   } else {
     $('guestLatestPicksText').textContent = 'No latest picks found on this device yet.';
     $('guestLatestMeta').textContent = 'Tap “Pick emojis & generate” first.';
   }
 }
 
+
+function refreshGuestButtonsVisual(){
+  const btnGen = $('btnGoGenerate');
+  const btnSubmit = $('btnSubmitMyPicks');
+  if (btnGen){
+    btnGen.disabled = false;
+    btnGen.style.opacity = '1';
+    btnGen.style.filter = 'none';
+    btnGen.style.cursor = 'pointer';
+  }
+  if (btnSubmit){
+    if (btnSubmit.disabled){
+      btnSubmit.style.opacity = '.45';
+      btnSubmit.style.filter = 'grayscale(35%)';
+    } else {
+      btnSubmit.style.opacity = '1';
+      btnSubmit.style.filter = 'none';
+    }
+  }
+}
 function refreshGuestSubmitEnabled(){
   const btn = $('btnSubmitMyPicks'); if(!btn) return;
   if(isHost()){ btn.disabled=true; return; }
   const lt = latestTicket();
-  const ok = !!roomCode() && !!playerName() && !!lt.text && !!lt.ts && lt.ageMs >=0 && lt.ageMs <= TS_FRESH_MS;
+  const freshEnough = (!!lt.ts && lt.ageMs >=0 && lt.ageMs <= TS_FRESH_MS) || (!!lt.text && !lt.ts);
+  const ok = !!roomCode() && !!playerName() && !!lt.text && freshEnough;
   btn.disabled = !ok;
   btn.title = ok ? '' : 'Join room + generate your picks first.';
+  refreshGuestButtonsVisual();
 }
 
 async function ensureRoom(code, hostNameMaybe){
@@ -133,6 +174,7 @@ function attachWatchers(code, hostFallback){
 }
 
 async function createRoom(){
+  resetRoomUIState();
   const db=getDb(); if(!db) return alert('Firebase not ready.');
   const name=playerName(); if(!name) return alert('Enter your name first.');
   localSet('party_name', name);
@@ -151,6 +193,7 @@ async function createRoom(){
 }
 
 async function joinRoom(){
+  resetRoomUIState();
   const db=getDb(); if(!db) return alert('Firebase not ready.');
   const code=roomCode(); const name=playerName();
   if(!code) return alert('Enter room code first.');
@@ -237,7 +280,8 @@ async function submitMyPicks(auto=false){
   const db=getDb(); if(!db){ if(!auto) alert('Firebase not ready.'); return false; }
   const code=roomCode(), name=playerName(); if(!code||!name){ if(!auto) alert('Join room first.'); return false; }
   const lt=latestTicket();
-  if(!lt.text || !lt.ts || lt.ageMs>TS_FRESH_MS){ if(!auto) alert('No recent picks found. Generate first.'); return false; }
+  const freshEnough = (!!lt.ts && lt.ageMs<=TS_FRESH_MS) || (!!lt.text && !lt.ts);
+  if(!lt.text || !freshEnough){ if(!auto) alert('No recent picks found. Generate first.'); return false; }
 
   const lastFp = localGet('emojipick_last_submit_fp');
   const currFp = fp(code,name,lt.text);
@@ -316,6 +360,7 @@ async function boot(){
   roleUI();
   refreshGuestLatestPanel();
   refreshGuestSubmitEnabled();
+  refreshGuestButtonsVisual();
   await autoResumeIfNeeded();
 }
 
