@@ -5,6 +5,7 @@ const upper = (s)=>String(s||'').trim().toUpperCase();
 const clean = (s)=>String(s||'').trim();
 const TS_FRESH_MS = 10*60*1000;
 let unsubRoom=null, unsubPlayers=null, unsubSubs=null;
+let watchRoomToken = 0;
 
 function qs(k){ try { return new URLSearchParams(location.search).get(k)||''; } catch { return ''; } }
 function setQs(k,v){ try { const u=new URL(location.href); if(v)u.searchParams.set(k,String(v)); else u.searchParams.delete(k); history.replaceState({},'',u.toString()); } catch{} }
@@ -53,6 +54,7 @@ function resetRoomUIState(){
 function roleUI(){
   if($('hostPanel')) $('hostPanel').classList.toggle('hidden', !isHost());
   if($('guestPanel')) $('guestPanel').classList.toggle('hidden', isHost());
+  refreshGuestButtonsVisual();
 }
 
 function showLobby(code){
@@ -72,7 +74,7 @@ function refreshGuestLatestPanel(){
   const lt = latestTicket();
   if(lt.text){
     $('guestLatestPicksText').textContent = lt.text;
-    $('guestLatestMeta').textContent = lt.ts ? `Generated: ${new Date(lt.ts).toLocaleString()} (${Math.round(lt.ageMs/1000)}s ago)` : 'Detected (legacy save without timestamp).';
+    $('guestLatestMeta').textContent = lt.ts ? `Generated: ${new Date(lt.ts).toLocaleString()} (${Math.round(lt.ageMs/1000)}s ago)` : 'No timestamp found. Please generate again from Party Mode.';
   } else {
     $('guestLatestPicksText').textContent = 'No latest picks found on this device yet.';
     $('guestLatestMeta').textContent = 'Tap “Pick emojis & generate” first.';
@@ -103,8 +105,9 @@ function refreshGuestSubmitEnabled(){
   const btn = $('btnSubmitMyPicks'); if(!btn) return;
   if(isHost()){ btn.disabled=true; return; }
   const lt = latestTicket();
-  const freshEnough = (!!lt.ts && lt.ageMs >=0 && lt.ageMs <= TS_FRESH_MS) || (!!lt.text && !lt.ts);
-  const ok = !!roomCode() && !!playerName() && !!lt.text && freshEnough;
+  const hasTs = !!lt.ts && lt.ageMs >=0 && lt.ageMs <= TS_FRESH_MS;
+  const pendingOk = pendingMatches();
+  const ok = !!roomCode() && !!playerName() && !!lt.text && (pendingOk ? hasTs : false);
   btn.disabled = !ok;
   btn.title = ok ? '' : 'Join room + generate your picks first.';
   refreshGuestButtonsVisual();
@@ -145,10 +148,11 @@ function renderWinning(text, at){
 
 function attachWatchers(code, hostFallback){
   detachWatchers();
+  const token = ++watchRoomToken;
   const db = getDb(); if(!db) return;
   const roomRef = db.collection('rooms').doc(code);
 
-  unsubRoom = roomRef.onSnapshot((snap)=>{
+  unsubRoom = roomRef.onSnapshot((snap)=>{ if (token !== watchRoomToken) return;
     if(!snap.exists) return;
     const d = snap.data()||{};
     setStatusPill(d.status||'lobby');
@@ -157,14 +161,14 @@ function attachWatchers(code, hostFallback){
     if(isHost()) $('btnStartCollecting')?.classList.toggle('hidden', (d.status||'lobby') !== 'lobby');
   }, (e)=>console.error('[PartyMode] room watch', e));
 
-  unsubPlayers = roomRef.collection('players').onSnapshot((qs)=>{
+  unsubPlayers = roomRef.collection('players').onSnapshot((qs)=>{ if (token !== watchRoomToken) return;
     const arr=[]; qs.forEach(doc=>arr.push(doc.id)); arr.sort((a,b)=>a.localeCompare(b));
     const ul=$('playersList'); ul.innerHTML='';
     if(!arr.length){ const li=document.createElement('li'); li.textContent='No players yet.'; ul.appendChild(li); return; }
     arr.forEach(n=>{ const li=document.createElement('li'); li.textContent = (hostFallback && n===hostFallback)? `${n} (host)` : n; ul.appendChild(li); });
   }, (e)=>console.error('[PartyMode] players watch', e));
 
-  unsubSubs = roomRef.collection('submissions').onSnapshot((qs)=>{
+  unsubSubs = roomRef.collection('submissions').onSnapshot((qs)=>{ if (token !== watchRoomToken) return;
     const items=[]; qs.forEach(doc=>{ const d=doc.data()||{}; items.push({id:doc.id,...d, t: d.submittedAt?.toMillis?d.submittedAt.toMillis():(d.submittedAt||0)}); });
     items.sort((a,b)=>(a.t||0)-(b.t||0));
     const ul=$('submissionsList'); ul.innerHTML='';
@@ -280,8 +284,9 @@ async function submitMyPicks(auto=false){
   const db=getDb(); if(!db){ if(!auto) alert('Firebase not ready.'); return false; }
   const code=roomCode(), name=playerName(); if(!code||!name){ if(!auto) alert('Join room first.'); return false; }
   const lt=latestTicket();
-  const freshEnough = (!!lt.ts && lt.ageMs<=TS_FRESH_MS) || (!!lt.text && !lt.ts);
+  const freshEnough = (!!lt.ts && lt.ageMs<=TS_FRESH_MS);
   if(!lt.text || !freshEnough){ if(!auto) alert('No recent picks found. Generate first.'); return false; }
+  if(!pendingMatches()){ if(!auto) alert('Please tap “Pick emojis & generate” from this room and return.'); return false; }
 
   const lastFp = localGet('emojipick_last_submit_fp');
   const currFp = fp(code,name,lt.text);
@@ -294,6 +299,7 @@ async function submitMyPicks(auto=false){
       by:name, text:lt.text, submittedAt:serverTs(), source:'guest_generate'
     }, {merge:true});
     localSet('emojipick_last_submit_fp', currFp);
+    try{ localStorage.removeItem('emojipick_party_pending_room'); localStorage.removeItem('emojipick_party_pending_name'); localStorage.removeItem('emojipick_party_pending_at'); }catch{}
     setMsg('Submitted your picks.');
     refreshGuestLatestPanel(); refreshGuestSubmitEnabled();
     return true;
