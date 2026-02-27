@@ -244,6 +244,24 @@ try {
   localStorage.removeItem('emojipick_party_pending_name');
   localStorage.removeItem('emojipick_party_pending_at');
 } catch {}
+  // Same-browser guest rejoin cleanup: remove previous player entry (if any)
+try {
+  const prevRoom = localStorage.getItem('party_last_join_room') || '';
+  const prevName = localStorage.getItem('party_last_join_name') || '';
+
+  // If this tab/browser previously joined a room as a guest, remove that old player doc
+  if (prevRoom && prevName && window.db) {
+    const samePersonDifferentName = (prevRoom === code && prevName !== name);
+    const samePersonOtherRoom = (prevRoom !== code);
+
+    if (samePersonDifferentName || samePersonOtherRoom) {
+      await window.db.collection('rooms').doc(prevRoom)
+        .collection('players').doc(prevName)
+        .delete()
+        .catch(() => {}); // ignore if already missing
+    }
+  }
+} catch {}
   const ref=db.collection('rooms').doc(code);
   const snap=await ref.get(); if(!snap.exists) return alert(`Room not found: ${code}`);
   await ref.collection('players').doc(name).set({ name, joinedAt: serverTs() }, {merge:true});
@@ -251,6 +269,11 @@ try {
   setMsg(`Joined room ${code} as ${name}`);
   showLobby(code); attachWatchers(code, snap.data()?.hostName || '');
   setTimeout(()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }, 250);
+  // Remember this guest join for next cleanup
+try {
+  localStorage.setItem('party_last_join_room', code);
+  localStorage.setItem('party_last_join_name', name);
+} catch {}
 }
 
 async function autoResumeIfNeeded(){
