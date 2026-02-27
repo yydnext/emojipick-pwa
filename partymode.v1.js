@@ -22,7 +22,8 @@ function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 function randCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<4;i++) o+=c[Math.floor(Math.random()*c.length)]; return o; }
 
 function latestTicket(){
-  let text = clean(localGet('emojipick_last_ticket_text'));\n  if(!text) text = clean(localGet('emojiPick_last_ticket_text') || localGet('last_ticket_text'));
+  let text = clean(localGet('emojipick_last_ticket_text'));
+  if(!text) text = clean(localGet('emojiPick_last_ticket_text') || localGet('last_ticket_text'));
   const ts = Number(localGet('emojipick_last_ticket_ts')||0)||0;
   return { text, ts, ageMs: ts ? Date.now()-ts : Infinity };
 }
@@ -136,7 +137,8 @@ function refreshGuestSubmitEnabled(){
   const pendingOk = pendingMatches();
   const ok = !!roomCode() && !!playerName() && !!lt.text && (pendingOk ? hasTs : false);
   btn.disabled = !ok;
-  btn.title = ok ? '' : 'Join room + generate your picks first.';\n  syncGuestButtonsUI();
+  btn.title = ok ? '' : 'Join room + generate your picks first.';
+  syncGuestButtonsUI();
   refreshGuestButtonsVisual();
 }
 
