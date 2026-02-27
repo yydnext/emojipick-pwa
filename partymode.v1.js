@@ -404,7 +404,10 @@ function wire(){
 async function boot(){
   wire();
   if($('roomCode') && qs('room')) $('roomCode').value = upper(qs('room'));
-  if($('name') && localGet('party_name') && !$('name').value) $('name').value = localGet('party_name');
+ // Only auto-fill host name; guest should start blank to avoid stale identity reuse
+if ($('name') && localGet('party_name') && !$('name').value && isHost()) {
+  $('name').value = localGet('party_name');
+}
   roleUI();
   refreshGuestLatestPanel();
   refreshGuestSubmitEnabled();
