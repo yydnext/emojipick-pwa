@@ -22,7 +22,7 @@ function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 function randCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<4;i++) o+=c[Math.floor(Math.random()*c.length)]; return o; }
 
 function latestTicket(){
-  const text = clean(localGet('emojipick_last_ticket_text'));
+  let text = clean(localGet('emojipick_last_ticket_text'));\n  if(!text) text = clean(localGet('emojiPick_last_ticket_text') || localGet('last_ticket_text'));
   const ts = Number(localGet('emojipick_last_ticket_ts')||0)||0;
   return { text, ts, ageMs: ts ? Date.now()-ts : Infinity };
 }
@@ -67,8 +67,35 @@ function showLobby(code){
   roleUI();
   refreshGuestLatestPanel();
   refreshGuestSubmitEnabled();
+  syncGuestButtonsUI();
+  syncGuestButtonsUI();
 }
 
+
+function syncGuestButtonsUI(){
+  const gen = $('btnGoGenerate');
+  const sub = $('btnSubmitMyPicks');
+  if(gen){
+    gen.disabled = false;
+    gen.classList.remove('secondary');
+    gen.classList.add('primary');
+    gen.style.opacity = '1';
+    gen.style.filter = 'none';
+  }
+  if(sub){
+    if(sub.disabled){
+      sub.style.opacity = '.45';
+      sub.style.filter = 'grayscale(40%)';
+      sub.classList.remove('primary');
+      sub.classList.add('secondary');
+    } else {
+      sub.style.opacity = '1';
+      sub.style.filter = 'none';
+      sub.classList.remove('secondary');
+      sub.classList.add('primary');
+    }
+  }
+}
 function refreshGuestLatestPanel(){
   if(!$('guestLatestPicksText')) return;
   const lt = latestTicket();
@@ -109,7 +136,7 @@ function refreshGuestSubmitEnabled(){
   const pendingOk = pendingMatches();
   const ok = !!roomCode() && !!playerName() && !!lt.text && (pendingOk ? hasTs : false);
   btn.disabled = !ok;
-  btn.title = ok ? '' : 'Join room + generate your picks first.';
+  btn.title = ok ? '' : 'Join room + generate your picks first.';\n  syncGuestButtonsUI();
   refreshGuestButtonsVisual();
 }
 
@@ -159,6 +186,7 @@ function attachWatchers(code, hostFallback){
     renderHostPosted(d.roomMessage||null);
     renderWinning(d.winningNumbersText||'', d.winningNumbersAt||null);
     if(isHost()) $('btnStartCollecting')?.classList.toggle('hidden', (d.status||'lobby') !== 'lobby');
+    if($('btnStartCollecting')) $('btnStartCollecting').textContent = 'Start round';
   }, (e)=>console.error('[PartyMode] room watch', e));
 
   unsubPlayers = roomRef.collection('players').onSnapshot((qs)=>{ if (token !== watchRoomToken) return;
@@ -209,7 +237,7 @@ async function joinRoom(){
   $('roomCode').value=code; setQs('room', code); setQs('host','');
   setMsg(`Joined room ${code} as ${name}`);
   showLobby(code); attachWatchers(code, snap.data()?.hostName || '');
-  setTimeout(()=>tryAutoSubmit(), 250);
+  setTimeout(()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }, 250);
 }
 
 async function autoResumeIfNeeded(){
@@ -226,7 +254,8 @@ async function autoResumeIfNeeded(){
     const s = await ref.get();
     attachWatchers(code, s.data()?.hostName || '');
     setMsg('Returned to Party Mode.');
-    setTimeout(()=>tryAutoSubmit(), 300);
+    setTimeout(()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); syncGuestButtonsUI(); }, 180);
+    setTimeout(()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }, 300);
     return true;
   }catch(e){ console.warn('[PartyMode] autoResumeIfNeeded', e); return false; }
 }
@@ -309,7 +338,7 @@ async function submitMyPicks(auto=false){
     return false;
   }
 }
-async function tryAutoSubmit(){ if(isHost()) return false; if(!pendingMatches()) return false; return submitMyPicks(true); }
+async function tryAutoSubmit(){ return false; }
 
 async function copyInvite(){
   const txt=clean($('inviteLink')?.value); if(!txt) return;
@@ -355,7 +384,7 @@ function wire(){
   $('btnProNoThanks')?.addEventListener('click', e=>{e.preventDefault(); closePro();});
   $('btnProNotify')?.addEventListener('click', async e=>{ e.preventDefault(); await logPro('submit', $('inpProEmail')?.value||''); $('proThanks').classList.remove('hidden'); setTimeout(closePro, 900); });
 
-  window.addEventListener('focus', ()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); tryAutoSubmit(); });
+  window.addEventListener('focus', ()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); setTimeout(()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }, 220); });
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }});
 }
 
