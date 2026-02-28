@@ -394,7 +394,7 @@ async function logPro(action,email){
 function wire(){
   $('btnCreateRoom')?.addEventListener('click', e=>{e.preventDefault(); createRoom();});
   $('btnJoin')?.addEventListener('click', e=>{e.preventDefault(); joinRoom();});
-  $('btnCopyInvite')?.addEventListener('click', e=>{e.preventDefault(); copyInvite();});
+  $('btnCopy')?.addEventListener('click', e=>{e.preventDefault(); copyInvite();});
   $('btnShareInvite')?.addEventListener('click', e=>{e.preventDefault(); shareInvite();});
   $('btnToggleQR')?.addEventListener('click', e=>{e.preventDefault(); $('qrWrap')?.classList.toggle('hidden');});
   $('btnSendHostMessage')?.addEventListener('click', async e=>{ e.preventDefault(); const t=clean($('inpHostMessage')?.value); if(!t) return alert('Enter a message first.'); try{ await setHostMessage(t); setMsg('Sent to room.'); }catch(err){ console.error(err); alert('Send failed.'); } });
