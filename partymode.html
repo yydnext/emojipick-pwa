@@ -20,6 +20,30 @@
     .micro{font-size:12px;color:var(--muted)} .mono{font-family:ui-monospace,Menlo,monospace}
     .hidden{display:none!important}.divider{height:1px;background:var(--line);margin:12px 0}.pill{border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;background:#fff}
     ul.compact{margin:8px 0 0 0;padding-left:18px;line-height:1.7} pre.box{white-space:pre-wrap;background:#f9fafb;border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0 0 0}
+    /* Home button */
+.topHomeBtn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height:32px;
+  padding:0 12px;
+  border-radius:999px;
+  background:#ffffff;
+  color:#0f172a;
+  border:1px solid rgba(15,23,42,.12);
+  text-decoration:none;
+  font-weight:700;
+  font-size:13px;
+  margin-left:8px;
+}
+
+/* Status badge readability */
+#roomStatusPill{
+  background:#ffffff !important;
+  color:#1e293b !important;
+  border:1px solid rgba(15,23,42,.14) !important;
+  font-weight:700 !important;
+}
   </style>
 </head>
 <body>
@@ -28,6 +52,7 @@
     <div class="row between">
       <div><div class="h2">EmojiPick Party Mode</div><div class="micro" style="color:#d1d5db">Create a room, invite friends, submit picks, compare later.</div></div>
       <div id="roomStatusPill" class="pill">Status: lobby</div>
+      <a id="btnHomeTop" href="./index.html" class="topHomeBtn" title="Back to EmojiPick Home">Home</a>
     </div>
   </div>
 
