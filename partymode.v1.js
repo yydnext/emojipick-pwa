@@ -244,21 +244,20 @@ try {
   localStorage.removeItem('emojipick_party_pending_name');
   localStorage.removeItem('emojipick_party_pending_at');
 } catch {}
-  // Same-browser guest rejoin cleanup: remove previous player entry (if any)
+ // Same-browser guest rejoin cleanup (safe, no-await)
 try {
   const prevRoom = localStorage.getItem('party_last_join_room') || '';
   const prevName = localStorage.getItem('party_last_join_name') || '';
 
-  // If this tab/browser previously joined a room as a guest, remove that old player doc
   if (prevRoom && prevName && window.db) {
     const samePersonDifferentName = (prevRoom === code && prevName !== name);
     const samePersonOtherRoom = (prevRoom !== code);
 
     if (samePersonDifferentName || samePersonOtherRoom) {
-      await window.db.collection('rooms').doc(prevRoom)
+      window.db.collection('rooms').doc(prevRoom)
         .collection('players').doc(prevName)
         .delete()
-        .catch(() => {}); // ignore if already missing
+        .catch(() => {});
     }
   }
 } catch {}
@@ -274,7 +273,7 @@ try {
   localStorage.setItem('party_last_join_room', code);
   localStorage.setItem('party_last_join_name', name);
 } catch {}
-}
+  }
 
 async function autoResumeIfNeeded(){
   const code = upper(qs('room')); const name = playerName();
