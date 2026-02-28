@@ -233,34 +233,6 @@ async function joinRoom(){
   if(!code) return alert('Enter room code first.');
   if(!name) return alert('Enter your name first.');
   localSet('party_name', name);
-  // Guest re-join cleanup (same browser tab state reset)
-try {
-  localStorage.removeItem('emojipick_last_ticket_text');
-  localStorage.removeItem('emojipick_last_ticket_ts');
-  localStorage.removeItem('emojiPick_last_ticket_text'); // legacy fallback key
-  localStorage.removeItem('last_ticket_text');           // legacy fallback key
-  localStorage.removeItem('emojipick_last_submit_fp');
-  localStorage.removeItem('emojipick_party_pending_room');
-  localStorage.removeItem('emojipick_party_pending_name');
-  localStorage.removeItem('emojipick_party_pending_at');
-} catch {}
- // Same-browser guest rejoin cleanup (safe, no-await)
-try {
-  const prevRoom = localStorage.getItem('party_last_join_room') || '';
-  const prevName = localStorage.getItem('party_last_join_name') || '';
-
-  if (prevRoom && prevName && window.db) {
-    const samePersonDifferentName = (prevRoom === code && prevName !== name);
-    const samePersonOtherRoom = (prevRoom !== code);
-
-    if (samePersonDifferentName || samePersonOtherRoom) {
-      window.db.collection('rooms').doc(prevRoom)
-        .collection('players').doc(prevName)
-        .delete()
-        .catch(() => {});
-    }
-  }
-} catch {}
   const ref=db.collection('rooms').doc(code);
   const snap=await ref.get(); if(!snap.exists) return alert(`Room not found: ${code}`);
   await ref.collection('players').doc(name).set({ name, joinedAt: serverTs() }, {merge:true});
@@ -268,12 +240,7 @@ try {
   setMsg(`Joined room ${code} as ${name}`);
   showLobby(code); attachWatchers(code, snap.data()?.hostName || '');
   setTimeout(()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }, 250);
-  // Remember this guest join for next cleanup
-try {
-  localStorage.setItem('party_last_join_room', code);
-  localStorage.setItem('party_last_join_name', name);
-} catch {}
-  }
+}
 
 async function autoResumeIfNeeded(){
   const code = upper(qs('room')); const name = playerName();
@@ -426,10 +393,7 @@ function wire(){
 async function boot(){
   wire();
   if($('roomCode') && qs('room')) $('roomCode').value = upper(qs('room'));
- // Only auto-fill host name; guest should start blank to avoid stale identity reuse
-  // if ($('name') && localGet('party_name') && !$('name').value && isHost()) {
-  // $('name').value = localGet('party_name');
-}
+  if($('name') && localGet('party_name') && !$('name').value) $('name').value = localGet('party_name');
   roleUI();
   refreshGuestLatestPanel();
   refreshGuestSubmitEnabled();
