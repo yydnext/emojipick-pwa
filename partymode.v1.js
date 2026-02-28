@@ -16,7 +16,7 @@ function serverTs(){ try{return window.firebase.firestore.FieldValue.serverTimes
 function setMsg(m){ if($('msg')) $('msg').textContent = m||''; }
 function isHost(){ return qs('host')==='1'; }
 function roomCode(){ return upper($('roomCode')?.value || qs('room')); }
-function playerName(){ return clean($('name')?.value || ''); }
+function playerName(){ return clean($('name')?.value || localGet('party_name')); }
 function fmtTime(ts){ try{ const d = ts&&ts.toMillis?new Date(ts.toMillis()):new Date(ts); return d.toLocaleString(); }catch{return '';} }
 function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function randCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<4;i++) o+=c[Math.floor(Math.random()*c.length)]; return o; }
@@ -233,17 +233,6 @@ async function joinRoom(){
   if(!code) return alert('Enter room code first.');
   if(!name) return alert('Enter your name first.');
   localSet('party_name', name);
-  // Guest local state reset (latest picks/pending) before a new join
-  try{
-    localStorage.removeItem('emojipick_last_ticket_text');
-    localStorage.removeItem('emojipick_last_ticket_ts');
-    localStorage.removeItem('emojiPick_last_ticket_text'); // legacy fallback key
-    localStorage.removeItem('last_ticket_text');           // legacy fallback key
-    localStorage.removeItem('emojipick_last_submit_fp');
-    localStorage.removeItem('emojipick_party_pending_room');
-    localStorage.removeItem('emojipick_party_pending_name');
-    localStorage.removeItem('emojipick_party_pending_at');
-  } catch {}
 
   // Same-browser guest rejoin cleanup (remove previous player doc if this tab used another guest name/room)
   try{
@@ -427,7 +416,7 @@ function wire(){
 async function boot(){
   wire();
   if($('roomCode') && qs('room')) $('roomCode').value = upper(qs('room'));
-  // Name auto-restore disabled to avoid stale host/guest identity reuse
+  // Name auto-restore disabled to avoid stale host/guest input prefill
   roleUI();
   refreshGuestLatestPanel();
   refreshGuestSubmitEnabled();
