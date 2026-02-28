@@ -370,14 +370,24 @@ async function copyInvite(){
   try{
     if(navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(txt);
     else{ const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.top='-9999px'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
-    setMsg('Copied invite link.');
+    setInviteMsg('Copied invite link.');
   }catch{ alert('Copy failed.'); }
 }
 async function shareInvite(){
   const url=clean($('inviteLink')?.value); if(!url) return;
-  try{ if(navigator.share) await navigator.share({title:'EmojiPick Party Mode', text:'Join my room', url}); else await copyInvite(); setMsg('Invite shared.'); }catch{}
+  try{ if(navigator.share) await navigator.share({title:'EmojiPick Party Mode', text:'Join my room', url}); else await copyInvite(); setInviteMsg('Invite shared.');}catch{}
 }
-
+  
+function setInviteMsg(t){
+  const el = $('inviteMsg');
+  if (!el) return setMsg(t); // fallback
+  el.textContent = t || '';
+  if (t) {
+    clearTimeout(window.__inviteMsgTimer);
+    window.__inviteMsgTimer = setTimeout(()=>{ if(el.textContent===t) el.textContent=''; }, 1800);
+  }
+}
+  
 function openPro(){ $('proModal').classList.remove('hidden'); $('proModal').style.display='grid'; $('proThanks').classList.add('hidden'); }
 function closePro(){ $('proModal').classList.add('hidden'); $('proModal').style.display='none'; }
 
