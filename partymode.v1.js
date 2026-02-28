@@ -16,7 +16,7 @@ function serverTs(){ try{return window.firebase.firestore.FieldValue.serverTimes
 function setMsg(m){ if($('msg')) $('msg').textContent = m||''; }
 function isHost(){ return qs('host')==='1'; }
 function roomCode(){ return upper($('roomCode')?.value || qs('room')); }
-function playerName(){ return clean($('name')?.value || localGet('party_name')); }
+function playerName(){ return clean($('name')?.value || ''); }
 function fmtTime(ts){ try{ const d = ts&&ts.toMillis?new Date(ts.toMillis()):new Date(ts); return d.toLocaleString(); }catch{return '';} }
 function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function randCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<4;i++) o+=c[Math.floor(Math.random()*c.length)]; return o; }
@@ -233,6 +233,34 @@ async function joinRoom(){
   if(!code) return alert('Enter room code first.');
   if(!name) return alert('Enter your name first.');
   localSet('party_name', name);
+  // Guest local state reset (latest picks/pending) before a new join
+  try{
+    localStorage.removeItem('emojipick_last_ticket_text');
+    localStorage.removeItem('emojipick_last_ticket_ts');
+    localStorage.removeItem('emojiPick_last_ticket_text'); // legacy fallback key
+    localStorage.removeItem('last_ticket_text');           // legacy fallback key
+    localStorage.removeItem('emojipick_last_submit_fp');
+    localStorage.removeItem('emojipick_party_pending_room');
+    localStorage.removeItem('emojipick_party_pending_name');
+    localStorage.removeItem('emojipick_party_pending_at');
+  } catch {}
+
+  // Same-browser guest rejoin cleanup (remove previous player doc if this tab used another guest name/room)
+  try{
+    const prevRoom = localStorage.getItem('party_last_join_room') || '';
+    const prevName = localStorage.getItem('party_last_join_name') || '';
+    if(prevRoom && prevName && window.db){
+      const samePersonDifferentName = (prevRoom === code && prevName !== name);
+      const samePersonOtherRoom = (prevRoom !== code);
+      if(samePersonDifferentName || samePersonOtherRoom){
+        window.db.collection('rooms').doc(prevRoom)
+          .collection('players').doc(prevName)
+          .delete()
+          .catch(()=>{});
+      }
+    }
+  } catch {}
+
   const ref=db.collection('rooms').doc(code);
   const snap=await ref.get(); if(!snap.exists) return alert(`Room not found: ${code}`);
   await ref.collection('players').doc(name).set({ name, joinedAt: serverTs() }, {merge:true});
@@ -240,6 +268,12 @@ async function joinRoom(){
   setMsg(`Joined room ${code} as ${name}`);
   showLobby(code); attachWatchers(code, snap.data()?.hostName || '');
   setTimeout(()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }, 250);
+
+  // Remember this guest join for next cleanup
+  try{
+    localStorage.setItem('party_last_join_room', code);
+    localStorage.setItem('party_last_join_name', name);
+  } catch {}
 }
 
 async function autoResumeIfNeeded(){
@@ -393,7 +427,7 @@ function wire(){
 async function boot(){
   wire();
   if($('roomCode') && qs('room')) $('roomCode').value = upper(qs('room'));
-  if($('name') && localGet('party_name') && !$('name').value) $('name').value = localGet('party_name');
+  // Name auto-restore disabled to avoid stale host/guest identity reuse
   roleUI();
   refreshGuestLatestPanel();
   refreshGuestSubmitEnabled();
