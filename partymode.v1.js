@@ -21,6 +21,31 @@ function fmtTime(ts){ try{ const d = ts&&ts.toMillis?new Date(ts.toMillis()):new
 function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function randCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<4;i++) o+=c[Math.floor(Math.random()*c.length)]; return o; }
 
+ function parseNumsFromTicketText(txt){
+  // 예: "Powerball • 2026-02-28: 15 26 52 54 62 + PB 3 (Entertainment only)"
+  const s = String(txt || '');
+  const m = s.match(/:\s*([0-9\s]+)\s*\+\s*PB\s*([0-9]+)/i);
+  if (!m) return null;
+  const main = (m[1] || '').trim().split(/\s+/).filter(Boolean).map(n => Number(n));
+  const pb = Number(m[2]);
+  if (!main.length || !Number.isFinite(pb)) return null;
+  return { main, pb, raw: `${main.join(' ')} + PB ${pb}` };
+}
+
+function makeRandomWinningNumbersPB(){
+  // Powerball 스타일(데모용): 1~69 중 5개 + PB 1~26
+  const pickUnique = (count, min, max) => {
+    const set = new Set();
+    while (set.size < count) {
+      set.add(Math.floor(Math.random() * (max - min + 1)) + min);
+    }
+    return [...set].sort((a,b)=>a-b);
+  };
+  const main = pickUnique(5, 1, 69);
+  const pb = Math.floor(Math.random() * 26) + 1;
+  return { main, pb, raw: `${main.join(' ')} + PB ${pb}` };
+} 
+
 function latestTicket(){
   let text = clean(localGet('emojipick_last_ticket_text'));
   if(!text) text = clean(localGet('emojiPick_last_ticket_text') || localGet('last_ticket_text'));
@@ -292,6 +317,23 @@ async function setHostMessage(text, by){
   renderHostPosted({ text, by: by||playerName()||'host', at: Date.now() });
 }
 
+async function setRoomWinningNumbers(payload){
+  const db = getDb(); if (!db) throw new Error('Firebase not ready');
+  const code = roomCode();
+  if (!code) throw new Error('No room code');
+
+  const data = {
+    text: payload.text,                 // "1 2 3 4 5 + PB 6"
+    source: payload.source || 'host-generate', // host-generate | host-ticket
+    by: playerName() || 'host',
+    updatedAt: serverTs()
+  };
+
+  await db.collection('rooms').doc(code).set({
+    winningNumbers: data
+  }, { merge: true });
+}
+  
 async function clearHostMessage(){
   const db=getDb(); if(!db) return alert('Firebase not ready.');
   const code=roomCode(); if(!code) return;
@@ -301,14 +343,68 @@ async function clearHostMessage(){
 }
 
 async function setWinningNumbers(){
-  const db=getDb(); if(!db) return alert('Firebase not ready.');
-  const code=roomCode(); const txt=clean($('inpWinningNumbers')?.value);
-  if(!code) return alert('No room.');
-  if(!txt) return alert('Enter winning numbers.');
-  await db.collection('rooms').doc(code).set({ winningNumbersText: txt, winningNumbersAt: serverTs() }, {merge:true});
-  setMsg('Winning numbers saved.');
+  try {
+    let payload = null;
+
+    // 1순위: host가 방금 메인에서 생성한 티켓 텍스트가 있으면 그것을 사용
+    const lt = latestTicket && latestTicket();
+    if (lt && lt.text) {
+      const parsed = parseNumsFromTicketText(lt.text);
+      if (parsed) {
+        payload = {
+          text: parsed.raw,
+          source: 'host-ticket'
+        };
+      }
+    }
+
+    // 2순위: 없으면 자동 생성 (신뢰성 확보용 시스템 생성)
+    if (!payload) {
+      const win = makeRandomWinningNumbersPB();
+      payload = {
+        text: win.raw,
+        source: 'host-generate'
+      };
+    }
+
+    await setRoomWinningNumbers(payload);
+
+    // host 입력칸에도 보여주기(읽기용)
+    if ($('inpWinningNumbers')) $('inpWinningNumbers').value = payload.text;
+    if ($('winningMeta')) $('winningMeta').textContent = `Saved: ${payload.text}`;
+    setMsg('Winning numbers saved.');
+  } catch (e) {
+    console.warn('[PartyMode] set winning numbers', e);
+    alert('Failed to set winning numbers.');
+  }
 }
 
+function renderWinningNumbers(roomData){
+  const w = roomData && roomData.winningNumbers;
+  const hostInput = $('inpWinningNumbers');
+  const hostMeta  = $('winningMeta');
+  const guestCard = $('guestWinningCard');
+  const guestText = $('guestWinningText');
+  const guestMeta = $('guestWinningMeta');
+
+  if (!w || !w.text) {
+    if (hostMeta) hostMeta.textContent = 'Not set yet.';
+    if (guestCard) guestCard.classList.add('hidden');
+    if (guestText) guestText.textContent = '';
+    if (guestMeta) guestMeta.textContent = '';
+    return;
+  }
+
+  // Host 영역 표시 (기존 영역 유지)
+  if (hostInput && !hostInput.value) hostInput.value = w.text;
+  if (hostMeta) hostMeta.textContent = `Saved: ${w.text}`;
+
+  // Guest 영역 표시 (신규 카드)
+  if (guestCard) guestCard.classList.remove('hidden');
+  if (guestText) guestText.textContent = w.text;
+  if (guestMeta) guestMeta.textContent = `Official numbers (${w.source || 'host'})`;
+}
+  
 async function startCollecting(){
   const db=getDb(); if(!db) return alert('Firebase not ready.');
   const code=roomCode(); if(!code) return;
