@@ -209,13 +209,7 @@ function attachWatchers(code, hostFallback){
   unsubRoom = roomRef.onSnapshot((snap)=>{ if (token !== watchRoomToken) return;
     if(!snap.exists) return;
     const d = snap.data()||{};
-    roomUnsub = db.collection('rooms').doc(code).onSnapshot((snap) => {
-    if (!snap.exists) return;
-    const d = snap.data() || {};
-    renderWinningNumbers(d);   // ← 이 줄 추가
-   // 기존 코드들 (status, host message, etc...)
-   // ...
-   });                                      
+                                    
     setStatusPill(d.status||'lobby');
     renderHostPosted(d.roomMessage||null);
     renderWinning(d.winningNumbersText||'', d.winningNumbersAt||null);
