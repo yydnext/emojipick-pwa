@@ -118,7 +118,7 @@
         <div class="h3">Winning numbers (Host)</div>
         <div class="micro">For compare/reveal later (v1 stores only).</div>
         <input id="inpWinningNumbers" class="input" placeholder="e.g. 1 2 4 23 44 + PB 3">
-        <div class="row" style="margin-top:10px;"><button id="btnSetWinningNumbers" class="btn secondary" type="button">Set winning numbers</button></div>
+        <div class="row" style="margin-top:10px;"><button id="btnSetWinningNumbers" class="btn secondary" type="button">Generate winning numbers</button></div>
         <div id="winningMeta" class="micro" style="margin-top:8px"></div>
       </div>
 
@@ -131,6 +131,12 @@
         </div>
         <div class="divider"></div>
         <div class="label">Your latest picks (this device)</div>
+        <div id="guestWinningCard" class="card hidden">
+        <div class="label">Official winning numbers</div>
+        <div class="micro">Announced by host for this room.</div>
+        <pre id="guestWinningText" class="box" style="margin-top:8px"></pre>
+        <div id="guestWinningMeta" class="micro" style="margin-top:6px"></div>
+        </div>
         <pre id="guestLatestPicksText" class="box"></pre>
         <div id="guestLatestMeta" class="micro" style="margin-top:6px"></div>
       </div>
