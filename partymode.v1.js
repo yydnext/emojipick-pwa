@@ -247,9 +247,9 @@ async function createRoom(){
   setMsg(`Room created: ${code}`);
   showLobby(code); attachWatchers(code, name);
   const lt=latestTicket();
-  if(lt.text && lt.ts && lt.ageMs<=TS_FRESH_MS){
-    try { await setHostMessage(lt.text, name); setMsg('Room created. Auto-posted your latest picks.'); } catch {}
-  }
+  //if(lt.text && lt.ts && lt.ageMs<=TS_FRESH_MS){
+   // try { await setHostMessage(lt.text, name); setMsg('Room created. Auto-posted your latest picks.'); } catch {}
+  //}
 }
 
 async function joinRoom(){
@@ -258,6 +258,18 @@ async function joinRoom(){
   const code=roomCode(); const name=playerName();
   if(!code) return alert('Enter room code first.');
   if(!name) return alert('Enter your name first.');
+  // Same-browser guest test cleanup (same PC/browser retest)
+  try {
+    localStorage.removeItem('emojipick_last_ticket_text');
+    localStorage.removeItem('emojipick_last_ticket_ts');
+    localStorage.removeItem('emojiPick_last_ticket_text'); // legacy fallback
+    localStorage.removeItem('last_ticket_text');           // legacy fallback
+    localStorage.removeItem('emojipick_last_submit_fp');
+    localStorage.removeItem('emojipick_party_pending_room');
+    localStorage.removeItem('emojipick_party_pending_name');
+    localStorage.removeItem('emojipick_party_pending_at');
+  } catch {}
+ 
   localSet('party_name', name);
 
   // Same-browser guest rejoin cleanup (remove previous player doc if this tab used another guest name/room)
