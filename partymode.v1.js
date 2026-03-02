@@ -134,7 +134,43 @@ function refreshGuestLatestPanel(){
   }
 }
 
+function refreshHostLatestPanel(){
+  const card = $('hostLatestCard');
+  const txtEl = $('hostLatestText');
+  const metaEl = $('hostLatestMeta');
+  const btnSubmit = $('btnHostSubmitPicks');
 
+  if (!card || !txtEl || !metaEl) return;
+
+  if (!isHost()) {
+    card.classList.add('hidden');
+    return;
+  }
+
+  card.classList.remove('hidden');
+
+  const lt = latestTicket ? latestTicket() : { text:'', ts:null };
+  const text = (lt && lt.text) ? lt.text : '';
+
+  txtEl.textContent = text || 'No recent generated picks yet.';
+  if (lt && lt.ts) {
+    try {
+      metaEl.textContent = `Generated: ${new Date(lt.ts).toLocaleString()}`;
+    } catch {
+      metaEl.textContent = '';
+    }
+  } else {
+    metaEl.textContent = '';
+  }
+
+  // 버튼 상태
+  if (btnSubmit) {
+    const hasText = !!text;
+    btnSubmit.disabled = !hasText;
+    btnSubmit.classList.toggle('disabled', !hasText);
+  }
+}
+ 
 function refreshGuestButtonsVisual(){
   const btnGen = $('btnGoGenerate');
   const btnSubmit = $('btnSubmitMyPicks');
