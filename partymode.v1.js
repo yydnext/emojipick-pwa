@@ -450,7 +450,7 @@ function goGenerate(){
 }
 
 async function submitMyPicks(auto=false){
-  if(isHost()) return false;
+  // if(isHost()) return false;
   const db=getDb(); if(!db){ if(!auto) alert('Firebase not ready.'); return false; }
   const code=roomCode(), name=playerName(); if(!code||!name){ if(!auto) alert('Join room first.'); return false; }
   const lt=latestTicket();
