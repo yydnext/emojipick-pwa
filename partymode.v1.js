@@ -537,6 +537,22 @@ function wire(){
   $('btnProClose')?.addEventListener('click', e=>{e.preventDefault(); closePro();});
   $('btnProNoThanks')?.addEventListener('click', e=>{e.preventDefault(); closePro();});
   $('btnProNotify')?.addEventListener('click', async e=>{ e.preventDefault(); await logPro('submit', $('inpProEmail')?.value||''); $('proThanks').classList.remove('hidden'); setTimeout(closePro, 900); });
+   // 새로 추가함 호스트 번호 픽 때문에
+ $('btnHostPickGenerate')?.addEventListener('click', (e)=>{
+  e.preventDefault();
+  // host도 메인에서 생성하도록 동일 흐름 사용
+  try {
+    localStorage.setItem('emojipick_party_pending_room', roomCode() || '');
+    localStorage.setItem('emojipick_party_pending_name', playerName() || '');
+    localStorage.setItem('emojipick_party_pending_at', String(Date.now()));
+  } catch {}
+  location.href = './index.html';
+});
+
+$('btnHostSubmitPicks')?.addEventListener('click', (e)=>{
+  e.preventDefault();
+  submitMyPicks(false);   // 이제 host도 허용됨
+});
 
   window.addEventListener('focus', ()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); setTimeout(()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }, 220); });
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }});
