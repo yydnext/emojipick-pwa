@@ -554,7 +554,7 @@ $('btnHostSubmitPicks')?.addEventListener('click', (e)=>{
   submitMyPicks(false);   // 이제 host도 허용됨
 });
 
-  window.addEventListener('focus', ()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); setTimeout(()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }, 220); });
+  window.addEventListener('focus', ()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled();  refreshHostLatestPanel(); setTimeout(()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); refreshHostLatestPanel();  }, 220); });
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }});
 }
 
