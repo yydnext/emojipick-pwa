@@ -355,40 +355,38 @@ async function clearHostMessage(){
   renderHostPosted(null); setMsg('Cleared host posted picks.');
 }
 
-async function setWinningNumbers(){
+async function generateWinningNumbers(){
+  const db = getDb();
+  if (!db) return alert('Firebase not ready.');
+
+  const code = roomCode();
+  if (!code) return alert('Create or join a room first.');
+  if (!isHost()) return alert('Only host can generate winning numbers.');
+
+  // host가 메인(이모지픽)에서 생성한 "최신 번호"를 읽되,
+  // submissions용 로직과 충돌하지 않도록 winning 저장은 room 필드에만 함
+  const txt = clean(localStorage.getItem('emojipick_last_ticket_text') || '');
+  if (!txt) return alert('No generated numbers found yet. Use Home → generate first.');
+
   try {
-    let payload = null;
+    await db.collection('rooms').doc(code).set({
+      winningNumbersText: txt,
+      winningNumbersAt: serverTs(),
+      // 상태 전환은 선택 사항 (원하시면 유지)
+      status: 'collecting'
+    }, { merge: true });
 
-    // 1순위: host가 방금 메인에서 생성한 티켓 텍스트가 있으면 그것을 사용
-    const lt = latestTicket && latestTicket();
-    if (lt && lt.text) {
-      const parsed = parseNumsFromTicketText(lt.text);
-      if (parsed) {
-        payload = {
-          text: parsed.raw,
-          source: 'host-ticket'
-        };
-      }
-    }
+    // host 전용 캐시(선택, but 권장)
+    try {
+      localStorage.setItem('party_host_winning_text', txt);
+      localStorage.setItem('party_host_winning_ts', String(Date.now()));
+    } catch {}
 
-    // 2순위: 없으면 자동 생성 (신뢰성 확보용 시스템 생성)
-    if (!payload) {
-      const win = makeRandomWinningNumbersPB();
-      payload = {
-        text: win.raw,
-        source: 'host-generate'
-      };
-    }
-
-    await setRoomWinningNumbers(payload);
-
-    // host 입력칸에도 보여주기(읽기용)
-    if ($('inpWinningNumbers')) $('inpWinningNumbers').value = payload.text;
-    if ($('winningMeta')) $('winningMeta').textContent = `Saved: ${payload.text}`;
     setMsg('Winning numbers saved.');
+    renderWinningNumbers({ winningNumbersText: txt });
   } catch (e) {
-    console.warn('[PartyMode] set winning numbers', e);
-    alert('Failed to set winning numbers.');
+    console.error('[PartyMode] generateWinningNumbers', e);
+    alert('Failed to save winning numbers.');
   }
 }
 
