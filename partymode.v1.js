@@ -251,6 +251,9 @@ async function createRoom(){
   // if(lt.text && lt.ts && lt.ageMs<=TS_FRESH_MS){
    // try { await setHostMessage(lt.text, name); setMsg('Room created. Auto-posted your latest picks.'); } catch {}
   // }
+  // Host 개인 최신픽은 hostLatestCard에서만 보이고,
+  // host message 영역으로 자동 전송하지 않음
+  setMsg(`Room created: ${code}`);
 }
 
 async function joinRoom(){
