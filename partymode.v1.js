@@ -392,14 +392,18 @@ async function generateWinningNumbers(){
 }
 
 function renderWinningNumbers(roomData){
-  const w = roomData && roomData.winningNumbers;
+  const txt = (roomData && roomData.winningNumbersText) || '';
+  const at  = (roomData && roomData.winningNumbersAt) || null;
+  const src = (roomData && roomData.winningNumbersSource) || 'host';
+
   const hostInput = $('inpWinningNumbers');
   const hostMeta  = $('winningMeta');
+
   const guestCard = $('guestWinningCard');
   const guestText = $('guestWinningText');
   const guestMeta = $('guestWinningMeta');
 
-  if (!w || !w.text) {
+  if (!txt) {
     if (hostMeta) hostMeta.textContent = 'Not set yet.';
     if (guestCard) guestCard.classList.add('hidden');
     if (guestText) guestText.textContent = '';
@@ -407,14 +411,14 @@ function renderWinningNumbers(roomData){
     return;
   }
 
-  // Host 영역 표시 (기존 영역 유지)
-  if (hostInput && !hostInput.value) hostInput.value = w.text;
-  if (hostMeta) hostMeta.textContent = `Saved: ${w.text}`;
+  // Host 영역 표시
+  if (hostInput && !hostInput.value) hostInput.value = txt;
+  if (hostMeta) hostMeta.textContent = `Saved: ${txt}`;
 
-  // Guest 영역 표시 (신규 카드)
+  // Guest 영역 표시
   if (guestCard) guestCard.classList.remove('hidden');
-  if (guestText) guestText.textContent = w.text;
-  if (guestMeta) guestMeta.textContent = `Official numbers (${w.source || 'host'})`;
+  if (guestText) guestText.textContent = txt;
+  if (guestMeta) guestMeta.textContent = `Official numbers (${src})`;
 }
   
 async function startCollecting(){
