@@ -19,7 +19,13 @@ function roomCode(){ return upper($('roomCode')?.value || qs('room')); }
 function playerName(){ return clean($('name')?.value || localGet('party_name')); }
 function fmtTime(ts){ try{ const d = ts&&ts.toMillis?new Date(ts.toMillis()):new Date(ts); return d.toLocaleString(); }catch{return '';} }
 function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function randCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<4;i++) o+=c[Math.floor(Math.random()*c.length)]; return o; }
+function randCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<4;i++) o+=c[Math.floor(Math.random()*c.length)]; return o; 
+function hostLatestPick(){
+  return {
+    text: localStorage.getItem('party_host_last_ticket_text') || '',
+    ts: Number(localStorage.getItem('party_host_last_ticket_ts') || 0)
+  };
+}               
 
  function parseNumsFromTicketText(txt){
   // 예: "Powerball • 2026-02-28: 15 26 52 54 62 + PB 3 (Entertainment only)"
