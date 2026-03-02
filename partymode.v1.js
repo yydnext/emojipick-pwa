@@ -261,20 +261,16 @@ async function joinRoom(){
   if(!name) return alert('Enter your name first.');
   // Same-browser guest test cleanup (same PC/browser retest)
   try {
-    localStorage.removeItem('emojipick_last_ticket_text');
-    localStorage.removeItem('emojipick_last_ticket_ts');
-    localStorage.removeItem('emojiPick_last_ticket_text'); // legacy fallback
-    localStorage.removeItem('last_ticket_text');           // legacy fallback
-    localStorage.removeItem('emojipick_last_submit_fp');
-    localStorage.removeItem('emojipick_party_pending_room');
-    localStorage.removeItem('emojipick_party_pending_name');
-    localStorage.removeItem('emojipick_party_pending_at');
-  } catch {}
+  localStorage.removeItem('emojipick_last_ticket_text');
+  localStorage.removeItem('emojipick_last_ticket_ts');
+  localStorage.removeItem('emojiPick_last_ticket_text');
+  localStorage.removeItem('last_ticket_text');
+} catch {}
+refreshGuestLatestPanel();
+refreshGuestSubmitEnabled();
  
   localSet('party_name', name);
-   refreshGuestLatestPanel();
-   refreshGuestSubmitEnabled();
-
+ 
   // Same-browser guest rejoin cleanup (remove previous player doc if this tab used another guest name/room)
   try{
     const prevRoom = localStorage.getItem('party_last_join_room') || '';
