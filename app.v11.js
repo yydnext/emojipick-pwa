@@ -426,6 +426,21 @@ function writePartyLatestTicket(gameId, dateSeed, nums) {
     const text = `${g.name} • ${dateSeed}: ${main}${bonus} (Entertainment only)`;
     localStorage.setItem('emojipick_last_ticket_text', text);
     localStorage.setItem('emojipick_last_ticket_ts', String(Date.now()));
+    // Party Mode return context (host/guest) 분기 저장
+try {
+  const p = new URLSearchParams(location.search);
+  const isPartyReturn = p.get('return') === 'party';
+  if (isPartyReturn) {
+    const room = (p.get('room') || localStorage.getItem('emojipick_party_pending_room') || '').toUpperCase();
+    const role = (p.get('host') === '1') ? 'host' : 'guest';
+    if (room) {
+      localStorage.setItem('emojipick_party_last_role', role);
+      localStorage.setItem('emojipick_party_last_room', room);
+      localStorage.setItem('emojipick_party_last_ticket_text', text);
+      localStorage.setItem('emojipick_party_last_ticket_ts', String(Date.now()));
+    }
+  }
+} catch (e) {}
     return text;
   } catch (e) {
     console.warn('[PartyBridge] write latest ticket failed', e);
