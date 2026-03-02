@@ -272,6 +272,8 @@ async function joinRoom(){
   } catch {}
  
   localSet('party_name', name);
+   refreshGuestLatestPanel();
+   refreshGuestSubmitEnabled();
 
   // Same-browser guest rejoin cleanup (remove previous player doc if this tab used another guest name/room)
   try{
