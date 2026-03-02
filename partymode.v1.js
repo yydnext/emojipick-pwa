@@ -516,7 +516,7 @@ function wire(){
   $('btnToggleQR')?.addEventListener('click', e=>{e.preventDefault(); $('qrWrap')?.classList.toggle('hidden');});
   $('btnSendHostMessage')?.addEventListener('click', async e=>{ e.preventDefault(); const t=clean($('inpHostMessage')?.value); if(!t) return alert('Enter a message first.'); try{ await setHostMessage(t); setMsg('Sent to room.'); }catch(err){ console.error(err); alert('Send failed.'); } });
   $('btnClearHostMessage')?.addEventListener('click', e=>{e.preventDefault(); clearHostMessage();});
-  $('btnSetWinningNumbers')?.addEventListener('click', e=>{e.preventDefault(); setWinningNumbers();});
+  $('btnSetWinningNumbers')?.addEventListener('click', e=>{e.preventDefault(); generateWinningNumbers();});
   $('btnStartCollecting')?.addEventListener('click', e=>{e.preventDefault(); startCollecting();});
   $('btnGoGenerate')?.addEventListener('click', e=>{e.preventDefault(); goGenerate();});
   $('btnSubmitMyPicks')?.addEventListener('click', e=>{e.preventDefault(); submitMyPicks(false);});
