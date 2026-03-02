@@ -247,10 +247,10 @@ async function createRoom(){
   $('roomCode').value=code; setQs('room', code); setQs('host','1');
   setMsg(`Room created: ${code}`);
   showLobby(code); attachWatchers(code, name);
-  const lt=latestTicket();
-  //if(lt.text && lt.ts && lt.ageMs<=TS_FRESH_MS){
+  // const lt=latestTicket();
+  // if(lt.text && lt.ts && lt.ageMs<=TS_FRESH_MS){
    // try { await setHostMessage(lt.text, name); setMsg('Room created. Auto-posted your latest picks.'); } catch {}
-  //}
+  // }
 }
 
 async function joinRoom(){
