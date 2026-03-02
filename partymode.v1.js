@@ -466,8 +466,11 @@ async function submitMyPicks(auto=false){
 
   try{
     await db.collection('rooms').doc(code).collection('submissions').doc(name).set({
-      by:name, text:lt.text, submittedAt:serverTs(), source:'guest_generate'
-    }, {merge:true});
+    by: name,
+    text: lt.text,
+    submittedAt: serverTs(),
+    source: isHost() ? 'host_generate' : 'guest_generate'
+    }, { merge: true });
     localSet('emojipick_last_submit_fp', currFp);
     try{ localStorage.removeItem('emojipick_party_pending_room'); localStorage.removeItem('emojipick_party_pending_name'); localStorage.removeItem('emojipick_party_pending_at'); }catch{}
     setMsg('Submitted your picks.');
