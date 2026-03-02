@@ -130,7 +130,7 @@ function syncGuestButtonsUI(){
 }
 function refreshGuestLatestPanel(){
   if(!$('guestLatestPicksText')) return;
-  const lt = latestTicket();
+  const lt = hostlatestTicket();
   if(lt.text){
     $('guestLatestPicksText').textContent = lt.text;
     $('guestLatestMeta').textContent = lt.ts ? `Generated: ${new Date(lt.ts).toLocaleString()} (${Math.round(lt.ageMs/1000)}s ago)` : 'No timestamp found. Please generate again from Party Mode.';
@@ -199,7 +199,7 @@ function refreshGuestButtonsVisual(){
 function refreshGuestSubmitEnabled(){
   const btn = $('btnSubmitMyPicks'); if(!btn) return;
   if(isHost()){ btn.disabled=true; return; }
-  const lt = latestTicket();
+  const lt = hostlatestTicket();
   const hasTs = !!lt.ts && lt.ageMs >=0 && lt.ageMs <= TS_FRESH_MS;
   const pendingOk = pendingMatches();
   const ok = !!roomCode() && !!playerName() && !!lt.text && (pendingOk ? hasTs : false);
