@@ -566,6 +566,7 @@ async function boot(){
   refreshGuestLatestPanel();
   refreshGuestSubmitEnabled();
   refreshGuestButtonsVisual();
+  refreshHostLatestPanel();  // 호스트 픽 때문에 추가함
   await autoResumeIfNeeded();
 }
 
