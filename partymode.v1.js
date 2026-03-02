@@ -440,6 +440,21 @@ async function generateWinningNumbers(){
   }
 }
 
+    function getPartyLatestForRole(role, room){
+  try{
+    const r = localStorage.getItem('emojipick_party_last_role') || '';
+    const rm = (localStorage.getItem('emojipick_party_last_room') || '').toUpperCase();
+    const text = localStorage.getItem('emojipick_party_last_ticket_text') || '';
+    const ts = localStorage.getItem('emojipick_party_last_ticket_ts') || '';
+    if (!text) return { text:'', ts:'' };
+    if (r !== role) return { text:'', ts:'' };
+    if (room && rm !== String(room).toUpperCase()) return { text:'', ts:'' };
+    return { text, ts };
+  } catch(e){
+    return { text:'', ts:'' };
+  }
+}                
+                    
 function renderWinningNumbers(roomData){
   const txt = (roomData && roomData.winningNumbersText) || '';
   const at  = (roomData && roomData.winningNumbersAt) || null;
