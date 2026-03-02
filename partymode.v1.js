@@ -209,6 +209,7 @@ function attachWatchers(code, hostFallback){
   unsubRoom = roomRef.onSnapshot((snap)=>{ if (token !== watchRoomToken) return;
     if(!snap.exists) return;
     const d = snap.data()||{};
+     renderWinningNumbers(d);                                     
                                     
     setStatusPill(d.status||'lobby');
     renderHostPosted(d.roomMessage||null);
