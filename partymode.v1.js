@@ -500,15 +500,19 @@ function pendingMatches(){
 function fp(code,name,text){ return `${upper(code)}|${clean(name)}|${String(text||'')}`; }
 
 function goGenerate(){
-  const code=roomCode(), name=playerName();
-  if(!code) return alert('Join a room first.');
-  if(!name) return alert('Enter your name first.');
+  const code = roomCode();
+  const name = playerName();
+
+  if (!code) return alert('Join a room first.');
+  if (!name) return alert('Enter your name first.');
+
   localSet('party_name', name);
   localSet('emojipick_party_pending_room', code);
   localSet('emojipick_party_pending_name', name);
   localSet('emojipick_party_pending_at', Date.now());
-  localSet('emojipick_party_pending_at', Date.now());
-  location.href = `./index.html?room=${encodeURIComponent(code)}&return=party`;
+
+  const hostFlag = isHost() ? '&host=1' : '';
+  location.href = `./index.html?room=${encodeURIComponent(code)}&return=party${hostFlag}`;
 }
 
 async function submitMyPicks(auto=false){
