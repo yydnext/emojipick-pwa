@@ -594,41 +594,109 @@ async function logPro(action,email){
 }
 
 function wire(){
-  $('btnCreateRoom')?.addEventListener('click', e=>{e.preventDefault(); createRoom();});
-  $('btnJoin')?.addEventListener('click', e=>{e.preventDefault(); joinRoom();});
-  $('btnCopy')?.addEventListener('click', e=>{e.preventDefault(); copyInvite();});
-  $('btnShareInvite')?.addEventListener('click', e=>{e.preventDefault(); shareInvite();});
-  $('btnToggleQR')?.addEventListener('click', e=>{e.preventDefault(); $('qrWrap')?.classList.toggle('hidden');});
-  $('btnSendHostMessage')?.addEventListener('click', async e=>{ e.preventDefault(); const t=clean($('inpHostMessage')?.value); if(!t) return alert('Enter a message first.'); try{ await setHostMessage(t); setMsg('Sent to room.'); }catch(err){ console.error(err); alert('Send failed.'); } });
-  $('btnClearHostMessage')?.addEventListener('click', e=>{e.preventDefault(); clearHostMessage();});
-  $('btnSetWinningNumbers')?.addEventListener('click', e=>{e.preventDefault(); generateWinningNumbers();});
-  $('btnStartCollecting')?.addEventListener('click', e=>{e.preventDefault(); startCollecting();});
-  $('btnGoGenerate')?.addEventListener('click', e=>{e.preventDefault(); goGenerate();});
-  $('btnSubmitMyPicks')?.addEventListener('click', e=>{e.preventDefault(); submitMyPicks(false);});
+  $('btnCreateRoom')?.addEventListener('click', e=>{ e.preventDefault(); createRoom(); });
+  $('btnJoin')?.addEventListener('click', e=>{ e.preventDefault(); joinRoom(); });
+  $('btnCopy')?.addEventListener('click', e=>{ e.preventDefault(); copyInvite(); });
+  $('btnShareInvite')?.addEventListener('click', e=>{ e.preventDefault(); shareInvite(); });
+  $('btnToggleQR')?.addEventListener('click', e=>{ e.preventDefault(); $('qrWrap')?.classList.toggle('hidden'); });
 
-  $('btnProPack')?.addEventListener('click', async e=>{ e.preventDefault(); await logPro('click',''); openPro(); });
-  $('btnProClose')?.addEventListener('click', e=>{e.preventDefault(); closePro();});
-  $('btnProNoThanks')?.addEventListener('click', e=>{e.preventDefault(); closePro();});
-  $('btnProNotify')?.addEventListener('click', async e=>{ e.preventDefault(); await logPro('submit', $('inpProEmail')?.value||''); $('proThanks').classList.remove('hidden'); setTimeout(closePro, 900); });
-   // 새로 추가함 호스트 번호 픽 때문에
- $('btnHostPickGenerate')?.addEventListener('click', (e)=>{
-  e.preventDefault();
-  // host도 메인에서 생성하도록 동일 흐름 사용
-  try {
-    localStorage.setItem('emojipick_party_pending_room', roomCode() || '');
-    localStorage.setItem('emojipick_party_pending_name', playerName() || '');
-    localStorage.setItem('emojipick_party_pending_at', String(Date.now()));
-  } catch {}
-  location.href = './index.html';
-});
+  $('btnSendHostMessage')?.addEventListener('click', async e=>{
+    e.preventDefault();
+    const t = clean($('inpHostMessage')?.value);
+    if (!t) return alert('Enter a message first.');
+    try {
+      await setHostMessage(t);
+      setMsg('Sent to room.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to send message.');
+    }
+  });
 
-$('btnHostSubmitPicks')?.addEventListener('click', (e)=>{
-  e.preventDefault();
-  submitMyPicks(false);   // 이제 host도 허용됨
-});
+  $('btnClearHostMessage')?.addEventListener('click', e=>{
+    e.preventDefault();
+    clearHostMessage();
+  });
 
-  window.addEventListener('focus', ()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled();  refreshHostLatestPanel(); setTimeout(()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); refreshHostLatestPanel();  }, 220); });
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }});
+  $('btnSetWinningNumbers')?.addEventListener('click', e=>{
+    e.preventDefault();
+    generateWinningNumbers();
+  });
+
+  $('btnStartCollecting')?.addEventListener('click', e=>{
+    e.preventDefault();
+    startCollecting();
+  });
+
+  $('btnGoGenerate')?.addEventListener('click', e=>{
+    e.preventDefault();
+    goGenerate();
+  });
+
+  $('btnSubmitMyPicks')?.addEventListener('click', e=>{
+    e.preventDefault();
+    submitMyPicks(false);
+  });
+
+  $('btnProPack')?.addEventListener('click', async e=>{
+    e.preventDefault();
+    await logPro('click', '');
+    openPro();
+  });
+
+  $('btnProClose')?.addEventListener('click', e=>{
+    e.preventDefault();
+    closePro();
+  });
+
+  $('btnProNoThanks')?.addEventListener('click', e=>{
+    e.preventDefault();
+    closePro();
+  });
+
+  $('btnProNotify')?.addEventListener('click', async e=>{
+    e.preventDefault();
+    await logPro('submit', $('inpProEmail')?.value || '');
+    $('proThanks')?.classList.remove('hidden');
+    setTimeout(closePro, 900);
+  });
+
+  // 새로 추가한 호스트 번호 생성 버튼
+  $('btnHostPickGenerate')?.addEventListener('click', e=>{
+    e.preventDefault();
+
+    try {
+      localStorage.setItem('emojipick_party_pending_room', roomCode() || '');
+      localStorage.setItem('emojipick_party_pending_name', playerName() || '');
+      localStorage.setItem('emojipick_party_pending_at', String(Date.now()));
+    } catch {}
+
+    location.href = './index.html';
+  });
+
+  $('btnHostSubmitPicks')?.addEventListener('click', e=>{
+    e.preventDefault();
+    submitMyPicks(false); // host도 허용
+  });
+
+  window.addEventListener('focus', ()=>{
+    refreshGuestLatestPanel();
+    refreshGuestSubmitEnabled();
+    refreshHostLatestPanel();
+    setTimeout(()=>{
+      refreshGuestLatestPanel();
+      refreshGuestSubmitEnabled();
+      refreshHostLatestPanel();
+    }, 220);
+  });
+
+  document.addEventListener('visibilitychange', ()=>{
+    if (!document.hidden) {
+      refreshGuestLatestPanel();
+      refreshGuestSubmitEnabled();
+      refreshHostLatestPanel();
+    }
+  });
 }
 
 async function boot(){
@@ -679,3 +747,4 @@ if (document.readyState === 'loading') {
 } else {
   boot();
 }
+})();
