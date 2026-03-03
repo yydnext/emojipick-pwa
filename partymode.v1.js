@@ -642,7 +642,7 @@ async function boot(){
   refreshGuestSubmitEnabled();
   refreshGuestButtonsVisual();
   refreshHostLatestPanel(); // 호스트 픽 표시
-  autoResumeIfNeeded();     // await 제거 (파싱 안전 우선)
+  autoResumeIfNeeded();     // 파싱 안정 우선 (await 제거)
 }
 
 function refreshHostLatestPanel(){
