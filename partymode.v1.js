@@ -310,6 +310,11 @@ async function joinRoom(){
   localStorage.removeItem('emojipick_last_ticket_ts');
   localStorage.removeItem('emojiPick_last_ticket_text');
   localStorage.removeItem('last_ticket_text');
+
+ localStorage.removeItem('emojipick_party_last_role');
+ localStorage.removeItem('emojipick_party_last_room');
+ localStorage.removeItem('emojipick_party_last_ticket_text');
+ localStorage.removeItem('emojipick_party_last_ticket_ts'); 
 } catch {}
 refreshGuestLatestPanel();
 refreshGuestSubmitEnabled();
