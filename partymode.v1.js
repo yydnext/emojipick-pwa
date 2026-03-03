@@ -655,15 +655,14 @@ async function boot(){
   card.classList.remove('hidden');
   txtEl.textContent = lt.text;
 
-  let meta = '';
-  const tsn = Number(lt.ts || 0);
-  if (tsn) {
-    try {
-      meta = `Generated: ${new Date(tsn).toLocaleString()}`;
-    } catch(e) {}
-  }
-  metaEl.textContent = meta;
+ let meta = '';
+const tsn = Number(lt.ts || 0);
+if (tsn) {
+  try {
+    meta = `Generated: ${new Date(tsn).toLocaleString()}`;
+  } catch (e) {}
 }
+metaEl.textContent = meta;
   refreshGuestLatestPanel();
   refreshGuestSubmitEnabled();
   refreshGuestButtonsVisual();
