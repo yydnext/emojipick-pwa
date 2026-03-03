@@ -9,8 +9,19 @@ let watchRoomToken = 0;
 
 function qs(k){ try { return new URLSearchParams(location.search).get(k)||''; } catch { return ''; } }
 function setQs(k,v){ try { const u=new URL(location.href); if(v)u.searchParams.set(k,String(v)); else u.searchParams.delete(k); history.replaceState({},'',u.toString()); } catch{} }
-function localGet(k){ try{return localStorage.getItem(k);}catch{return null;} }
-function localSet(k,v){ try{localStorage.setItem(k,String(v));}catch{} }
+function localGet(k){
+  try{
+    if (k === 'party_name') return sessionStorage.getItem(k);
+    return localStorage.getItem(k);
+  }catch{return null;}
+}
+
+function localSet(k,v){
+  try{
+    if (k === 'party_name') sessionStorage.setItem(k, String(v));
+    else localStorage.setItem(k, String(v));
+  }catch{}
+}
 function getDb(){ if(window.db) return window.db; try{return window.firebase.firestore();}catch{return null;} }
 function serverTs(){ try{return window.firebase.firestore.FieldValue.serverTimestamp();}catch{return Date.now();} }
 function setMsg(m){ if($('msg')) $('msg').textContent = m||''; }
