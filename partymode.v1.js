@@ -414,7 +414,7 @@ async function generateWinningNumbers(){
 
   // host가 메인(이모지픽)에서 생성한 "최신 번호"를 읽되,
   // submissions용 로직과 충돌하지 않도록 winning 저장은 room 필드에만 함
-  const hostLt = getPartyLatestForRole('host', code);
+   const hostLt = getPartyLatestForRole('host', code);
   const txt = clean(localStorage.getItem('emojipick_last_ticket_text') || localStorage.getItem('emojiPick_last_ticket_text') || localStorage.getItem('last_ticket_text') || '');
   if (!txt) return alert('No generated numbers found yet. Use Home → generate first.');
 
