@@ -633,10 +633,19 @@ $('btnHostSubmitPicks')?.addEventListener('click', (e)=>{
 
 async function boot(){
   wire();
-  if($('roomCode') && qs('room')) $('roomCode').value = upper(qs('room'));
+  if ($('roomCode') && qs('room')) $('roomCode').value = upper(qs('room'));
+
   // Name auto-restore disabled to avoid stale host/guest input prefill
   roleUI();
-  function refreshHostLatestPanel(){
+
+  refreshGuestLatestPanel();
+  refreshGuestSubmitEnabled();
+  refreshGuestButtonsVisual();
+  refreshHostLatestPanel(); // 호스트 픽 표시
+  autoResumeIfNeeded();     // await 제거 (파싱 안전 우선)
+}
+
+function refreshHostLatestPanel(){
   const room = roomCode();
   const card = $('hostLatestCard');
   const txtEl = $('hostLatestText');
@@ -645,7 +654,7 @@ async function boot(){
   if (!card || !txtEl || !metaEl) return;
 
   const lt = getPartyLatestForRole('host', room);
-  if (!lt.text) {
+  if (!lt || !lt.text) {
     card.classList.add('hidden');
     txtEl.textContent = '';
     metaEl.textContent = '';
@@ -655,20 +664,19 @@ async function boot(){
   card.classList.remove('hidden');
   txtEl.textContent = lt.text;
 
- let meta = '';
-const tsn = Number(lt.ts || 0);
-if (tsn) {
-  try {
-    meta = `Generated: ${new Date(tsn).toLocaleString()}`;
-  } catch (e) {}
-}
-metaEl.textContent = meta;
-  refreshGuestLatestPanel();
-  refreshGuestSubmitEnabled();
-  refreshGuestButtonsVisual();
-  refreshHostLatestPanel();  // 호스트 픽 때문에 추가함
-  autoResumeIfNeeded();
+  let meta = '';
+  const tsn = Number(lt.ts || 0);
+  if (tsn) {
+    try {
+      meta = `Generated: ${new Date(tsn).toLocaleString()}`;
+    } catch (e) {}
+  }
+  metaEl.textContent = meta;
 }
 
-if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}
 })();
