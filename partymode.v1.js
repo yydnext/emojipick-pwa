@@ -667,7 +667,7 @@ metaEl.textContent = meta;
   refreshGuestSubmitEnabled();
   refreshGuestButtonsVisual();
   refreshHostLatestPanel();  // 호스트 픽 때문에 추가함
-  await autoResumeIfNeeded();
+  autoResumeIfNeeded();
 }
 
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
