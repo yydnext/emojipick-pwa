@@ -19,7 +19,7 @@ function roomCode(){ return upper($('roomCode')?.value || qs('room')); }
 function playerName(){ return clean($('name')?.value || localGet('party_name')); }
 function fmtTime(ts){ try{ const d = ts&&ts.toMillis?new Date(ts.toMillis()):new Date(ts); return d.toLocaleString(); }catch{return '';} }
 function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function randCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<4;i++) o+=c[Math.floor(Math.random()*c.length)]; return o; 
+function randCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<4;i++) o+=c[Math.floor(Math.random()*c.length)]; return o; }
 function hostLatestPick(){
   return {
     text: localStorage.getItem('party_host_last_ticket_text') || '',
@@ -130,7 +130,7 @@ function syncGuestButtonsUI(){
 }
 function refreshGuestLatestPanel(){
   if(!$('guestLatestPicksText')) return;
-  const lt = hostlatestTicket();
+  const lt = latestTicket();
   if(lt.text){
     $('guestLatestPicksText').textContent = lt.text;
     $('guestLatestMeta').textContent = lt.ts ? `Generated: ${new Date(lt.ts).toLocaleString()} (${Math.round(lt.ageMs/1000)}s ago)` : 'No timestamp found. Please generate again from Party Mode.';
@@ -199,7 +199,7 @@ function refreshGuestButtonsVisual(){
 function refreshGuestSubmitEnabled(){
   const btn = $('btnSubmitMyPicks'); if(!btn) return;
   if(isHost()){ btn.disabled=true; return; }
-  const lt = hostlatestTicket();
+  const lt = latestTicket();
   const hasTs = !!lt.ts && lt.ageMs >=0 && lt.ageMs <= TS_FRESH_MS;
   const pendingOk = pendingMatches();
   const ok = !!roomCode() && !!playerName() && !!lt.text && (pendingOk ? hasTs : false);
