@@ -414,8 +414,16 @@ async function generateWinningNumbers(){
 
   // host가 메인(이모지픽)에서 생성한 "최신 번호"를 읽되,
   // submissions용 로직과 충돌하지 않도록 winning 저장은 room 필드에만 함
-   const hostLt = getPartyLatestForRole('host', code);
-  const txt = clean(localStorage.getItem('emojipick_last_ticket_text') || localStorage.getItem('emojiPick_last_ticket_text') || localStorage.getItem('last_ticket_text') || '');
+  const hostLt = getPartyLatestForRole('host', code);
+
+  const txt = clean(
+    (hostLt && hostLt.text) ||
+    localStorage.getItem('emojipick_last_ticket_text') ||
+    localStorage.getItem('emojiPick_last_ticket_text') ||
+    localStorage.getItem('last_ticket_text') ||
+    ''
+  );
+
   if (!txt) return alert('No generated numbers found yet. Use Home → generate first.');
 
   try {
@@ -426,7 +434,7 @@ async function generateWinningNumbers(){
       status: 'collecting'
     }, { merge: true });
 
-    // host 전용 캐시(선택, but 권장)
+    // host 전용 캐시 (선택, but 권장)
     try {
       localStorage.setItem('party_host_winning_text', txt);
       localStorage.setItem('party_host_winning_ts', String(Date.now()));
