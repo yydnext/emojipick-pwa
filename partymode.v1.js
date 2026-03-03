@@ -427,13 +427,7 @@ async function generateWinningNumbers(){
   // submissions용 로직과 충돌하지 않도록 winning 저장은 room 필드에만 함
   const hostLt = getPartyLatestForRole('host', code);
 
-  const txt = clean(
-    (hostLt && hostLt.text) ||
-    localStorage.getItem('emojipick_last_ticket_text') ||
-    localStorage.getItem('emojiPick_last_ticket_text') ||
-    localStorage.getItem('last_ticket_text') ||
-    ''
-  );
+  const txt = clean((hostLt && hostLt.text) || '');
 
   if (!txt) return alert('No generated numbers found yet. Use Home → generate first.');
 
