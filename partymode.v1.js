@@ -507,6 +507,7 @@ function goGenerate(){
   localSet('emojipick_party_pending_room', code);
   localSet('emojipick_party_pending_name', name);
   localSet('emojipick_party_pending_at', Date.now());
+  localSet('emojipick_party_pending_at', Date.now());
   location.href = `./index.html?room=${encodeURIComponent(code)}&return=party`;
 }
 
