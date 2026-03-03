@@ -702,6 +702,10 @@ function wire(){
 async function boot(){
   wire();
   if ($('roomCode') && qs('room')) $('roomCode').value = upper(qs('room'));
+  // invite 링크로 들어온 경우, 이전 기기 사용자명(특히 host 이름) 자동복원 방지
+  if (qs('room') && $('playerName')) {
+    $('playerName').value = '';
+   } 
 
   // Name auto-restore disabled to avoid stale host/guest input prefill
   roleUI();
