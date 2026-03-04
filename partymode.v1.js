@@ -690,7 +690,8 @@ function wire(){
       localStorage.setItem('emojipick_party_pending_at', String(Date.now()));
     } catch {}
 
-    location.href = './index.html';
+   const code = roomCode();
+location.href = `./index.html?return=party&room=${encodeURIComponent(code || '')}&host=1`;
   });
 
   $('btnHostSubmitPicks')?.addEventListener('click', e=>{
