@@ -780,7 +780,7 @@ function setupModalClose() {
       renderResult(currentGame, idxs, dateSeed, myNums, hostParam ? 'challenge' : 'solo');
       writePartyLatestTicket(currentGame, dateSeed, myNums);
       writePartyLatestTicket(gameId, dateSeed, nums);
-      maybeReturnToPartyMode();
+      // maybeReturnToPartyMode();
 
       // If in challenge mode (came with host emojis), compute host and compare.
       if (hostParam) {
