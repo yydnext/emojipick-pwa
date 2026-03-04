@@ -95,8 +95,14 @@ function resetRoomUIState(){
   }catch{}
 }
 function roleUI(){
-  if($('hostPanel')) $('hostPanel').classList.toggle('hidden', !isHost());
-  if($('guestPanel')) $('guestPanel').classList.toggle('hidden', isHost());
+  const host = isHost();
+
+  if ($('hostPanel')) $('hostPanel').classList.toggle('hidden', !host);
+  if ($('guestPanel')) $('guestPanel').classList.toggle('hidden', host);
+
+  // host 전용 latest 카드(버튼 포함)는 host일 때 보이게
+  if ($('hostLatestCard')) $('hostLatestCard').classList.toggle('hidden', !host);
+
   refreshGuestButtonsVisual();
 }
 
