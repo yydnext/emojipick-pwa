@@ -438,6 +438,11 @@ try {
       localStorage.setItem('emojipick_party_last_room', room);
       localStorage.setItem('emojipick_party_last_ticket_text', text);
       localStorage.setItem('emojipick_party_last_ticket_ts', String(Date.now()));
+      // host로 돌아온 생성이면 host 전용 latest도 저장
+    if (role === 'host') {
+      localStorage.setItem('party_host_last_ticket_text', text);
+      localStorage.setItem('party_host_last_ticket_ts', String(Date.now()));
+    }
     }
   }
 } catch (e) {}
