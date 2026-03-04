@@ -746,11 +746,16 @@ function refreshHostLatestPanel(){
 
   const lt = getPartyLatestForRole('host', room);
   if (!lt || !lt.text) {
+  // host는 버튼이 카드 안에 있으므로 카드 자체는 보여줘야 함
+  if (isHost()) {
+    card.classList.remove('hidden');
+  } else {
     card.classList.add('hidden');
-    txtEl.textContent = '';
-    metaEl.textContent = '';
-    return;
   }
+  txtEl.textContent = '';
+  metaEl.textContent = '';
+  return;
+}
 
   card.classList.remove('hidden');
   txtEl.textContent = lt.text;
