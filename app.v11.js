@@ -779,6 +779,7 @@ function setupModalClose() {
       const myNums = computeNumbers(currentGame, idxs, dateSeed);
       renderResult(currentGame, idxs, dateSeed, myNums, hostParam ? 'challenge' : 'solo');
       writePartyLatestTicket(currentGame, dateSeed, myNums);
+      writePartyLatestTicket(gameId, dateSeed, nums);
       maybeReturnToPartyMode();
 
       // If in challenge mode (came with host emojis), compute host and compare.
