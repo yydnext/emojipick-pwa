@@ -427,9 +427,17 @@ async function generateWinningNumbers(){
   // submissions용 로직과 충돌하지 않도록 winning 저장은 room 필드에만 함
   const hostLt = getPartyLatestForRole('host', code);
 
-  const txt = clean((hostLt && hostLt.text) || '');
+  const manualWinningText = clean(
+  $('winningNumbersText')?.value ||
+  $('inpWinningNumbers')?.value ||
+  ''
+);
 
-  if (!txt) return alert('No generated numbers found yet. Use Home → generate first.');
+const txt = clean((hostLt && hostLt.text) || manualWinningText || '');
+
+if (!txt) {
+  return alert('Enter winning numbers in the box, or generate host picks first.');
+}
 
   try {
     await db.collection('rooms').doc(code).set({
