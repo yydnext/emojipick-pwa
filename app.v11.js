@@ -779,7 +779,7 @@ function setupModalClose() {
       const myNums = computeNumbers(currentGame, idxs, dateSeed);
       renderResult(currentGame, idxs, dateSeed, myNums, hostParam ? 'challenge' : 'solo');
       writePartyLatestTicket(currentGame, dateSeed, myNums);
-      writePartyLatestTicket(gameId, dateSeed, nums);
+      
       // maybeReturnToPartyMode();
 
       // If in challenge mode (came with host emojis), compute host and compare.
@@ -797,6 +797,20 @@ function setupModalClose() {
       }
 
       showResult();
+      // Party Mode에서 온 경우: 생성 완료 후 자동 복귀 (host/guest 모두)
+try {
+  const p = new URLSearchParams(location.search);
+  const back = (p.get('return') || '').toLowerCase();
+  const room = (p.get('room') || '').trim();
+  const host = (p.get('host') === '1');
+
+  if (back === 'party' && room) {
+    const hostFlag = host ? '&host=1' : '';
+    setTimeout(() => {
+      location.href = `./partymode.html?room=${encodeURIComponent(room)}${hostFlag}`;
+    }, 150);
+  }
+} catch {}
     });
 
     $('#btnBack').addEventListener('click', () => {
