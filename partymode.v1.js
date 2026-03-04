@@ -467,20 +467,32 @@ if (!txt) {
   }
 }
 
-    function getPartyLatestForRole(role, room){
-  try{
-    const r = localStorage.getItem('emojipick_party_last_role') || '';
-    const rm = (localStorage.getItem('emojipick_party_last_room') || '').toUpperCase();
+function getPartyLatestForRole(role, room){
+  try {
+    const r = String(role || '').toLowerCase();
+    const rm = String(room || '').toUpperCase();
+
+    // Host는 host 전용 latest 키를 우선 사용 (같은 브라우저/기기에서 확실)
+    if (r === 'host') {
+      const text = localStorage.getItem('party_host_last_ticket_text') || '';
+      const ts = Number(localStorage.getItem('party_host_last_ticket_ts') || 0);
+      return { text, ts, room: rm, role: 'host' };
+    }
+
+    // Guest(또는 일반): party bridge latest 사용
+    const lastRole = (localStorage.getItem('emojipick_party_last_role') || '').toLowerCase();
+    const lastRoom = (localStorage.getItem('emojipick_party_last_room') || '').toUpperCase();
     const text = localStorage.getItem('emojipick_party_last_ticket_text') || '';
-    const ts = localStorage.getItem('emojipick_party_last_ticket_ts') || '';
-    if (!text) return { text:'', ts:'' };
-    if (r !== role) return { text:'', ts:'' };
-    if (room && rm !== String(room).toUpperCase()) return { text:'', ts:'' };
-    return { text, ts };
-  } catch(e){
-    return { text:'', ts:'' };
+    const ts = Number(localStorage.getItem('emojipick_party_last_ticket_ts') || 0);
+
+    if (lastRole !== r) return { text: '', ts: 0, room: lastRoom, role: lastRole };
+    if (rm && lastRoom && rm !== lastRoom) return { text: '', ts: 0, room: lastRoom, role: lastRole };
+
+    return { text, ts, room: lastRoom, role: lastRole };
+  } catch {
+    return { text: '', ts: 0, room: '', role: '' };
   }
-}                
+}
                     
 function renderWinningNumbers(roomData){
   const txt = (roomData && roomData.winningNumbersText) || '';
