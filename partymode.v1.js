@@ -306,6 +306,7 @@ function attachWatchers(code, hostFallback){
 }
 
 async function createRoom(){
+  await ensureAnonAuth();
   resetRoomUIState();
   const db=getDb(); if(!db) return alert('Firebase not ready.');
   const name=playerName(); if(!name) return alert('Enter your name first.');
