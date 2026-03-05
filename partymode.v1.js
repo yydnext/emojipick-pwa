@@ -577,6 +577,7 @@ function goGenerate(){
 }
 
 async function submitMyPicks(auto=false){
+  await ensureAnonAuth();
   // if(isHost()) return false;
   const db=getDb(); if(!db){ if(!auto) alert('Firebase not ready.'); return false; }
   const code=roomCode(), name=playerName(); if(!code||!name){ if(!auto) alert('Join room first.'); return false; }
