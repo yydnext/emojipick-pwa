@@ -199,6 +199,7 @@
   if (!window.__FIREBASE_READY__) {
     firebase.initializeApp(firebaseConfig);
     window.db = firebase.firestore();
+    window.auth = firebase.auth();
     window.__FIREBASE_READY__ = true;
   }
 </script>
