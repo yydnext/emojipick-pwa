@@ -339,6 +339,7 @@ async function createRoom(){
  }
 
 async function joinRoom(){
+  await ensureAnonAuth();
   resetRoomUIState();
   const db=getDb(); if(!db) return alert('Firebase not ready.');
   const code=roomCode(); const name=playerName();
