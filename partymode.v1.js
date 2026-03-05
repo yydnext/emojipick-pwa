@@ -321,7 +321,11 @@ async function createRoom(){
   hostUid: me && me.uid ? me.uid : '',
   createdAt: serverTs()
   }, { merge: true });
-  await db.collection('rooms').doc(code).collection('players').doc(name).set({ name, joinedAt: serverTs() }, {merge:true});
+  await db.collection('rooms').doc(code).collection('players').doc(name).set({
+  name,
+  uid: me && me.uid ? me.uid : '',
+  joinedAt: serverTs()
+  }, { merge: true });
   $('roomCode').value=code; setQs('room', code); setQs('host','1');
   setMsg(`Room created: ${code}`);
   showLobby(code); attachWatchers(code, name);
