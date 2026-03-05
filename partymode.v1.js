@@ -319,7 +319,7 @@ async function createRoom(){
   await db.collection('rooms').doc(code).set({
   status: 'lobby',
   hostName: name,
-  hostUid: me && me.uid ? me.uid : '',
+  hostUid: meAuth.uid,
   createdAt: serverTs()
   }, { merge: true });
   await db.collection('rooms').doc(code).collection('players').doc(name).set({
