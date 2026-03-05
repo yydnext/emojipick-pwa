@@ -324,7 +324,7 @@ async function createRoom(){
   }, { merge: true });
   await db.collection('rooms').doc(code).collection('players').doc(name).set({
   name,
-  uid: me && me.uid ? me.uid : '',
+  uid: meAuth.uid,
   joinedAt: serverTs()
   }, { merge: true });
   $('roomCode').value=code; setQs('room', code); setQs('host','1');
