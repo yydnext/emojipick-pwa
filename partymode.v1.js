@@ -314,7 +314,13 @@ async function createRoom(){
   let code='';
   for(let i=0;i<6;i++){ const c=randCode(); const s=await db.collection('rooms').doc(c).get(); if(!s.exists){ code=c; break; } }
   if(!code) return alert('Could not create room.');
-  await db.collection('rooms').doc(code).set({ status:'lobby', hostName:name, createdAt: serverTs() }, {merge:true});
+  const me = firebase.auth && firebase.auth().currentUser ? firebase.auth().currentUser : null;
+  await db.collection('rooms').doc(code).set({
+  status: 'lobby',
+  hostName: name,
+  hostUid: me && me.uid ? me.uid : '',
+  createdAt: serverTs()
+  }, { merge: true });
   await db.collection('rooms').doc(code).collection('players').doc(name).set({ name, joinedAt: serverTs() }, {merge:true});
   $('roomCode').value=code; setQs('room', code); setQs('host','1');
   setMsg(`Room created: ${code}`);
@@ -326,7 +332,7 @@ async function createRoom(){
   // Host 개인 최신픽은 hostLatestCard에서만 보이고,
   // host message 영역으로 자동 전송하지 않음
   setMsg(`Room created: ${code}`);
-}
+ }
 
 async function joinRoom(){
   resetRoomUIState();
