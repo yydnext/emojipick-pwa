@@ -22,6 +22,18 @@ function localSet(k,v){
     else localStorage.setItem(k, String(v));
   }catch{}
 }
+  async function ensureAnonAuth(){
+  try {
+    if (!window.firebase || !firebase.auth) return null;
+    const cur = firebase.auth().currentUser;
+    if (cur) return cur;
+    const cred = await firebase.auth().signInAnonymously();
+    return (cred && cred.user) ? cred.user : firebase.auth().currentUser;
+  } catch (e) {
+    console.error('[Auth] Anonymous sign-in failed', e);
+    return null;
+  }
+}
 function getDb(){ if(window.db) return window.db; try{return window.firebase.firestore();}catch{return null;} }
 function serverTs(){ try{return window.firebase.firestore.FieldValue.serverTimestamp();}catch{return Date.now();} }
 function setMsg(m){ if($('msg')) $('msg').textContent = m||''; }
