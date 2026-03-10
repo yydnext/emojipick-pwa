@@ -740,6 +740,7 @@ function wire(){
     await logPro('submit', $('inpProEmail')?.value || '');
     $('proThanks')?.classList.remove('hidden');
     setTimeout(closePro, 900);
+    logEvent('pro_notify', { email: ($('inpProEmail')?.value || '') });
   });
 
   // 새로 추가한 호스트 번호 생성 버튼
