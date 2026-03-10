@@ -306,8 +306,7 @@ function attachWatchers(code, hostFallback){
 }
 
 async function createRoom(){
-  const meAuth = await ensureAnonAuth();
-  if (!meAuth || !meAuth.uid) return alert('Auth not ready. Please try again.');
+  await ensureAnonAuth();
   resetRoomUIState();
   const db=getDb(); if(!db) return alert('Firebase not ready.');
   const name=playerName(); if(!name) return alert('Enter your name first.');
@@ -319,12 +318,12 @@ async function createRoom(){
   await db.collection('rooms').doc(code).set({
   status: 'lobby',
   hostName: name,
-  hostUid: meAuth.uid,
+  hostUid: me && me.uid ? me.uid : '',
   createdAt: serverTs()
   }, { merge: true });
   await db.collection('rooms').doc(code).collection('players').doc(name).set({
   name,
-  uid: meAuth.uid,
+  uid: me && me.uid ? me.uid : '',
   joinedAt: serverTs()
   }, { merge: true });
   $('roomCode').value=code; setQs('room', code); setQs('host','1');
@@ -340,7 +339,6 @@ async function createRoom(){
  }
 
 async function joinRoom(){
-  await ensureAnonAuth();
   resetRoomUIState();
   const db=getDb(); if(!db) return alert('Firebase not ready.');
   const code=roomCode(); const name=playerName();
@@ -579,7 +577,6 @@ function goGenerate(){
 }
 
 async function submitMyPicks(auto=false){
-  await ensureAnonAuth();
   // if(isHost()) return false;
   const db=getDb(); if(!db){ if(!auto) alert('Firebase not ready.'); return false; }
   const code=roomCode(), name=playerName(); if(!code||!name){ if(!auto) alert('Join room first.'); return false; }
