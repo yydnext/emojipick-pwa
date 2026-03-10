@@ -442,6 +442,7 @@ async function setHostMessage(text, by){
   const db=getDb(); if(!db) throw new Error('Firebase not ready');
   const code=roomCode(); if(!code) throw new Error('No room');
   await db.collection('rooms').doc(code).set({ roomMessage:{ text, by: by||playerName()||'host', at: serverTs() } }, {merge:true});
+  logEvent('host_broadcast');
   renderHostPosted({ text, by: by||playerName()||'host', at: Date.now() });
 }
 
