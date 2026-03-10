@@ -352,6 +352,7 @@ async function createRoom(){
   }, { merge: true });
   $('roomCode').value=code; setQs('room', code); setQs('host','1');
   setMsg(`Room created: ${code}`);
+  logEvent('create_room');
   showLobby(code); attachWatchers(code, name);
   // const lt=latestTicket();
   // if(lt.text && lt.ts && lt.ageMs<=TS_FRESH_MS){
