@@ -407,6 +407,7 @@ refreshGuestSubmitEnabled();
   await ref.collection('players').doc(name).set({ name, joinedAt: serverTs() }, {merge:true});
   $('roomCode').value=code; setQs('room', code); setQs('host','');
   setMsg(`Joined room ${code} as ${name}`);
+  logEvent('join_room');
   showLobby(code); attachWatchers(code, snap.data()?.hostName || '');
   setTimeout(()=>{ refreshGuestLatestPanel(); refreshGuestSubmitEnabled(); }, 250);
 
