@@ -627,6 +627,7 @@ async function submitMyPicks(auto=false){
     localSet('emojipick_last_submit_fp', currFp);
     try{ localStorage.removeItem('emojipick_party_pending_room'); localStorage.removeItem('emojipick_party_pending_name'); localStorage.removeItem('emojipick_party_pending_at'); }catch{}
     setMsg('Submitted your picks.');
+    logEvent('submit_picks');
     refreshGuestLatestPanel(); refreshGuestSubmitEnabled();
     return true;
   }catch(e){
