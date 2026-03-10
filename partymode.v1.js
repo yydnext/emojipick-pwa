@@ -48,8 +48,32 @@ function hostLatestPick(){
     text: localStorage.getItem('party_host_last_ticket_text') || '',
     ts: Number(localStorage.getItem('party_host_last_ticket_ts') || 0)
   };
-}               
+}    
+  
+function safeUid(){
+  try { return (firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : ''; }
+  catch(e){ return ''; }
+}
 
+async function logEvent(action, extra){
+  try{
+    const db = getDb(); if(!db) return;
+    const payload = Object.assign({
+      action: String(action || ''),
+      createdAt: serverTs(),
+      page: 'partymode',
+      role: isHost() ? 'host' : 'guest',
+      room: roomCode() || '',
+      ref: location.href,
+      ua: navigator.userAgent,
+      uid: safeUid()
+    }, (extra || {}));
+    await db.collection('metrics_events').add(payload);
+  } catch(e){
+    // 로깅 실패는 앱 기능에 영향 주면 안 되므로 조용히 무시
+  }
+}
+  
  function parseNumsFromTicketText(txt){
   // 예: "Powerball • 2026-02-28: 15 26 52 54 62 + PB 3 (Entertainment only)"
   const s = String(txt || '');
