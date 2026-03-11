@@ -79,6 +79,19 @@
   document.getElementById("liveRooms").innerText = rooms;
 })();
 </script>
+
+<script>
+(function(){
+  let picks = localStorage.getItem("livePicks") || 0;
+  let rooms = localStorage.getItem("liveRooms") || 0;
+
+  const picksEl = document.getElementById("livePicks");
+  const roomsEl = document.getElementById("liveRooms");
+
+  if (picksEl) picksEl.innerText = picks;
+  if (roomsEl) roomsEl.innerText = rooms;
+})();
+</script>
   
 <body>
   <div class="app">
