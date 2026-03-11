@@ -744,6 +744,11 @@ function wire(){
     logEvent('pro_notify', { email: ($('inpProEmail')?.value || '') });
   });
 
+  $('btnSurvey')?.addEventListener('click', e=>{
+    e.preventDefault();
+    window.open('https://forms.gle/E8CQkpigfXV22aZ39', '_blank');
+  });
+  
   // 새로 추가한 호스트 번호 생성 버튼
   $('btnHostPickGenerate')?.addEventListener('click', e=>{
     e.preventDefault();
