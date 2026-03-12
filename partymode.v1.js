@@ -348,9 +348,9 @@ async function createRoom(){
 
   try {
     await db.collection('metrics').doc('live').update({
-    rooms: firebase.firestore.FieldValue.increment(1)
+       rooms: firebase.firestore.FieldValue.increment(1)
     });
-    } catch (e) {
+      } catch (e) {
     console.error('rooms increment failed', e);
   }
   
