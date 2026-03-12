@@ -71,16 +71,23 @@
 
 <script>
 window.addEventListener("DOMContentLoaded", function () {
-  let picks = localStorage.getItem("livePicks") || 0;
-  let rooms = localStorage.getItem("liveRooms") || 0;
 
-  console.log("LiveBoard read:", { picks, rooms });
+  if (!window.db) return;
 
-  const picksEl = document.getElementById("livePicks");
-  const roomsEl = document.getElementById("liveRooms");
+  db.collection("metrics").doc("live").onSnapshot((doc) => {
 
-  if (picksEl) picksEl.innerText = picks;
-  if (roomsEl) roomsEl.innerText = rooms;
+    if (!doc.exists) return;
+
+    const data = doc.data();
+
+    const picksEl = document.getElementById("livePicks");
+    const roomsEl = document.getElementById("liveRooms");
+
+    if (picksEl) picksEl.innerText = data.picks || 0;
+    if (roomsEl) roomsEl.innerText = data.rooms || 0;
+
+  });
+
 });
 </script>
   
