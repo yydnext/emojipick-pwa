@@ -85,6 +85,8 @@
   let picks = localStorage.getItem("livePicks") || 0;
   let rooms = localStorage.getItem("liveRooms") || 0;
 
+  console.log("LiveBoard read:", { picks, rooms });
+
   const picksEl = document.getElementById("livePicks");
   const roomsEl = document.getElementById("liveRooms");
 
