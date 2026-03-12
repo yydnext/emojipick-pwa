@@ -345,6 +345,15 @@ async function createRoom(){
   hostUid: me && me.uid ? me.uid : '',
   createdAt: serverTs()
   }, { merge: true });
+
+  try {
+    await db.collection('metrics').doc('live').update({
+    rooms: firebase.firestore.FieldValue.increment(1)
+    });
+    } catch (e) {
+    console.error('rooms increment failed', e);
+  }
+  
   await db.collection('rooms').doc(code).collection('players').doc(name).set({
   name,
   uid: me && me.uid ? me.uid : '',
