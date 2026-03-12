@@ -785,6 +785,16 @@ function setupModalClose() {
       renderResult(currentGame, idxs, dateSeed, myNums, hostParam ? 'challenge' : 'solo');
       writePartyLatestTicket(currentGame, dateSeed, myNums);
 
+      try {
+        if (window.db) {
+          db.collection("metrics").doc("live").update({
+          picks: firebase.firestore.FieldValue.increment(1)
+          });
+        }
+      } catch (e) {
+        console.error("picks increment failed", e);
+    }
+
     try {
       const p = Number(localStorage.getItem('livePicks') || 0);
       const next = p + 1;
