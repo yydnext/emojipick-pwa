@@ -785,10 +785,16 @@ function setupModalClose() {
       renderResult(currentGame, idxs, dateSeed, myNums, hostParam ? 'challenge' : 'solo');
       writePartyLatestTicket(currentGame, dateSeed, myNums);
 
-      try {
-        const r = Number(localStorage.getItem('liveRooms') || 0);
-        localStorage.setItem('liveRooms', String(r + 1));
-      } catch (e) {}
+    try {
+      const p = Number(localStorage.getItem('livePicks') || 0);
+      const next = p + 1;
+      localStorage.setItem('livePicks', String(next));
+      console.log('livePicks saved =', next);
+    } catch (e) {
+      console.error('livePicks error', e);
+    }
+
+// maybeReturnToPartyMode();
       
       // maybeReturnToPartyMode();
 
