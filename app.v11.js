@@ -782,6 +782,25 @@ function setupModalClose() {
       const idxs = uniq(selected).slice(0, need);
       const dateSeed = todayKey();
 
+    try {
+      const liveDb =
+        (typeof getDb === 'function' && getDb()) ||
+        window.db ||
+        (window.firebase && firebase.firestore ? firebase.firestore() : null);
+
+      if (liveDb) {
+        const updates = {};
+        idxs.forEach((i) => {
+          updates[`e_${i}`] = firebase.firestore.FieldValue.increment(1);
+        });
+
+        await liveDb.collection("metrics").doc("emoji_counts").set(updates, { merge: true });
+        console.log("emoji counts updated", updates);
+      }
+    } catch (e) {
+      console.error("emoji counts update failed", e);
+    }
+        
       const myNums = computeNumbers(currentGame, idxs, dateSeed);
       renderResult(currentGame, idxs, dateSeed, myNums, hostParam ? 'challenge' : 'solo');
       writePartyLatestTicket(currentGame, dateSeed, myNums);
