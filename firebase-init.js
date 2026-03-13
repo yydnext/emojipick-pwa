@@ -4,7 +4,7 @@
 
   // ✅ 여기에 Firebase 콘솔의 config 그대로
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
+// import { initializeApp } from "firebase/app";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -19,9 +19,11 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// const app = initializeApp(firebaseConfig);
 
   firebase.initializeApp(firebaseConfig);
   window.db = firebase.firestore();
   window.__FIREBASE_READY__ = true;
+
+  console.log("Firebase initialized:", firebaseConfig.projectId);
 })();
