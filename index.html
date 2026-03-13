@@ -351,39 +351,42 @@
   function open(){ if(modal){ modal.style.display='grid'; } }
   function close(){ if(modal){ modal.style.display='none'; } }
 
-  if(btn) btn.addEventListener('click', open);
-  if(closeBtn) closeBtn.addEventListener('click', close);
-  if(backdrop) backdrop.addEventListener('click', close);
-  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') close(); });
+  if (btn) btn.addEventListener('click', open);
+  if (closeBtn) closeBtn.addEventListener('click', close);
+  if (backdrop) backdrop.addEventListener('click', close);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 })();
+</script>
 
-  <script>
-  window.addEventListener("DOMContentLoaded", function () {
+<script>
+window.addEventListener("DOMContentLoaded", function () {
   if (!window.db) {
-    console.error("LiveBoard read failed: db not ready");
+    console.error("Firestore not ready");
     return;
   }
 
   window.db.collection("metrics").doc("live").onSnapshot((doc) => {
     if (!doc.exists) {
-      console.error("metrics/live missing");
+      console.error("metrics/live document missing");
       return;
     }
 
     const data = doc.data() || {};
-
     const picksEl = document.getElementById("livePicks");
     const roomsEl = document.getElementById("liveRooms");
 
     if (picksEl) picksEl.innerText = data.picks || 0;
     if (roomsEl) roomsEl.innerText = data.rooms || 0;
 
-    console.log("LiveBoard updated:", data);
-    }, (err) => {
-    console.error("LiveBoard read error:", err);
-    });
+    console.log("Live metrics:", data);
+  }, (err) => {
+    console.error("LiveBoard error:", err);
   });
-  </script>
+});
+</script>
+
+</body>
+</html>
 
 </body>
 </html>
