@@ -65,29 +65,7 @@
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="ticket.js?v=20260205v01"></script>
-
-<script>
-window.addEventListener("DOMContentLoaded", function () {
-
-  if (!window.db) return;
-
-  db.collection("metrics").doc("live").onSnapshot((doc) => {
-
-    if (!doc.exists) return;
-
-    const data = doc.data();
-
-    const picksEl = document.getElementById("livePicks");
-    const roomsEl = document.getElementById("liveRooms");
-
-    if (picksEl) picksEl.innerText = data.picks || 0;
-    if (roomsEl) roomsEl.innerText = data.rooms || 0;
-
-  });
-
-});
-</script>
-  
+ 
 <body>
   <div class="app">
     <header class="topbar">
