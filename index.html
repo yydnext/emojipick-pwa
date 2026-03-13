@@ -276,7 +276,37 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="./firebase-init.js?v=1"></script>
+<script>
+window.addEventListener("DOMContentLoaded", function () {
+  const liveDb =
+    (typeof getDb === 'function' && getDb()) ||
+    window.db ||
+    (window.firebase && firebase.firestore ? firebase.firestore() : null);
 
+  if (!liveDb) {
+    console.error("LiveBoard read failed: db not ready");
+    return;
+  }
+
+  liveDb.collection("metrics").doc("live").onSnapshot((doc) => {
+    if (!doc.exists) {
+      console.error("metrics/live does not exist");
+      return;
+    }
+
+    const data = doc.data() || {};
+    const picksEl = document.getElementById("livePicks");
+    const roomsEl = document.getElementById("liveRooms");
+
+    if (picksEl) picksEl.innerText = data.picks || 0;
+    if (roomsEl) roomsEl.innerText = data.rooms || 0;
+
+    console.log("LiveBoard Firestore read:", data);
+  }, (e) => {
+    console.error("LiveBoard onSnapshot failed", e);
+  });
+});
+</script>
 
 
 <!-- ===== Party Mode Hub (added) ===== -->
