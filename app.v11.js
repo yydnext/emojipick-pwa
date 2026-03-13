@@ -1,4 +1,4 @@
-// APP_VERSION: emojipick-white-v8 (2026-01-16)
+    // APP_VERSION: emojipick-white-v8 (2026-01-16)
 /*
   EmojiPick (PWA)
   - Solo mode: pick emojis → deterministic numbers (seeded by date + emojis)
@@ -786,14 +786,22 @@ function setupModalClose() {
       writePartyLatestTicket(currentGame, dateSeed, myNums);
 
       try {
-        if (window.db) {
-          db.collection("metrics").doc("live").update({
-          picks: firebase.firestore.FieldValue.increment(1)
+        const liveDb =
+          (typeof getDb === 'function' && getDb()) ||
+          window.db ||
+          (window.firebase && firebase.firestore ? firebase.firestore() : null);
+  
+        if (!liveDb) {
+          console.error("picks increment failed: db not ready");
+        } else {
+          await liveDb.collection("metrics").doc("live").update({
+            picks: firebase.firestore.FieldValue.increment(1)
           });
+          console.log("global picks incremented");
         }
       } catch (e) {
         console.error("picks increment failed", e);
-    }
+      }
 
     try {
       const p = Number(localStorage.getItem('livePicks') || 0);
