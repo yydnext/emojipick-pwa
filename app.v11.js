@@ -775,7 +775,8 @@ function setupModalClose() {
       renderEmojiGrid();
     });
 
-    $('#btnGenerate').addEventListener('click', () => {
+    $('#btnGenerate').addEventListener('click', async () => {
+
       const g = GAMES[currentGame];
       const need = g.mainCount + g.bonusCount;
       const idxs = uniq(selected).slice(0, need);
