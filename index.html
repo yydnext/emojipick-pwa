@@ -272,11 +272,12 @@
         <a id="btnTerms" class="linkBtn" href="./terms.html">Terms</a>
       </div>
     </footer>
-<script src="app.v11.js?v=20260311a1"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-<script src="./firebase-init.js?v=1"></script>
 
+ <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+ <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+ <script src="./firebase-init.js?v=2"></script>
+ <script src="app.v11.js?v=20260313b1"></script>
+  
 <!-- ===== Party Mode Hub (added) ===== -->
 <section id="partyModeHub" style="max-width:980px;margin:28px auto 0;padding:0 16px;">
   <div style="border:1px solid #e5e7eb;border-radius:16px;padding:18px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.06);">
@@ -355,18 +356,17 @@
   if(backdrop) backdrop.addEventListener('click', close);
   document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') close(); });
 })();
-  <script>
-window.addEventListener("DOMContentLoaded", function () {
 
+  <script>
+  window.addEventListener("DOMContentLoaded", function () {
   if (!window.db) {
-    console.error("Firestore not ready");
+    console.error("LiveBoard read failed: db not ready");
     return;
   }
 
-  db.collection("metrics").doc("live").onSnapshot((doc) => {
-
+  window.db.collection("metrics").doc("live").onSnapshot((doc) => {
     if (!doc.exists) {
-      console.error("metrics/live document missing");
+      console.error("metrics/live missing");
       return;
     }
 
@@ -378,15 +378,12 @@ window.addEventListener("DOMContentLoaded", function () {
     if (picksEl) picksEl.innerText = data.picks || 0;
     if (roomsEl) roomsEl.innerText = data.rooms || 0;
 
-    console.log("Live metrics:", data);
-
-  }, (err)=>{
-    console.error("LiveBoard error:", err);
+    console.log("LiveBoard updated:", data);
+    }, (err) => {
+    console.error("LiveBoard read error:", err);
+    });
   });
-
-});
-</script>
-</script>
+  </script>
 
 </body>
 </html>
