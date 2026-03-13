@@ -790,7 +790,9 @@ function setupModalClose() {
           (typeof getDb === 'function' && getDb()) ||
           window.db ||
           (window.firebase && firebase.firestore ? firebase.firestore() : null);
-  
+
+          console.log("liveDb =", liveDb);
+          console.log("firebase =", window.firebase);
         if (!liveDb) {
           console.error("picks increment failed: db not ready");
         } else {
