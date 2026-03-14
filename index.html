@@ -432,19 +432,18 @@ window.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const emojiList = pairs.map(([key]) => {
-  const idx = Number(key.replace("e_", ""));
-  const item = window.EMOJIS && window.EMOJIS[idx];
+    const emojiList = pairs.map(([key, value]) => {
+    const idx = Number(key.replace("e_", ""));
+    const item = window.EMOJIS && window.EMOJIS[idx];
 
-  if (!item) return `#${idx}`;
-  if (typeof item === "string") return item;
-
-  if (typeof item === "object") {
-    return item.e || `#${idx}`;
-  }
-
-  return `#${idx}`;
-});
+    let emoji = `#${idx}`;
+    if (item) {
+      if (typeof item === "string") emoji = item;
+      else if (typeof item === "object") emoji = item.e || `#${idx}`;
+    }
+  
+      return `${emoji} ${value}`;
+    });
 
     box.innerText = emojiList.join(" ");
     console.log("Trending emojis:", pairs);
