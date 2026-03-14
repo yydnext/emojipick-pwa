@@ -438,8 +438,9 @@ window.addEventListener("DOMContentLoaded", function () {
 
   if (!item) return `#${idx}`;
   if (typeof item === "string") return item;
+
   if (typeof item === "object") {
-    return item.emoji || item.char || item.symbol || item.value || `#${idx}`;
+    return item.e || `#${idx}`;
   }
 
   return `#${idx}`;
