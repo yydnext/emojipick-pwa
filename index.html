@@ -441,11 +441,14 @@ window.addEventListener("DOMContentLoaded", function () {
       if (typeof item === "string") emoji = item;
       else if (typeof item === "object") emoji = item.e || `#${idx}`;
     }
-  
-      return `${emoji} ${value}`;
+
+    return `<span style="display:inline-flex;align-items:center;gap:4px;margin:0 6px;">
+      <span style="font-size:18px;">${emoji}</span>
+      <span style="font-size:12px;color:#6b7280;">${value}</span>
+    </span>`;
     });
 
-    box.innerText = emojiList.join(" ");
+    box.innerHTML = emojiList.join("");
     console.log("Trending emojis:", pairs);
   }, (err) => {
     console.error("Trending emoji read error:", err);
