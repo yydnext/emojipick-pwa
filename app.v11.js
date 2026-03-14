@@ -88,8 +88,6 @@
     { e: '🪪', t: ['fun'] }, { e: '🧷', t: ['fun'] }, { e: '🪩', t: ['fun'] }, { e: '🫶', t: ['lucky'] }
   ];
   window.EMOJIS = EMOJIS;
-
-  console.log("emoji[11] =", window.EMOJIS && window.EMOJIS[11]);
     
   const FORTUNES = {
     lucky: [
