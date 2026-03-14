@@ -404,8 +404,45 @@ window.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-</body>
-</html>
+<script>
+window.addEventListener("DOMContentLoaded", function () {
+  if (!window.db) {
+    console.error("Firestore not ready for trending emojis");
+    return;
+  }
 
+  window.db.collection("metrics").doc("emoji_counts").onSnapshot((doc) => {
+    if (!doc.exists) {
+      console.error("emoji_counts document missing");
+      return;
+    }
+
+    const data = doc.data() || {};
+
+    const pairs = Object.entries(data)
+      .filter(([key, value]) => key.startsWith("e_") && typeof value === "number")
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    const box = document.getElementById("trendingEmojis");
+    if (!box) return;
+
+    if (!pairs.length) {
+      box.innerText = "—";
+      return;
+    }
+
+    const emojiList = pairs.map(([key]) => {
+      const idx = Number(key.replace("e_", ""));
+      return window.EMOJIS && window.EMOJIS[idx] ? window.EMOJIS[idx] : `#${idx}`;
+    });
+
+    box.innerText = emojiList.join(" ");
+    console.log("Trending emojis:", pairs);
+  }, (err) => {
+    console.error("Trending emoji read error:", err);
+  });
+});
+</script>
 </body>
 </html>
