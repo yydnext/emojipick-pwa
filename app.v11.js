@@ -87,7 +87,8 @@
     { e: '🕯️', t: ['lucky'] }, { e: '🧯', t: ['fun'] }, { e: '📈', t: ['money'] }, { e: '🧾', t: ['money'] },
     { e: '🪪', t: ['fun'] }, { e: '🧷', t: ['fun'] }, { e: '🪩', t: ['fun'] }, { e: '🫶', t: ['lucky'] }
   ];
-
+  window.EMOJIS = EMOJIS;
+    
   const FORTUNES = {
     lucky: [
       'Quiet confidence. Keep it simple and share the vibe.',
