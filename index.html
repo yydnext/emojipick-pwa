@@ -433,9 +433,17 @@ window.addEventListener("DOMContentLoaded", function () {
     }
 
     const emojiList = pairs.map(([key]) => {
-      const idx = Number(key.replace("e_", ""));
-      return window.EMOJIS && window.EMOJIS[idx] ? window.EMOJIS[idx] : `#${idx}`;
-    });
+  const idx = Number(key.replace("e_", ""));
+  const item = window.EMOJIS && window.EMOJIS[idx];
+
+  if (!item) return `#${idx}`;
+  if (typeof item === "string") return item;
+  if (typeof item === "object") {
+    return item.emoji || item.char || item.symbol || item.value || `#${idx}`;
+  }
+
+  return `#${idx}`;
+});
 
     box.innerText = emojiList.join(" ");
     console.log("Trending emojis:", pairs);
