@@ -7,9 +7,9 @@
     40,
     66,
     10,
-    22,
-    42,
-    17
+    17,
+    21,
+    22
   ],
   "hot_bonus": [
     24,
@@ -26,6 +26,6 @@
   "bonus_label": "Mega Ball",
   "window_draws": 520,
   "source": "computed_from_history",
-  "updated_at": "2026-04-21T08:18:03Z",
+  "updated_at": "2026-04-22T08:16:33Z",
   "game": "mm"
 }
