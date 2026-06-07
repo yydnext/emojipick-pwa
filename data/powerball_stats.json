@@ -3,8 +3,8 @@
     64,
     27,
     28,
-    52,
     33,
+    52,
     21,
     24,
     43,
@@ -26,6 +26,6 @@
   "bonus_label": "Powerball",
   "window_draws": 520,
   "source": "computed_from_history",
-  "updated_at": "2026-06-06T09:07:49Z",
+  "updated_at": "2026-06-07T09:46:51Z",
   "game": "pb"
 }
