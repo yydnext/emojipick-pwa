@@ -3,6 +3,18 @@
   "draws": [
     {
       "draw_no": "",
+      "draw_date": "2026-06-20",
+      "numbers": [
+        16,
+        20,
+        44,
+        48,
+        50
+      ],
+      "bonus": 15
+    },
+    {
+      "draw_no": "",
       "draw_date": "2026-06-17",
       "numbers": [
         3,
@@ -6228,20 +6240,8 @@
         67
       ],
       "bonus": 26
-    },
-    {
-      "draw_no": "",
-      "draw_date": "2023-02-22",
-      "numbers": [
-        11,
-        19,
-        39,
-        44,
-        65
-      ],
-      "bonus": 7
     }
   ],
   "source": "official",
-  "updated_at": "2026-06-18T10:54:42Z"
+  "updated_at": "2026-06-21T10:09:49Z"
 }
