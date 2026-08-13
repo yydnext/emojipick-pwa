@@ -4,9 +4,9 @@
     21,
     27,
     28,
+    4,
     33,
     52,
-    4,
     24,
     44,
     53
@@ -16,8 +16,8 @@
     1,
     14,
     21,
-    25,
     5,
+    25,
     4,
     2,
     23,
@@ -26,6 +26,6 @@
   "bonus_label": "Powerball",
   "window_draws": 520,
   "source": "computed_from_history",
-  "updated_at": "2026-08-12T07:59:34Z",
+  "updated_at": "2026-08-13T08:01:10Z",
   "game": "pb"
 }
