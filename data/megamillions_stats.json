@@ -2,11 +2,11 @@
   "hot_main": [
     66,
     3,
+    22,
     38,
     40,
     18,
     19,
-    22,
     42,
     21,
     30
@@ -26,6 +26,6 @@
   "bonus_label": "Mega Ball",
   "window_draws": 520,
   "source": "computed_from_history",
-  "updated_at": "2026-09-01T11:56:00Z",
+  "updated_at": "2026-09-02T11:36:35Z",
   "game": "mm"
 }
