@@ -6,8 +6,8 @@
     38,
     40,
     18,
-    19,
     42,
+    19,
     21,
     30
   ],
@@ -17,15 +17,15 @@
     1,
     12,
     4,
-    16,
     22,
     3,
     7,
+    16,
     2
   ],
   "bonus_label": "Mega Ball",
   "window_draws": 520,
   "source": "computed_from_history",
-  "updated_at": "2026-09-08T11:38:21Z",
+  "updated_at": "2026-09-09T11:44:29Z",
   "game": "mm"
 }
