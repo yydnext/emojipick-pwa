@@ -1,15 +1,15 @@
 {
   "hot_main": [
     66,
-    3,
     22,
     38,
-    42,
     40,
-    19,
+    42,
+    3,
     58,
     10,
-    18
+    18,
+    19
   ],
   "hot_bonus": [
     24,
@@ -20,12 +20,12 @@
     22,
     3,
     7,
-    2,
-    4
+    17,
+    2
   ],
   "bonus_label": "Mega Ball",
   "window_draws": 520,
   "source": "computed_from_history",
-  "updated_at": "2026-10-13T14:29:18Z",
+  "updated_at": "2026-10-14T12:15:21Z",
   "game": "mm"
 }
