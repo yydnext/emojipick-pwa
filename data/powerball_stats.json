@@ -2,8 +2,8 @@
   "hot_main": [
     64,
     27,
-    4,
     28,
+    4,
     44,
     21,
     24,
@@ -13,8 +13,8 @@
   ],
   "hot_bonus": [
     20,
-    14,
     1,
+    14,
     5,
     21,
     2,
@@ -26,6 +26,6 @@
   "bonus_label": "Powerball",
   "window_draws": 520,
   "source": "computed_from_history",
-  "updated_at": "2026-10-25T11:55:02Z",
+  "updated_at": "2026-10-27T12:34:48Z",
   "game": "pb"
 }
