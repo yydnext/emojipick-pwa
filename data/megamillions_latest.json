@@ -1,16 +1,16 @@
 {
   "game": "mm",
   "draw_no": "",
-  "draw_date": "2026-11-17",
+  "draw_date": "2026-11-20",
   "numbers": [
-    3,
-    10,
-    19,
-    28,
-    33
+    32,
+    35,
+    48,
+    58,
+    61
   ],
   "bonus": 21,
   "bonus_label": "Mega Ball",
   "source": "official",
-  "updated_at": "2026-11-19T15:58:44Z"
+  "updated_at": "2026-11-21T14:52:51Z"
 }
